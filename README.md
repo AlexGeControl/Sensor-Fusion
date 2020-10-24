@@ -53,13 +53,13 @@ docker pull registry.cn-shanghai.aliyuncs.com/shenlanxueyuan/sensor-fusion-works
 
 ## 使用指南
 
-* [完成课程作业](https://gitee.com/shanghai_toinch_intelligence/stone_caring_robot_docker#use-case-03----for-function-development)
+* [完成课程作业](https://github.com/AlexGeControl/Sensor-Fusion#%E5%AE%8C%E6%88%90%E8%AF%BE%E7%A8%8B%E4%BD%9C%E4%B8%9A)
 
 ---
 
 ## 完成课程作业
 
-[回到使用指南](https://gitee.com/shanghai_toinch_intelligence/stone_caring_robot_docker#use-case-overview)
+[回到使用指南](https://github.com/AlexGeControl/Sensor-Fusion#%E4%BD%BF%E7%94%A8%E6%8C%87%E5%8D%97)
 
 ---
 
