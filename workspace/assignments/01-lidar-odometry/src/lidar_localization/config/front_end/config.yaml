@@ -1,4 +1,4 @@
-data_path: ./   # 数据存放路径
+data_path: /workspace/assignments/01-lidar-odometry/output   # 数据存放路径
 
 # 匹配
 registration_method: NDT   # 选择点云匹配方法，目前支持：NDT 

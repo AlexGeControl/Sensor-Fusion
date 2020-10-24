@@ -31,7 +31,7 @@ int main(int argc, char *argv[]) {
     ros::ServiceServer service = nh.advertiseService("save_map", save_map_callback);
     _front_end_flow_ptr = std::make_shared<FrontEndFlow>(nh);
 
-    ros::Rate rate(100);
+    ros::Rate rate(10);
     while (ros::ok()) {
         ros::spinOnce();
 

@@ -55,19 +55,19 @@ bool FrontEnd::InitDataPath(const YAML::Node& config_node) {
 
     boost::filesystem::create_directory(data_path_);
     if (!boost::filesystem::is_directory(data_path_)) {
-        LOG(WARNING) << "文件夹 " << data_path_ << " 未创建成功!";
+        LOG(WARNING) << "Cannot create directory " << data_path_ << "!";
         return false;
     } else {
-        LOG(INFO) << "地图点云存放地址：" << data_path_;
+        LOG(INFO) << "Point Cloud Map Output Path: " << data_path_;
     }
 
     std::string key_frame_path = data_path_ + "/key_frames";
     boost::filesystem::create_directory(data_path_ + "/key_frames");
     if (!boost::filesystem::is_directory(key_frame_path)) {
-        LOG(WARNING) << "文件夹 " << key_frame_path << " 未创建成功!";
+        LOG(WARNING) << "Cannot create directory " << key_frame_path << "!";
         return false;
     } else {
-        LOG(INFO) << "关键帧点云存放地址：" << key_frame_path << std::endl << std::endl;
+        LOG(INFO) << "Key Frames Output Path: " << key_frame_path << std::endl << std::endl;
     }
 
     return true;
@@ -75,12 +75,12 @@ bool FrontEnd::InitDataPath(const YAML::Node& config_node) {
 
 bool FrontEnd::InitRegistration(std::shared_ptr<RegistrationInterface>& registration_ptr, const YAML::Node& config_node) {
     std::string registration_method = config_node["registration_method"].as<std::string>();
-    LOG(INFO) << "点云匹配方式为：" << registration_method;
+    LOG(INFO) << "Point Cloud Registration Method: " << registration_method;
 
     if (registration_method == "NDT") {
         registration_ptr = std::make_shared<NDTRegistration>(config_node[registration_method]);
     } else {
-        LOG(ERROR) << "没找到与 " << registration_method << " 相对应的点云匹配方式!";
+        LOG(ERROR) << "Point cloud registration method " << registration_method << " NOT FOUND!";
         return false;
     }
 
@@ -89,12 +89,12 @@ bool FrontEnd::InitRegistration(std::shared_ptr<RegistrationInterface>& registra
 
 bool FrontEnd::InitFilter(std::string filter_user, std::shared_ptr<CloudFilterInterface>& filter_ptr, const YAML::Node& config_node) {
     std::string filter_mothod = config_node[filter_user + "_filter"].as<std::string>();
-    LOG(INFO) << filter_user << "选择的滤波方法为：" << filter_mothod;
+    LOG(INFO) << filter_user << "Point Cloud Filter Method: " << filter_mothod;
 
     if (filter_mothod == "voxel_filter") {
         filter_ptr = std::make_shared<VoxelFilter>(config_node[filter_mothod][filter_user]);
     } else {
-        LOG(ERROR) << "没有为 " << filter_user << " 找到与 " << filter_mothod << " 相对应的滤波方法!";
+        LOG(ERROR) << "Point cloud filter method " << filter_mothod << " NOT FOUND!";
         return false;
     }
 

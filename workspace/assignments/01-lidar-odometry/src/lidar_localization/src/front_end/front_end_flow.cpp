@@ -32,23 +32,36 @@ FrontEndFlow::FrontEndFlow(ros::NodeHandle& nh) {
 }
 
 bool FrontEndFlow::Run() {
-    if (!ReadData())
+    if (!ReadData()) {
+        LOG(INFO) << "Failed to read data!" << std::endl;
         return false;
+    }
+        
+    if (!InitCalibration())  {
+        LOG(INFO) << "Failed to init calibration!" << std::endl;
+        return false;
+    }
 
-    if (!InitCalibration()) 
-        return false;
 
-    if (!InitGNSS())
-        return false;
+    if (!InitGNSS()) {
+        LOG(INFO) << "Failed to init GNSS!" << std::endl;       
+        return false; 
+    }
 
     while(HasData()) {
-        if (!ValidData())
+        if (!ValidData()) {
+            LOG(INFO) << "Invalid data!" << std::endl;
             continue;
-
+        }
+            
         UpdateGNSSOdometry();
         if (UpdateLaserOdometry()) {
             PublishData();
             SaveTrajectory();
+
+            LOG(INFO) << "Update LaserOdometry..." << std::endl;
+        } else {
+            LOG(INFO) << "UpdateLaserOdometry failed!" << std::endl;
         }
     }
 
@@ -66,9 +79,11 @@ bool FrontEndFlow::ReadData() {
     velocity_sub_ptr_->ParseData(unsynced_velocity_);
     gnss_sub_ptr_->ParseData(unsynced_gnss_);
 
-    if (cloud_data_buff_.size() == 0)
+    if (cloud_data_buff_.size() == 0) {
+        LOG(INFO) << "Waiting for laser scan..." << std::endl;
         return false;
-
+    }
+        
     double cloud_time = cloud_data_buff_.front().time;
     bool valid_imu = IMUData::SyncData(unsynced_imu_, imu_data_buff_, cloud_time);
     bool valid_velocity = VelocityData::SyncData(unsynced_velocity_, velocity_data_buff_, cloud_time);
@@ -77,6 +92,10 @@ bool FrontEndFlow::ReadData() {
     static bool sensor_inited = false;
     if (!sensor_inited) {
         if (!valid_imu || !valid_velocity || !valid_gnss) {
+            LOG(INFO) << "Validity check: " << std::endl
+                      << "IMU: " << valid_imu << ", "
+                      << "Velocity: " << valid_velocity << ", "
+                      << "GNSS: " << valid_gnss << std::endl;
             cloud_data_buff_.pop_front();
             return false;
         }

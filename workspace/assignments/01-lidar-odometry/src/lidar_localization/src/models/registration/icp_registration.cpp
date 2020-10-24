@@ -32,7 +32,7 @@ bool NDTRegistration::SetRegistrationParam(float res, float step_size, float tra
     ndt_ptr_->setTransformationEpsilon(trans_eps);
     ndt_ptr_->setMaximumIterations(max_iter);
 
-    LOG(INFO) << "NDT params:" << std::endl
+    LOG(INFO) << "ICP params:" << std::endl
               << "res: " << res << ", "
               << "step_size: " << step_size << ", "
               << "trans_eps: " << trans_eps << ", "

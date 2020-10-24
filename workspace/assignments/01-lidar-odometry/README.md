@@ -16,7 +16,11 @@ Docker运行环境参见[here](https://github.com/AlexGeControl/Sensor-Fusion)
 
 所选的KITTI Test Drive数据为`2011_09_26_drive_0005_sync`, 转换得到的ROS Bag回放时的RViz截图如下所示:
 
-<img src="doc/images/01-kitti-to-bag.png" width="%100"/>
+<img src="doc/images/01-kitti-to-bag-demo.png" width="100%" alt="KITTI Playback"/>
+
+<img src="doc/images/01-test-frame-demo.png" width="100%" alt="Test Frame"/>
+
+<img src="doc/images/01-front-end-demo.png" width="100%" alt="Front End"/>
 
 ---
 
