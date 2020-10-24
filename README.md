@@ -68,7 +68,7 @@ docker pull registry.cn-shanghai.aliyuncs.com/shenlanxueyuan/sensor-fusion-works
 首先从`阿里云`源上获得最新的工作空间镜像:
 
 ```bash
-# login to Sensor Fusion registry -- default password sensorfusion:
+# login to Sensor Fusion registry -- default password TIC,123456:
 docker login --username=937570601@qq.com registry.cn-shanghai.aliyuncs.com
 # download images:
 docker pull registry.cn-shanghai.aliyuncs.com/shenlanxueyuan/sensor-fusion-workspace:bionic-cpu-vnc
