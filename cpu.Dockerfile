@@ -168,8 +168,12 @@ EXPOSE 80 5901 9001
 
 # ------ PART 7: set up Sensor Fusion courseware dependencies ------
 
-# ------------------ DONE -----------------------
+COPY environment /workspace
 
-WORKDIR /workspace
+WORKDIR /workspace 
+
+RUN pip install -r requirements.txt
+
+# ------------------ DONE -----------------------
 
 ENTRYPOINT ["/startup.sh"]

@@ -14,9 +14,7 @@ services:
         - VNC_PASSWORD=sensorfusion
     volumes:
       # mount your workspace here:
-      - /home/yaoge/Workspace/stone-caring-robotics/stone_caring_robot:/workspace/stone_caring_robot
-      # mount ros bags and other data here:
-      - /home/yaoge/.ros:/home/tic/.ros
+      - $PWD/workspace:/workspace
     ports:
       # HTML5 VNC:
       - 40080:80

@@ -1,4 +1,4 @@
-# Docker for Stone Caring Robot
+# Docker Environment for Sensor Fusion
 
 基于Docker的[多传感器融合定位/Sensor Fusion](https://www.shenlanxueyuan.com/my/course/261)学习环境.
 
@@ -35,12 +35,6 @@
 `Docker-Compose`是基于Docker解决方案的Orchestrator. 
 
 请参考[Docker Compose官方文档](https://docs.docker.com/compose/install/)完成`Docker-Compose`环境的安装
-
----
-
-## 编译镜像
-
-在Repo根目录下，执行如下操作，编译镜像. 镜像的内容有依赖，编译需要按顺序执行:
 
 ---
 
