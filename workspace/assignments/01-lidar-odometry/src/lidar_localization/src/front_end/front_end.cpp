@@ -79,6 +79,8 @@ bool FrontEnd::InitRegistration(std::shared_ptr<RegistrationInterface>& registra
 
     if (registration_method == "NDT") {
         registration_ptr = std::make_shared<NDTRegistration>(config_node[registration_method]);
+    } else if (registration_method == "ICP") {
+        registration_ptr = std::make_shared<ICPRegistration>(config_node[registration_method]);
     } else {
         LOG(ERROR) << "Point cloud registration method " << registration_method << " NOT FOUND!";
         return false;

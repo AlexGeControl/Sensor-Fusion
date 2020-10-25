@@ -33,24 +33,24 @@ FrontEndFlow::FrontEndFlow(ros::NodeHandle& nh) {
 
 bool FrontEndFlow::Run() {
     if (!ReadData()) {
-        LOG(INFO) << "Failed to read data!" << std::endl;
+        // LOG(INFO) << "Failed to read data!" << std::endl;
         return false;
     }
         
     if (!InitCalibration())  {
-        LOG(INFO) << "Failed to init calibration!" << std::endl;
+        // LOG(INFO) << "Failed to init calibration!" << std::endl;
         return false;
     }
 
 
     if (!InitGNSS()) {
-        LOG(INFO) << "Failed to init GNSS!" << std::endl;       
+        // LOG(INFO) << "Failed to init GNSS!" << std::endl;       
         return false; 
     }
 
     while(HasData()) {
         if (!ValidData()) {
-            LOG(INFO) << "Invalid data!" << std::endl;
+            // LOG(INFO) << "Invalid data!" << std::endl;
             continue;
         }
             
@@ -80,7 +80,7 @@ bool FrontEndFlow::ReadData() {
     gnss_sub_ptr_->ParseData(unsynced_gnss_);
 
     if (cloud_data_buff_.size() == 0) {
-        LOG(INFO) << "Waiting for laser scan..." << std::endl;
+        // LOG(INFO) << "Waiting for laser scan..." << std::endl;
         return false;
     }
         

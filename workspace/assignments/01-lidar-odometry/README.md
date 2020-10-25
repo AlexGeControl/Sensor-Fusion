@@ -26,6 +26,69 @@ Docker运行环境参见[here](https://github.com/AlexGeControl/Sensor-Fusion)
 
 ### 2. 在作业代码中, 仿照写好的基于`NDT`的匹配, 重新建立一个基于`ICP`的里程计(可以使用`PCL`), 要求可在配置文件中切换两种方法. 之后使用`evo`评估两种算法得到的轨迹精度
 
+`ICP`的估计结果如下所示:
+
+<img src="doc/images/02-icp-registration.png" width="100%" alt="ICP Registration"/>
+
+使用`ICP`时的参数配置如下:
+
+```yaml
+data_path: /workspace/assignments/01-lidar-odometry/output   # 数据存放路径
+
+# 匹配
+registration_method: ICP   # 选择点云匹配方法，目前支持：ICP, NDT
+
+# 局部地图
+key_frame_distance: 2.0 # 关键帧距离
+local_frame_num: 20
+local_map_filter: voxel_filter # 选择滑窗地图点云滤波方法，目前支持：voxel_filter
+
+# rviz显示
+display_filter: voxel_filter # rviz 实时显示点云时滤波方法，目前支持：voxel_filter
+
+# 当前帧
+frame_filter: voxel_filter # 选择当前帧点云滤波方法，目前支持：voxel_filter
+
+# 各配置选项对应参数
+## 匹配相关参数
+ICP:
+    max_corr_dist : 1.2
+    trans_eps : 0.01
+    euc_fitness_eps : 0.36
+    max_iter : 30
+NDT:
+    res : 1.0
+    step_size : 0.1
+    trans_eps : 0.01
+    max_iter : 30
+## 滤波相关参数
+voxel_filter:
+    local_map:
+        leaf_size: [0.6, 0.6, 0.6]
+    frame:
+        leaf_size: [1.3, 1.3, 1.3]
+    display:
+        leaf_size: [0.5, 0.5, 0.5]
+```
+
+`ICP Registration`的实现参考[here](lidar_localization/src/models/registration/icp_registration.cpp)
+
+两者的KPI比较参照下表. 在`2011_09_26_drive_0005_sync`上, 两者的估计性能相近, `ICP`方法略优.
+
+NDT                |ICP
+:-------------------------:|:-------------------------:
+![EVO APE NDT](doc/images/02-ndt-ape.png)  |  ![EVO APE ICP](doc/images/02-icp-ape.png)
+
+|  Reg.  |      NDT      |      ICP      |
+|:------:|:-------------:|:-------------:|
+|   max  |   61.497112   |   61.497112   |
+|  mean  |    8.725985   |    7.750354   |
+| median |    1.519101   |    1.506272   |
+|   min  |    0.000001   |    0.000001   |
+|  rmse  |   17.573251   |   16.387662   |
+|   sse  | 310363.256050 | 310718.670113 |
+|   std  |   15.253732   |   14.439096   |
+
 ---
 
 ### 3. 自己实现一个激光匹配的方法, 可以是`ICP`, `NDT`或者是`LOAM`. 新建一个接口类的实例,同样要求可在配置文件中对各方法进行切换. 最后和作业2中所用的开源的`ICP`, `NDT`进行精度比较.
