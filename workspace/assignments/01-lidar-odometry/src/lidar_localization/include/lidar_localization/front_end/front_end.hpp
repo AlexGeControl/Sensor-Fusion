@@ -23,6 +23,7 @@
 
 #include "lidar_localization/models/registration/icp_registration.hpp"
 #include "lidar_localization/models/registration/ndt_registration.hpp"
+#include "lidar_localization/models/registration/icp_svd_registration.hpp"
 
 namespace lidar_localization {
 class FrontEnd {

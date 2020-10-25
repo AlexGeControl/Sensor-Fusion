@@ -1,7 +1,7 @@
 data_path: /workspace/assignments/01-lidar-odometry/output   # 数据存放路径
 
 # 匹配
-registration_method: ICP   # 选择点云匹配方法，目前支持：ICP, NDT
+registration_method: ICP_SVD   # 选择点云匹配方法，目前支持：ICP, NDT, ICP_SVD
 
 # 局部地图
 key_frame_distance: 2.0 # 关键帧距离
@@ -26,6 +26,11 @@ NDT:
     step_size : 0.1
     trans_eps : 0.01
     max_iter : 30
+ICP_SVD:
+    max_corr_dist : 1.2
+    trans_eps : 0.01
+    euc_fitness_eps : 0.36
+    max_iter : 10
 ## 滤波相关参数
 voxel_filter:
     local_map:
