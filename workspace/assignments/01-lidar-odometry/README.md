@@ -145,7 +145,7 @@ voxel_filter:
         leaf_size: [0.5, 0.5, 0.5]
 ```
 
-`ICP SVD`的实现参考[here](https://github.com/AlexGeControl/Sensor-Fusion/blob/cfede769eb48e7785e3a99fd1c61ff0bec0b1b68/workspace/assignments/01-lidar-odometry/src/lidar_localization/src/models/registration/icp_registration.cpp#L1)
+`ICP SVD`的实现参考[here](https://github.com/AlexGeControl/Sensor-Fusion/blob/9c241253fbfa132000f7c11ef612526aebe70490/workspace/assignments/01-lidar-odometry/src/lidar_localization/src/models/registration/icp_svd_registration.cpp#L70)
 
 与PCL实现的KPI比较参照下表. 在`2011_09_26_drive_0005_sync`上, 自行实现的`ICP SVD`的精度比PCL的实现更优.
 
