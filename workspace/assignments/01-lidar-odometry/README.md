@@ -71,7 +71,7 @@ voxel_filter:
         leaf_size: [0.5, 0.5, 0.5]
 ```
 
-`ICP Registration`的实现参考[here](lidar_localization/src/models/registration/icp_registration.cpp)
+`ICP Registration`的实现参考[here](https://github.com/AlexGeControl/Sensor-Fusion/blob/cfede769eb48e7785e3a99fd1c61ff0bec0b1b68/workspace/assignments/01-lidar-odometry/src/lidar_localization/src/models/registration/icp_registration.cpp#L1)
 
 两者的KPI比较参照下表. 在`2011_09_26_drive_0005_sync`上, 两者的估计性能相近, `ICP`方法略优.
 
