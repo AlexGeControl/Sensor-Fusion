@@ -216,4 +216,7 @@ RUN pip install -r requirements.txt
 
 # ------------------ DONE -----------------------
 
+# enable dependency lib linking:
+ENV LD_LIBRARY_PATH=/usr/local/lib
+
 ENTRYPOINT ["/startup.sh"]
