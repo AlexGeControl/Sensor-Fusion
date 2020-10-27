@@ -24,6 +24,7 @@ int main(int argc, char *argv[]) {
 
     std::shared_ptr<DataPretreatFlow> data_pretreat_flow_ptr = std::make_shared<DataPretreatFlow>(nh, cloud_topic);
 
+    // pre-process lidar point cloud at 100Hz:
     ros::Rate rate(100);
     while (ros::ok()) {
         ros::spinOnce();

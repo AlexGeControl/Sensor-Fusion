@@ -11,15 +11,21 @@
 namespace lidar_localization {
 DataPretreatFlow::DataPretreatFlow(ros::NodeHandle& nh, std::string cloud_topic) {
     // subscriber
+    // a. velodyne measurement:
     cloud_sub_ptr_ = std::make_shared<CloudSubscriber>(nh, "/kitti/velo/pointcloud", 100000);
+    // b. OXTS IMU:
     imu_sub_ptr_ = std::make_shared<IMUSubscriber>(nh, "/kitti/oxts/imu", 1000000);
+    // c. OXTS velocity:
     velocity_sub_ptr_ = std::make_shared<VelocitySubscriber>(nh, "/kitti/oxts/gps/vel", 1000000);
+    // d. OXTS GNSS:
     gnss_sub_ptr_ = std::make_shared<GNSSSubscriber>(nh, "/kitti/oxts/gps/fix", 1000000);
     lidar_to_imu_ptr_ = std::make_shared<TFListener>(nh, "/imu_link", "/velo_link");
+
     // publisher
     cloud_pub_ptr_ = std::make_shared<CloudPublisher>(nh, cloud_topic, "/velo_link", 100);
     gnss_pub_ptr_ = std::make_shared<OdometryPublisher>(nh, "/synced_gnss", "/map", "/velo_link", 100);
 
+    // motion compensation for lidar measurement:
     distortion_adjust_ptr_ = std::make_shared<DistortionAdjust>();
 }
 
@@ -45,12 +51,12 @@ bool DataPretreatFlow::Run() {
 }
 
 bool DataPretreatFlow::ReadData() {
-    cloud_sub_ptr_->ParseData(cloud_data_buff_);
-
     static std::deque<IMUData> unsynced_imu_;
     static std::deque<VelocityData> unsynced_velocity_;
     static std::deque<GNSSData> unsynced_gnss_;
 
+    // fetch lidar measurements from buffer:
+    cloud_sub_ptr_->ParseData(cloud_data_buff_);
     imu_sub_ptr_->ParseData(unsynced_imu_);
     velocity_sub_ptr_->ParseData(unsynced_velocity_);
     gnss_sub_ptr_->ParseData(unsynced_gnss_);
@@ -58,7 +64,9 @@ bool DataPretreatFlow::ReadData() {
     if (cloud_data_buff_.size() == 0)
         return false;
 
+    // use timestamp of lidar measurement as reference:
     double cloud_time = cloud_data_buff_.front().time;
+    // sync IMU, velocity and GNSS with lidar measurement:
     bool valid_imu = IMUData::SyncData(unsynced_imu_, imu_data_buff_, cloud_time);
     bool valid_velocity = VelocityData::SyncData(unsynced_velocity_, velocity_data_buff_, cloud_time);
     bool valid_gnss = GNSSData::SyncData(unsynced_gnss_, gnss_data_buff_, cloud_time);

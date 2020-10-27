@@ -3,7 +3,7 @@ services:
   # cpu development:
   workspace-bionic-cpu-vnc:
     build:
-      context: .
+      context: docker
       dockerfile: cpu.Dockerfile
       network: host
     image: registry.cn-shanghai.aliyuncs.com/shenlanxueyuan/sensor-fusion-workspace:bionic-cpu-vnc
