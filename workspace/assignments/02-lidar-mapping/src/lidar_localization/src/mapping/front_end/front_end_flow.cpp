@@ -51,10 +51,11 @@ bool FrontEndFlow::UpdateLaserOdometry() {
     static bool odometry_inited = false;
     if (!odometry_inited) {
         odometry_inited = true;
+        // init lidar odometry:
         front_end_ptr_->SetInitPose(Eigen::Matrix4f::Identity());
-        return front_end_ptr_->Update(current_cloud_data_, laser_odometry_);
     }
 
+    // update lidar odometry using current undistorted measurement:
     return front_end_ptr_->Update(current_cloud_data_, laser_odometry_);
 }
 

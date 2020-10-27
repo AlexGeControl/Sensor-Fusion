@@ -38,8 +38,11 @@ class FrontEnd {
   private:
     std::string data_path_ = "";
 
+    // scan filter:
     std::shared_ptr<CloudFilterInterface> frame_filter_ptr_;
+    // local map filter:
     std::shared_ptr<CloudFilterInterface> local_map_filter_ptr_;
+    // point cloud registrator:
     std::shared_ptr<RegistrationInterface> registration_ptr_; 
 
     std::deque<Frame> local_map_frames_;

@@ -22,6 +22,12 @@ int main(int argc, char *argv[]) {
     std::string cloud_topic;
     nh.param<std::string>("cloud_topic", cloud_topic, "/synced_cloud");
 
+    // subscribe to raw
+    // a. Velodyne
+    // b. GNSS/IMU
+    // publish
+    // a. undistorted Velodyne measurement
+    // b. lidar pose in map frame
     std::shared_ptr<DataPretreatFlow> data_pretreat_flow_ptr = std::make_shared<DataPretreatFlow>(nh, cloud_topic);
 
     // pre-process lidar point cloud at 100Hz:
