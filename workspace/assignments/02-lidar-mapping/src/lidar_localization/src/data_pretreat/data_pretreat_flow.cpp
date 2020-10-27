@@ -67,10 +67,13 @@ bool DataPretreatFlow::ReadData() {
     // use timestamp of lidar measurement as reference:
     double cloud_time = cloud_data_buff_.front().time;
     // sync IMU, velocity and GNSS with lidar measurement:
+    // find the two closest measurement around lidar measurement time
+    // then use linear interpolation to generate synced measurement:
     bool valid_imu = IMUData::SyncData(unsynced_imu_, imu_data_buff_, cloud_time);
     bool valid_velocity = VelocityData::SyncData(unsynced_velocity_, velocity_data_buff_, cloud_time);
     bool valid_gnss = GNSSData::SyncData(unsynced_gnss_, gnss_data_buff_, cloud_time);
 
+    // only mark lidar as 'inited' when all the three sensors are synced:
     static bool sensor_inited = false;
     if (!sensor_inited) {
         if (!valid_imu || !valid_velocity || !valid_gnss) {
@@ -84,6 +87,7 @@ bool DataPretreatFlow::ReadData() {
 }
 
 bool DataPretreatFlow::InitCalibration() {
+    // lookup imu pose in lidar frame:
     static bool calibration_received = false;
     if (!calibration_received) {
         if (lidar_to_imu_ptr_->LookupData(lidar_to_imu_)) {
@@ -156,16 +160,21 @@ bool DataPretreatFlow::ValidData() {
 }
 
 bool DataPretreatFlow::TransformData() {
+    // get GNSS & IMU pose prior:
     gnss_pose_ = Eigen::Matrix4f::Identity();
-
+    // a. get position from GNSS
     current_gnss_data_.UpdateXYZ();
     gnss_pose_(0,3) = current_gnss_data_.local_E;
     gnss_pose_(1,3) = current_gnss_data_.local_N;
     gnss_pose_(2,3) = current_gnss_data_.local_U;
+    // b. get orientation from IMU:
     gnss_pose_.block<3,3>(0,0) = current_imu_data_.GetOrientationMatrix();
+    // this is lidar pose in GNSS/map frame:
     gnss_pose_ *= lidar_to_imu_;
 
+    // this is lidar velocity:
     current_velocity_data_.TransformCoordinate(lidar_to_imu_);
+    // motion compensation for lidar measurements:
     distortion_adjust_ptr_->SetMotionInfo(0.1, current_velocity_data_);
     distortion_adjust_ptr_->AdjustCloud(current_cloud_data_.cloud_ptr, current_cloud_data_.cloud_ptr);
 
