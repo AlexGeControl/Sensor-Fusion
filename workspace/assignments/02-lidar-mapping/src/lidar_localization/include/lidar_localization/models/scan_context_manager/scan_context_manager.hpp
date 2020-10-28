@@ -25,15 +25,21 @@ public:
 private:
     Eigen::MatrixXf GetScanContext(const CloudData &scan);
 
-    float GetOrientation(
-        const float &x, 
-        const float &y
-    );
-    int GetIndex(
-        const float &value, 
-        const float &MAX_VALUE, 
-        const int RESOLUTION
-    );
+    /**
+     * @brief  get orientation of point measurement 
+     * @param  x, x component of point measurement
+     * @param  y, y component of point measurement
+     * @return point measurement orientation, [0.0f, 360.0f)
+     */
+    float GetOrientation(const float &x, const float &y);
+    /**
+     * @brief  convert floating point value to integer index 
+     * @param  value, target floating point value 
+     * @param  MAX_VALUE, max. floating point value
+     * @param  RESOLUTION, resolution
+     * @return integer index, {0, ..., RESOLUTION - 1}
+     */
+    int GetIndex(const float &value, const float &MAX_VALUE, const int RESOLUTION);
 
     // hyper-params:
     float MAX_RADIUS_;
