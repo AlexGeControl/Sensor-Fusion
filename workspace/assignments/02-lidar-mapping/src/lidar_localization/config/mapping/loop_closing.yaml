@@ -1,6 +1,8 @@
 data_path: ./   # 数据存放路径
 
 registration_method: NDT   # 选择点云匹配方法，目前支持：NDT 
+loop_closure_method: scan_context # 选择回环检测方法, 目前支持scan_context
+
 # 匹配时为了精度更高，应该选用scan-to-map的方式
 # map是以历史帧为中心，往前后时刻各选取extend_frame_num个关键帧，放在一起拼接成的
 extend_frame_num: 5 
@@ -14,15 +16,22 @@ map_filter: voxel_filter # 选择滑窗地图点云滤波方法，目前支持�
 scan_filter: voxel_filter # 选择当前帧点云滤波方法，目前支持：voxel_filter、no_filter
 
 # 各配置选项对应参数
-## 匹配相关参数
-NDT:
-    res : 1.0
-    step_size : 0.1
-    trans_eps : 0.01
-    max_iter : 30
+
 ## 滤波相关参数
 voxel_filter:
     map:
         leaf_size: [0.3, 0.3, 0.3]
     scan:
         leaf_size: [0.3, 0.3, 0.3]
+## 匹配相关参数
+NDT:
+    res : 1.0
+    step_size : 0.1
+    trans_eps : 0.01
+    max_iter : 30
+## ScanContext params:
+scan_context:
+    max_radius: 80.0
+    max_theta: 360.0
+    num_rings: 20
+    num_sectors: 60

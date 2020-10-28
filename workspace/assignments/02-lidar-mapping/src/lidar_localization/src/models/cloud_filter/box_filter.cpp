@@ -34,7 +34,7 @@ bool BoxFilter::Filter(const CloudData::CLOUD_PTR& input_cloud_ptr,
 
 void BoxFilter::SetSize(std::vector<float> size) {
     size_ = size;
-    std::cout << "Box Filter 的尺寸为：" << std::endl
+    std::cout << "Box Filter params:" << std::endl
               << "min_x: " << size.at(0) << ", "
               << "max_x: " << size.at(1) << ", "
               << "min_y: " << size.at(2) << ", "

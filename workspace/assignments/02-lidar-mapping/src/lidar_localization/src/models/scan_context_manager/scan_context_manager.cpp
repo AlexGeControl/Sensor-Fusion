@@ -13,6 +13,21 @@
 
 namespace lidar_localization {
 
+ScanContextManager::ScanContextManager(const YAML::Node& node) {
+    MAX_RADIUS_ = node["max_radius"].as<float>();
+    MAX_THETA_ = node["max_theta"].as<float>();
+
+    NUM_RINGS_ = node["num_rings"].as<int>();
+    NUM_SECTORS_ = node["num_sectors"].as<int>();
+
+    std::cout << "Scan Context params:" << std::endl
+              << "max. radius: " << MAX_RADIUS_ << ", "
+              << "max. theta: " << MAX_THETA_ << ", "
+              << "num. rings: " << NUM_RINGS_ << ", "
+              << "num. sectors: " << NUM_SECTORS_ 
+              << std::endl << std::endl;
+}
+
 void ScanContextManager::Update(const CloudData &scan) {
 
 }
@@ -22,17 +37,17 @@ void ScanContextManager::Update(const CloudData &scan) {
  * @param  scan, lidar scan of key frame
  * @return scan context as Eigen::MatrixXd
  */
-Eigen::MatrixXd ScanContextManager::GetScanContext(const CloudData &scan) {
+Eigen::MatrixXf ScanContextManager::GetScanContext(const CloudData &scan) {
     // num. of point measurements in current scan:
     const size_t N = scan.cloud_ptr->points.size();
     
     // init scan context:
-    const double UNKNOWN_HEIGHT = std::numeric_limits<double>::lowest();
-    Eigen::MatrixXd scan_context = UNKNOWN_HEIGHT * MatrixXd::Ones(NUM_RINGS, NUM_SECTORS);
+    const float UNKNOWN_HEIGHT = std::numeric_limits<float>::lowest();
+    Eigen::MatrixXf scan_context = UNKNOWN_HEIGHT * Eigen::MatrixXf::Ones(NUM_RINGS_, NUM_SECTORS_);
 
     // iterate through point measurements and create scan context:
-    double x, y, z;
-    double radius, theta;
+    float x, y, z;
+    float radius, theta;
     for (size_t i = 0; i < N; ++i) {
         // parse point measurement:
         x = scan.cloud_ptr->points.at(i).x;
@@ -43,13 +58,13 @@ Eigen::MatrixXd ScanContextManager::GetScanContext(const CloudData &scan) {
         theta = GetOrientation(x, y);
 
         // ROI check:
-        if (radius > MAX_RADIUS) {
+        if (radius > MAX_RADIUS_) {
             continue;
         }
         
         // get ring-sector index:
-        int rid = GetIndex(radius, MAX_RADIUS, NUM_RINGS); 
-        int sid = GetIndex(theta, MAX_THETA, NUM_SECTORS); 
+        int rid = GetIndex(radius, MAX_RADIUS_, NUM_RINGS_); 
+        int sid = GetIndex(theta, MAX_THETA_, NUM_SECTORS_); 
 
         // update bin height:
         if (scan_context(rid, sid) < z) {
@@ -58,8 +73,8 @@ Eigen::MatrixXd ScanContextManager::GetScanContext(const CloudData &scan) {
     }
 
     // reset unknown height to 0.0 for later cosine distance calculation:
-    for (size_t rid = 0; rid < scan_context.rows(); ++rid) {
-        for (size_t sid = 0; sid < scan_context.cols(); ++sid) {
+    for (int rid = 0; rid < scan_context.rows(); ++rid) {
+        for (int sid = 0; sid < scan_context.cols(); ++sid) {
             if (UNKNOWN_HEIGHT == scan_context(rid, sid)) {
                 scan_context(rid, sid) = 0.0;
             }
@@ -75,15 +90,15 @@ Eigen::MatrixXd ScanContextManager::GetScanContext(const CloudData &scan) {
  * @param  y, y component of point measurement
  * @return point measurement orientation, [0.0f, 360.0f)
  */
-double ScanContextManager::GetOrientation(
-    const double &x, 
-    const double &y
+float ScanContextManager::GetOrientation(
+    const float &x, 
+    const float &y
 ) {
-    double theta = 180.0 / M_PI * atan2(y, x);
+    float theta = 180.0f / M_PI * atan2(y, x);
 
     // make sure the orientation is consistent with scan context convension:
-    if (theta < 0.0) {
-        theta += 360.0;
+    if (theta < 0.0f) {
+        theta += 360.0f;
     }
 
     return theta;
@@ -97,8 +112,8 @@ double ScanContextManager::GetOrientation(
  * @return integer index, {0, ..., RESOLUTION - 1}
  */
 int ScanContextManager::GetIndex(
-    const double &value, 
-    const double &MAX_VALUE, 
+    const float &value, 
+    const float &MAX_VALUE, 
     const int RESOLUTION
 ) {
     int index = std::floor(static_cast<int>(RESOLUTION*value/MAX_VALUE));

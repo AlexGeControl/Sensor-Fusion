@@ -13,8 +13,10 @@
 
 #include "lidar_localization/sensor_data/key_frame.hpp"
 #include "lidar_localization/sensor_data/loop_pose.hpp"
-#include "lidar_localization/models/registration/registration_interface.hpp"
 #include "lidar_localization/models/cloud_filter/cloud_filter_interface.hpp"
+#include "lidar_localization/models/scan_context_manager/scan_context_manager.hpp"
+#include "lidar_localization/models/registration/registration_interface.hpp"
+
 
 namespace lidar_localization {
 class LoopClosing {
@@ -34,8 +36,9 @@ class LoopClosing {
     bool InitWithConfig();
     bool InitParam(const YAML::Node& config_node);
     bool InitDataPath(const YAML::Node& config_node);
-    bool InitRegistration(std::shared_ptr<RegistrationInterface>& registration_ptr, const YAML::Node& config_node);
     bool InitFilter(std::string filter_user, std::shared_ptr<CloudFilterInterface>& filter_ptr, const YAML::Node& config_node);
+    bool InitLoopClosure(const YAML::Node& config_node);
+    bool InitRegistration(std::shared_ptr<RegistrationInterface>& registration_ptr, const YAML::Node& config_node);
     
     bool DetectNearestKeyFrame(int& key_frame_index);
     bool CloudRegistration(int key_frame_index);
@@ -56,6 +59,7 @@ class LoopClosing {
 
     std::shared_ptr<CloudFilterInterface> scan_filter_ptr_;
     std::shared_ptr<CloudFilterInterface> map_filter_ptr_;
+    std::shared_ptr<ScanContextManager> scan_context_manager_ptr_;
     std::shared_ptr<RegistrationInterface> registration_ptr_; 
 
     std::deque<KeyFrame> all_key_frames_;

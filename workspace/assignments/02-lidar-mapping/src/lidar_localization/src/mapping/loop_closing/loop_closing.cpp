@@ -29,9 +29,13 @@ bool LoopClosing::InitWithConfig() {
     std::cout << "-----------------Init Loop-Closing Detection-------------------" << std::endl;
     InitParam(config_node);
     InitDataPath(config_node);
-    InitRegistration(registration_ptr_, config_node);
+
     InitFilter("map", map_filter_ptr_, config_node);
     InitFilter("scan", scan_filter_ptr_, config_node);
+
+    InitLoopClosure(config_node);
+
+    InitRegistration(registration_ptr_, config_node);
 
     return true;
 }
@@ -57,20 +61,6 @@ bool LoopClosing::InitDataPath(const YAML::Node& config_node) {
     return true;
 }
 
-bool LoopClosing::InitRegistration(std::shared_ptr<RegistrationInterface>& registration_ptr, const YAML::Node& config_node) {
-    std::string registration_method = config_node["registration_method"].as<std::string>();
-    std::cout << "\tPoint Cloud Registration Method: " << registration_method << std::endl;
-
-    if (registration_method == "NDT") {
-        registration_ptr = std::make_shared<NDTRegistration>(config_node[registration_method]);
-    } else {
-        LOG(ERROR) << "Registration method " << registration_method << " NOT FOUND!";
-        return false;
-    }
-
-    return true;
-}
-
 bool LoopClosing::InitFilter(
     std::string filter_user, 
     std::shared_ptr<CloudFilterInterface>& filter_ptr, 
@@ -85,6 +75,30 @@ bool LoopClosing::InitFilter(
         filter_ptr =std::make_shared<NoFilter>();
     } else {
         LOG(ERROR) << "Filter method " << filter_mothod << " for " << filter_user << " NOT FOUND!";
+        return false;
+    }
+
+    return true;
+}
+
+bool LoopClosing::InitLoopClosure(const YAML::Node& config_node) {
+    // get loop closure config:
+    std::string loop_closure_method = config_node["loop_closure_method"].as<std::string>();
+
+    // create instance:
+    scan_context_manager_ptr_ = std::make_shared<ScanContextManager>(config_node[loop_closure_method]);
+
+    return true;
+}
+
+bool LoopClosing::InitRegistration(std::shared_ptr<RegistrationInterface>& registration_ptr, const YAML::Node& config_node) {
+    std::string registration_method = config_node["registration_method"].as<std::string>();
+    std::cout << "\tPoint Cloud Registration Method: " << registration_method << std::endl;
+
+    if (registration_method == "NDT") {
+        registration_ptr = std::make_shared<NDTRegistration>(config_node[registration_method]);
+    } else {
+        LOG(ERROR) << "Registration method " << registration_method << " NOT FOUND!";
         return false;
     }
 
