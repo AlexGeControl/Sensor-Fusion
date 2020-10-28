@@ -21,7 +21,11 @@ class LoopClosing {
   public:
     LoopClosing();
 
-    bool Update(const KeyFrame key_frame, const KeyFrame key_gnss);
+    bool Update(
+      const CloudData &key_scan, 
+      const KeyFrame &key_frame, 
+      const KeyFrame &key_gnss
+    );
 
     bool HasNewLoopPose();
     LoopPose& GetCurrentLoopPose();

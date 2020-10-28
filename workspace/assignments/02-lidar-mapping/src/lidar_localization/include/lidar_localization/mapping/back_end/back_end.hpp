@@ -30,6 +30,7 @@ class BackEnd {
     void GetOptimizedKeyFrames(std::deque<KeyFrame>& key_frames_deque);
     bool HasNewKeyFrame();
     bool HasNewOptimized();
+    void GetLatestKeyScan(CloudData& key_scan);
     void GetLatestKeyFrame(KeyFrame& key_frame);
     void GetLatestKeyGNSS(KeyFrame& key_frame);
 
@@ -59,6 +60,7 @@ class BackEnd {
     bool has_new_key_frame_ = false;
     bool has_new_optimized_ = false;
 
+    CloudData current_key_scan_;
     KeyFrame current_key_frame_;
     KeyFrame current_key_gnss_;
     std::deque<KeyFrame> key_frames_deque_;

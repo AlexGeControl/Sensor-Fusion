@@ -13,6 +13,7 @@
 #include "lidar_localization/subscriber/loop_pose_subscriber.hpp"
 
 #include "lidar_localization/publisher/odometry_publisher.hpp"
+#include "lidar_localization/publisher/cloud_publisher.hpp"
 #include "lidar_localization/publisher/key_frame_publisher.hpp"
 #include "lidar_localization/publisher/key_frames_publisher.hpp"
 
@@ -42,6 +43,7 @@ class BackEndFlow {
     std::shared_ptr<LoopPoseSubscriber> loop_pose_sub_ptr_;
 
     std::shared_ptr<OdometryPublisher> transformed_odom_pub_ptr_;
+    std::shared_ptr<CloudPublisher> key_scan_pub_ptr_;
     std::shared_ptr<KeyFramePublisher> key_frame_pub_ptr_;
     std::shared_ptr<KeyFramePublisher> key_gnss_pub_ptr_;
     std::shared_ptr<KeyFramesPublisher> key_frames_pub_ptr_;

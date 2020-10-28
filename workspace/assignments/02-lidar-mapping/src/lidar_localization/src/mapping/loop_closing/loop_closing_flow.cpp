@@ -9,7 +9,8 @@
 
 namespace lidar_localization {
 LoopClosingFlow::LoopClosingFlow(ros::NodeHandle& nh) {
-    // subscriber
+    // subscriber:
+    key_scan_sub_ptr_ = std::make_shared<CloudSubscriber>(nh, "/key_scan", 100000);
     key_frame_sub_ptr_ = std::make_shared<KeyFrameSubscriber>(nh, "/key_frame", 100000);
     key_gnss_sub_ptr_ = std::make_shared<KeyFrameSubscriber>(nh, "/key_gnss", 100000);
     // publisher
@@ -26,7 +27,9 @@ bool LoopClosingFlow::Run() {
         if (!ValidData())
             continue;
         
-        loop_closing_ptr_->Update(current_key_frame_, current_key_gnss_);
+        loop_closing_ptr_->Update(
+            current_key_scan_, current_key_frame_, current_key_gnss_
+        );
         
         PublishData();
     }
@@ -35,6 +38,7 @@ bool LoopClosingFlow::Run() {
 }
 
 bool LoopClosingFlow::ReadData() {
+    key_scan_sub_ptr_->ParseData(key_scan_buff_);
     key_frame_sub_ptr_->ParseData(key_frame_buff_);
     key_gnss_sub_ptr_->ParseData(key_gnss_buff_);
 
@@ -42,15 +46,19 @@ bool LoopClosingFlow::ReadData() {
 }
 
 bool LoopClosingFlow::HasData() {
-    if (key_frame_buff_.size() == 0)
+    if (
+        key_scan_buff_.size() == 0 ||
+        key_frame_buff_.size() == 0 ||
+        key_gnss_buff_.size() == 0
+    ) {
         return false;
-    if (key_gnss_buff_.size() == 0)
-        return false;
+    }
 
     return true;
 }
 
 bool LoopClosingFlow::ValidData() {
+    current_key_scan_ = key_scan_buff_.front();
     current_key_frame_ = key_frame_buff_.front();
     current_key_gnss_ = key_gnss_buff_.front();
 
@@ -66,6 +74,7 @@ bool LoopClosingFlow::ValidData() {
         return false;
     }
 
+    key_scan_buff_.pop_front();
     key_frame_buff_.pop_front();
     key_gnss_buff_.pop_front();
 

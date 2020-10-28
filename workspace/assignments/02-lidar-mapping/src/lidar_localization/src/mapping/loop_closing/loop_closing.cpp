@@ -26,7 +26,7 @@ bool LoopClosing::InitWithConfig() {
     std::string config_file_path = WORK_SPACE_PATH + "/config/mapping/loop_closing.yaml";
     YAML::Node config_node = YAML::LoadFile(config_file_path);
 
-    std::cout << "-----------------闭环检测初始化-------------------" << std::endl;
+    std::cout << "-----------------Init Loop-Closing Detection-------------------" << std::endl;
     InitParam(config_node);
     InitDataPath(config_node);
     InitRegistration(registration_ptr_, config_node);
@@ -59,35 +59,43 @@ bool LoopClosing::InitDataPath(const YAML::Node& config_node) {
 
 bool LoopClosing::InitRegistration(std::shared_ptr<RegistrationInterface>& registration_ptr, const YAML::Node& config_node) {
     std::string registration_method = config_node["registration_method"].as<std::string>();
-    std::cout << "闭环点云匹配方式为：" << registration_method << std::endl;
+    std::cout << "\tPoint Cloud Registration Method: " << registration_method << std::endl;
 
     if (registration_method == "NDT") {
         registration_ptr = std::make_shared<NDTRegistration>(config_node[registration_method]);
     } else {
-        LOG(ERROR) << "没找到与 " << registration_method << " 相对应的点云匹配方式!";
+        LOG(ERROR) << "Registration method " << registration_method << " NOT FOUND!";
         return false;
     }
 
     return true;
 }
 
-bool LoopClosing::InitFilter(std::string filter_user, std::shared_ptr<CloudFilterInterface>& filter_ptr, const YAML::Node& config_node) {
+bool LoopClosing::InitFilter(
+    std::string filter_user, 
+    std::shared_ptr<CloudFilterInterface>& filter_ptr, 
+    const YAML::Node& config_node
+) {
     std::string filter_mothod = config_node[filter_user + "_filter"].as<std::string>();
-    std::cout << "闭环的" << filter_user << "选择的滤波方法为：" << filter_mothod << std::endl;
+    std::cout << "\tFilter Method for " << filter_user << ": " << filter_mothod << std::endl;
 
     if (filter_mothod == "voxel_filter") {
         filter_ptr = std::make_shared<VoxelFilter>(config_node[filter_mothod][filter_user]);
     } else if (filter_mothod == "no_filter") {
         filter_ptr =std::make_shared<NoFilter>();
     } else {
-        LOG(ERROR) << "没有为 " << filter_user << " 找到与 " << filter_mothod << " 相对应的滤波方法!";
+        LOG(ERROR) << "Filter method " << filter_mothod << " for " << filter_user << " NOT FOUND!";
         return false;
     }
 
     return true;
 }
 
-bool LoopClosing::Update(const KeyFrame key_frame, const KeyFrame key_gnss) {
+bool LoopClosing::Update(
+    const CloudData &key_scan, 
+    const KeyFrame &key_frame, 
+    const KeyFrame &key_gnss
+) {
     has_new_loop_pose_ = false;
 
     all_key_frames_.push_back(key_frame);
@@ -107,6 +115,7 @@ bool LoopClosing::Update(const KeyFrame key_frame, const KeyFrame key_gnss) {
 bool LoopClosing::DetectNearestKeyFrame(int& key_frame_index) {
     static int skip_cnt = 0;
     static int skip_num = loop_step_;
+    
     if (++skip_cnt < skip_num)
         return false;
 

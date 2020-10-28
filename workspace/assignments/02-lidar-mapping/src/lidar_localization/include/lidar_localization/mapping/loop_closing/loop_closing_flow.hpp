@@ -9,6 +9,7 @@
 #include <deque>
 #include <ros/ros.h>
 // subscriber
+#include "lidar_localization/subscriber/cloud_subscriber.hpp"
 #include "lidar_localization/subscriber/key_frame_subscriber.hpp"
 // publisher
 #include "lidar_localization/publisher/loop_pose_publisher.hpp"
@@ -30,6 +31,7 @@ class LoopClosingFlow {
 
   private:
     // subscriber
+    std::shared_ptr<CloudSubscriber> key_scan_sub_ptr_;
     std::shared_ptr<KeyFrameSubscriber> key_frame_sub_ptr_;
     std::shared_ptr<KeyFrameSubscriber> key_gnss_sub_ptr_;
     // publisher
@@ -37,9 +39,11 @@ class LoopClosingFlow {
     // loop closing
     std::shared_ptr<LoopClosing> loop_closing_ptr_;
 
+    std::deque<CloudData> key_scan_buff_;
     std::deque<KeyFrame> key_frame_buff_;
     std::deque<KeyFrame> key_gnss_buff_;
 
+    CloudData current_key_scan_;
     KeyFrame current_key_frame_;
     KeyFrame current_key_gnss_;
 };

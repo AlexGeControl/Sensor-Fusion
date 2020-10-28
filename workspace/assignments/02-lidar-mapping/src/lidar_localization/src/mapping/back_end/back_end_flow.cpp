@@ -18,6 +18,7 @@ BackEndFlow::BackEndFlow(ros::NodeHandle& nh, std::string cloud_topic, std::stri
     loop_pose_sub_ptr_ = std::make_shared<LoopPoseSubscriber>(nh, "/loop_pose", 100000);
 
     transformed_odom_pub_ptr_ = std::make_shared<OdometryPublisher>(nh, "/transformed_odom", "/map", "/lidar", 100);
+    key_scan_pub_ptr_ = std::make_shared<CloudPublisher>(nh, "/key_scan", "/velo_link", 100);
     key_frame_pub_ptr_ = std::make_shared<KeyFramePublisher>(nh, "/key_frame", "/map", 100);
     key_gnss_pub_ptr_ = std::make_shared<KeyFramePublisher>(nh, "/key_gnss", "/map", 100);
     key_frames_pub_ptr_ = std::make_shared<KeyFramesPublisher>(nh, "/optimized_key_frames", "/map", 100);
@@ -134,6 +135,11 @@ bool BackEndFlow::PublishData() {
     transformed_odom_pub_ptr_->Publish(current_laser_odom_data_.pose, current_laser_odom_data_.time);
 
     if (back_end_ptr_->HasNewKeyFrame()) {
+        CloudData key_scan;
+
+        back_end_ptr_->GetLatestKeyScan(key_scan);
+        key_scan_pub_ptr_->Publish(key_scan.cloud_ptr, key_scan.time);
+        
         KeyFrame key_frame;
 
         back_end_ptr_->GetLatestKeyFrame(key_frame);

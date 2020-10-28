@@ -170,9 +170,13 @@ bool BackEnd::MaybeNewKeyFrame(const CloudData& cloud_data, const PoseData& lase
 
     // if so:
     if (has_new_key_frame_) {
-        // a. first write new key frame to disk:
+        // a. first write new key scan to disk:
         std::string file_path = key_frames_path_ + "/key_frame_" + std::to_string(key_frames_deque_.size()) + ".pcd";
         pcl::io::savePCDFileBinary(file_path, *cloud_data.cloud_ptr);
+        current_key_scan_.time = cloud_data.time;
+        current_key_scan_.cloud_ptr.reset(
+            new CloudData::CLOUD(*cloud_data.cloud_ptr)
+        );
 
         // b. create key frame index for lidar scan:
         KeyFrame key_frame;
@@ -290,6 +294,13 @@ bool BackEnd::HasNewKeyFrame() {
 
 bool BackEnd::HasNewOptimized() {
     return has_new_optimized_;
+}
+
+void BackEnd::GetLatestKeyScan(CloudData& key_scan) {
+    key_scan.time = current_key_scan_.time;
+    key_scan.cloud_ptr.reset(
+        new CloudData::CLOUD(*current_key_scan_.cloud_ptr)
+    );
 }
 
 void BackEnd::GetLatestKeyFrame(KeyFrame& key_frame) {

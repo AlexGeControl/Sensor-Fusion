@@ -19,6 +19,10 @@ int main(int argc, char *argv[]) {
     ros::init(argc, argv, "loop_closing_node");
     ros::NodeHandle nh;
 
+    // subscribe to:
+    // a. key frame pose and corresponding GNSS/IMU pose from backend node
+    // publish:
+    // a. loop closure detection result for backend node:
     std::shared_ptr<LoopClosingFlow> loop_closing_flow_ptr = std::make_shared<LoopClosingFlow>(nh);
 
     ros::Rate rate(100);
