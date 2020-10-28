@@ -33,8 +33,14 @@ int main(int argc, char *argv[]) {
     nh.param<std::string>("cloud_topic", cloud_topic, "/synced_cloud");
     nh.param<std::string>("odom_topic", odom_topic, "/laser_odom");
 
-    ros::ServiceServer service = nh.advertiseService("optimize_map", optimize_map_callback);
+    // subscribe to:
+    // a. undistorted Velodyne measurement:
+    // b. lidar pose in map frame:
+    // c. lidar odometry estimation:
+    // d. loop close pose:
+    // publish:
     _back_end_flow_ptr = std::make_shared<BackEndFlow>(nh, cloud_topic, odom_topic);
+    ros::ServiceServer service = nh.advertiseService("optimize_map", optimize_map_callback);
 
     ros::Rate rate(100);
     while (ros::ok()) {

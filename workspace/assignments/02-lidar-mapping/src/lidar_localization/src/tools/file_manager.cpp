@@ -36,11 +36,11 @@ bool FileManager::CreateDirectory(std::string directory_path, std::string use_fo
     }
 
     if (!boost::filesystem::is_directory(directory_path)) {
-        LOG(WARNING) << "无法创建文件夹: " << std::endl << directory_path << std::endl << std::endl;
+        LOG(WARNING) << "CANNOT create directory " << std::endl << directory_path << std::endl << std::endl;
         return false;
     }
 
-    std::cout << use_for << "存放地址：" << std::endl << directory_path << std::endl << std::endl;
+    std::cout << use_for << " output path:" << std::endl << directory_path << std::endl << std::endl;
     return true;
 }
 
@@ -50,7 +50,7 @@ bool FileManager::CreateDirectory(std::string directory_path) {
     }
 
     if (!boost::filesystem::is_directory(directory_path)) {
-        LOG(WARNING) << "无法创建文件夹: " << std::endl << directory_path << std::endl << std::endl;
+        LOG(WARNING) << "CANNOT create directory " << std::endl << directory_path << std::endl << std::endl;
         return false;
     }
 

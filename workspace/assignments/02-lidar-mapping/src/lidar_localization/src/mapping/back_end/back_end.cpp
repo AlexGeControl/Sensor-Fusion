@@ -21,7 +21,7 @@ bool BackEnd::InitWithConfig() {
     std::string config_file_path = WORK_SPACE_PATH + "/config/mapping/back_end.yaml";
     YAML::Node config_node = YAML::LoadFile(config_file_path);
 
-    std::cout << "-----------------后端初始化-------------------" << std::endl;
+    std::cout << "-----------------Init Backend-------------------" << std::endl;
     InitParam(config_node);
     InitGraphOptimizer(config_node);
     InitDataPath(config_node);
@@ -40,10 +40,10 @@ bool BackEnd::InitGraphOptimizer(const YAML::Node& config_node) {
     if (graph_optimizer_type == "g2o") {
         graph_optimizer_ptr_ = std::make_shared<G2oGraphOptimizer>("lm_var");
     } else {
-        LOG(ERROR) << "没有找到与 " << graph_optimizer_type << " 对应的图优化模式,请检查配置文件";
+        LOG(ERROR) << "Optimizer " << graph_optimizer_type << " NOT FOUND!";
         return false;
     }
-    std::cout << "后端优化选择的优化器为：" << graph_optimizer_type << std::endl << std::endl;
+    std::cout << "\tOptimizer:" << graph_optimizer_type << std::endl << std::endl;
 
     graph_optimizer_config_.use_gnss = config_node["use_gnss"].as<bool>();
     graph_optimizer_config_.use_loop_close = config_node["use_loop_close"].as<bool>();
@@ -52,6 +52,7 @@ bool BackEnd::InitGraphOptimizer(const YAML::Node& config_node) {
     graph_optimizer_config_.optimize_step_with_gnss = config_node["optimize_step_with_gnss"].as<int>();
     graph_optimizer_config_.optimize_step_with_loop = config_node["optimize_step_with_loop"].as<int>();
 
+    // x-y-z & yaw-roll-pitch
     for (int i = 0; i < 6; ++i) {
         graph_optimizer_config_.odom_edge_noise(i) =
             config_node[graph_optimizer_type + "_param"]["odom_edge_noise"][i].as<double>();
@@ -59,6 +60,7 @@ bool BackEnd::InitGraphOptimizer(const YAML::Node& config_node) {
             config_node[graph_optimizer_type + "_param"]["close_loop_noise"][i].as<double>();
     }
 
+    // x-y-z:
     for (int i = 0; i < 3; i++) {
         graph_optimizer_config_.gnss_noise(i) =
             config_node[graph_optimizer_type + "_param"]["gnss_noise"][i].as<double>();
@@ -79,9 +81,9 @@ bool BackEnd::InitDataPath(const YAML::Node& config_node) {
     key_frames_path_ = data_path + "/slam_data/key_frames";
     trajectory_path_ = data_path + "/slam_data/trajectory";
 
-    if (!FileManager::InitDirectory(key_frames_path_, "关键帧点云"))
+    if (!FileManager::InitDirectory(key_frames_path_, "Point Cloud Key Frames"))
         return false;
-    if (!FileManager::InitDirectory(trajectory_path_, "轨迹文件"))
+    if (!FileManager::InitDirectory(trajectory_path_, "Estimated Trajectory"))
         return false;
 
     if (!FileManager::CreateFile(ground_truth_ofs_, trajectory_path_ + "/ground_truth.txt"))
@@ -96,6 +98,7 @@ bool BackEnd::Update(const CloudData& cloud_data, const PoseData& laser_odom, co
     ResetParam();
 
     if (MaybeNewKeyFrame(cloud_data, laser_odom, gnss_pose)) {
+        // write GNSS/IMU pose and lidar odometry estimation as trajectory for evo evaluation:
         SavePose(ground_truth_ofs_, gnss_pose.pose);
         SavePose(laser_odom_ofs_, laser_odom.pose);
         AddNodeAndEdge(gnss_pose);
@@ -114,10 +117,15 @@ bool BackEnd::InsertLoopPose(const LoopPose& loop_pose) {
 
     Eigen::Isometry3d isometry;
     isometry.matrix() = loop_pose.pose.cast<double>();
-    graph_optimizer_ptr_->AddSe3Edge(loop_pose.index0, loop_pose.index1, isometry, graph_optimizer_config_.close_loop_noise);
+    graph_optimizer_ptr_->AddSe3Edge(
+        loop_pose.index0, loop_pose.index1, 
+        isometry, 
+        graph_optimizer_config_.close_loop_noise
+    );
 
     new_loop_cnt_ ++;
-    // LOG(INFO) << "插入闭环：" << loop_pose.index0 << "," << loop_pose.index1;
+    
+    LOG(INFO) << "Add loop closure: " << loop_pose.index0 << "," << loop_pose.index1 << std::endl;
 
     return true;
 }
@@ -145,12 +153,13 @@ bool BackEnd::SavePose(std::ofstream& ofs, const Eigen::Matrix4f& pose) {
 
 bool BackEnd::MaybeNewKeyFrame(const CloudData& cloud_data, const PoseData& laser_odom, const PoseData& gnss_odom) {
     static Eigen::Matrix4f last_key_pose = laser_odom.pose;
+
     if (key_frames_deque_.size() == 0) {
         has_new_key_frame_ = true;
         last_key_pose = laser_odom.pose;
     }
 
-    // 匹配之后根据距离判断是否需要生成新的关键帧，如果需要，则做相应更新
+    // whether the current scan is far away enough from last key frame:
     if (fabs(laser_odom.pose(0,3) - last_key_pose(0,3)) + 
         fabs(laser_odom.pose(1,3) - last_key_pose(1,3)) +
         fabs(laser_odom.pose(2,3) - last_key_pose(2,3)) > key_frame_distance_) {
@@ -159,11 +168,13 @@ bool BackEnd::MaybeNewKeyFrame(const CloudData& cloud_data, const PoseData& lase
         last_key_pose = laser_odom.pose;
     }
 
+    // if so:
     if (has_new_key_frame_) {
-        // 把关键帧点云存储到硬盘里
+        // a. first write new key frame to disk:
         std::string file_path = key_frames_path_ + "/key_frame_" + std::to_string(key_frames_deque_.size()) + ".pcd";
         pcl::io::savePCDFileBinary(file_path, *cloud_data.cloud_ptr);
 
+        // b. create key frame index for lidar scan:
         KeyFrame key_frame;
         key_frame.time = laser_odom.time;
         key_frame.index = (unsigned int)key_frames_deque_.size();
@@ -171,6 +182,7 @@ bool BackEnd::MaybeNewKeyFrame(const CloudData& cloud_data, const PoseData& lase
         key_frames_deque_.push_back(key_frame);
         current_key_frame_ = key_frame;
 
+        // c. create key frame index for GNSS/IMU pose:
         current_key_gnss_.time = gnss_odom.time;
         current_key_gnss_.index = key_frame.index;
         current_key_gnss_.pose = gnss_odom.pose;
@@ -180,17 +192,19 @@ bool BackEnd::MaybeNewKeyFrame(const CloudData& cloud_data, const PoseData& lase
 }
 
 bool BackEnd::AddNodeAndEdge(const PoseData& gnss_data) {
+    static KeyFrame last_key_frame = current_key_frame_;
+
+    // add node for new key frame pose:
     Eigen::Isometry3d isometry;
-    // 添加关键帧节点
     isometry.matrix() = current_key_frame_.pose.cast<double>();
+    // fix the pose of the first key frame:
     if (!graph_optimizer_config_.use_gnss && graph_optimizer_ptr_->GetNodeNum() == 0)
         graph_optimizer_ptr_->AddSe3Node(isometry, true);
     else
         graph_optimizer_ptr_->AddSe3Node(isometry, false);
     new_key_frame_cnt_ ++;
 
-    // 添加激光里程计对应的边
-    static KeyFrame last_key_frame = current_key_frame_;
+    // add edge for new key frame:
     int node_num = graph_optimizer_ptr_->GetNodeNum();
     if (node_num > 1) {
         Eigen::Matrix4f relative_pose = last_key_frame.pose.inverse() * current_key_frame_.pose;
@@ -199,11 +213,13 @@ bool BackEnd::AddNodeAndEdge(const PoseData& gnss_data) {
     }
     last_key_frame = current_key_frame_;
 
-    // 添加gnss位置对应的先验边
+    // add prior for new key frame pose using GNSS/IMU estimation:
     if (graph_optimizer_config_.use_gnss) {
-        Eigen::Vector3d xyz(static_cast<double>(gnss_data.pose(0,3)),
-                            static_cast<double>(gnss_data.pose(1,3)),
-                            static_cast<double>(gnss_data.pose(2,3)));
+        Eigen::Vector3d xyz(
+            static_cast<double>(gnss_data.pose(0,3)),
+            static_cast<double>(gnss_data.pose(1,3)),
+            static_cast<double>(gnss_data.pose(2,3))
+        );
         graph_optimizer_ptr_->AddSe3PriorXYZEdge(node_num - 1, xyz, graph_optimizer_config_.gnss_noise);
         new_gnss_cnt_ ++;
     }
@@ -214,19 +230,19 @@ bool BackEnd::AddNodeAndEdge(const PoseData& gnss_data) {
 bool BackEnd::MaybeOptimized() {
     bool need_optimize = false; 
 
-    if (new_gnss_cnt_ >= graph_optimizer_config_.optimize_step_with_gnss)
+    if (
+        new_key_frame_cnt_ >= graph_optimizer_config_.optimize_step_with_key_frame ||
+        new_gnss_cnt_ >= graph_optimizer_config_.optimize_step_with_gnss ||
+        new_loop_cnt_ >= graph_optimizer_config_.optimize_step_with_loop
+    ) {
         need_optimize = true;
-    if (new_loop_cnt_ >= graph_optimizer_config_.optimize_step_with_loop)
-        need_optimize = true;
-    if (new_key_frame_cnt_ >= graph_optimizer_config_.optimize_step_with_key_frame)
-        need_optimize = true;
-
+    }
+    
     if (!need_optimize)
         return false;
 
-    new_gnss_cnt_ = 0;
-    new_loop_cnt_ = 0;
-    new_key_frame_cnt_ = 0;
+    // reset key frame counters:
+    new_key_frame_cnt_ = new_gnss_cnt_ = new_loop_cnt_ = 0;
 
     if (graph_optimizer_ptr_->Optimize())
         has_new_optimized_ = true;

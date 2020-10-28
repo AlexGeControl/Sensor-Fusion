@@ -22,9 +22,9 @@ int main(int argc, char *argv[]) {
     std::string cloud_topic;
     nh.param<std::string>("cloud_topic", cloud_topic, "/synced_cloud");
 
-    // subscribe to raw
-    // a. Velodyne
-    // b. GNSS/IMU
+    // subscribe to
+    // a. raw Velodyne measurement
+    // b. raw GNSS/IMU measurement
     // publish
     // a. undistorted Velodyne measurement
     // b. lidar pose in map frame

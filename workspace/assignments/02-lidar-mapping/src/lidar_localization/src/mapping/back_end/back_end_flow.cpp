@@ -26,12 +26,15 @@ BackEndFlow::BackEndFlow(ros::NodeHandle& nh, std::string cloud_topic, std::stri
 }
 
 bool BackEndFlow::Run() {
+    // load messages into buffer:
     if (!ReadData())
         return false;
     
+    // add loop poses for graph optimization:
     MaybeInsertLoopPose();
 
     while(HasData()) {
+        // make sure undistorted Velodyne measurement -- lidar pose in map frame -- lidar odometry are synced:
         if (!ValidData())
             continue;
 
@@ -117,10 +120,13 @@ bool BackEndFlow::UpdateBackEnd() {
 
     if (!odometry_inited) {
         odometry_inited = true;
+        // lidar odometry frame in map frame:
         odom_init_pose = current_gnss_pose_data_.pose * current_laser_odom_data_.pose.inverse();
     }
+    // current lidar odometry in map frame:
     current_laser_odom_data_.pose = odom_init_pose * current_laser_odom_data_.pose;
 
+    // optimization is carried out in map frame:
     return back_end_ptr_->Update(current_cloud_data_, current_laser_odom_data_, current_gnss_pose_data_);
 }
 
