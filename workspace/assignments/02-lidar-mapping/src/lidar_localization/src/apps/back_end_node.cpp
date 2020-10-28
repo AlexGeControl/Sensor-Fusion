@@ -39,6 +39,9 @@ int main(int argc, char *argv[]) {
     // c. lidar odometry estimation:
     // d. loop close pose:
     // publish:
+    // a. lidar odometry in map frame:
+    // b. key frame pose and corresponding GNSS/IMU pose
+    // c. optimized key frame sequence as trajectory
     _back_end_flow_ptr = std::make_shared<BackEndFlow>(nh, cloud_topic, odom_topic);
     ros::ServiceServer service = nh.advertiseService("optimize_map", optimize_map_callback);
 
