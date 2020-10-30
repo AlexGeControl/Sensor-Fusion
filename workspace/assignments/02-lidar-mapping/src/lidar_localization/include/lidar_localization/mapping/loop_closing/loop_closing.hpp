@@ -40,8 +40,14 @@ class LoopClosing {
     bool InitLoopClosure(const YAML::Node& config_node);
     bool InitRegistration(std::shared_ptr<RegistrationInterface>& registration_ptr, const YAML::Node& config_node);
     
-    bool DetectNearestKeyFrame(int& key_frame_index);
-    bool CloudRegistration(int key_frame_index);
+    bool DetectNearestKeyFrame(
+      int& key_frame_index,
+      float& yaw_change_in_rad
+    );
+    bool CloudRegistration(
+      const int key_frame_index,
+      const float yaw_change_in_rad
+    );
     bool JointMap(int key_frame_index, CloudData::CLOUD_PTR& map_cloud_ptr, Eigen::Matrix4f& map_pose);
     bool JointScan(CloudData::CLOUD_PTR& scan_cloud_ptr, Eigen::Matrix4f& scan_pose);
     bool Registration(CloudData::CLOUD_PTR& map_cloud_ptr, 

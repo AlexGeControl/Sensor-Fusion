@@ -27,11 +27,13 @@ public:
     typedef std::vector<RingKey> RingKeys;
     typedef KDTreeVectorOfVectorsAdaptor<RingKeys, float> RingKeyIndex;
 
+    static const int NONE = -1;
+    
     ScanContextManager(const YAML::Node& node);
 
     void Update(const CloudData &scan);
     
-    void DetectLoopClosure(void);
+    std::pair<int, float> DetectLoopClosure(void);
 
 private:
     /**

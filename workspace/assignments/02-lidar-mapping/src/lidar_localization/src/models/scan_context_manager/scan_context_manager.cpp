@@ -73,14 +73,14 @@ void ScanContextManager::Update(const CloudData &scan) {
 /**
  * @brief  detect loop closure for the latest key scan
  * @param  void
- * @return void
+ * @return loop closure propsal as std::pair<int, float>
  */
-void ScanContextManager::DetectLoopClosure(void) {
+std::pair<int, float> ScanContextManager::DetectLoopClosure(void) {
     // use latest key scan for query:
     const ScanContext &latest_scan_context = state_.scan_context_.back();
     const RingKey &latest_ring_key = state_.ring_key_.back();
 
-    GetLoopClosureMatch(latest_scan_context, latest_ring_key);
+    return GetLoopClosureMatch(latest_scan_context, latest_ring_key);
 }
 
 /**
@@ -412,7 +412,7 @@ std::pair<int, float> ScanContextManager::GetLoopClosureMatch(
     const ScanContext &query_scan_context,
     const RingKey &query_ring_key
 ) {
-    int match_id = -1;
+    int match_id = NONE;
 
     //
     // step 0: loop closure detection criteria check -- only perform loop closure detection when
@@ -500,7 +500,8 @@ std::pair<int, float> ScanContextManager::GetLoopClosureMatch(
                   << "[Scan Context] Loop-Closure Detected " 
                   << state_.scan_context_.size() - 1 << "<-->" << optimal_index << std::endl 
                   << "\tDistance " << optimal_dist << std::endl 
-                  << "\tHeading Change " << yaw_change_in_deg << " deg." << std::endl;
+                  << "\tHeading Change " << yaw_change_in_deg << " deg." << std::endl
+                  << std::endl;
     }
 
     std::pair<int, float> result{match_id, yaw_change_in_rad};

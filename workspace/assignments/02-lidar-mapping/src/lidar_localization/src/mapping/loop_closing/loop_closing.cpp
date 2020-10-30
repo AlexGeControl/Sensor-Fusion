@@ -119,7 +119,8 @@ bool LoopClosing::Update(
     all_key_gnss_.push_back(key_gnss);
 
     int key_frame_index = 0;
-    if (!DetectNearestKeyFrame(key_frame_index))
+    float yaw_change_in_rad = 0.0f;
+    if (!DetectNearestKeyFrame(key_frame_index, yaw_change_in_rad))
         return false;
 
     if (!CloudRegistration(key_frame_index))
@@ -129,52 +130,62 @@ bool LoopClosing::Update(
     return true;
 }
 
-bool LoopClosing::DetectNearestKeyFrame(int& key_frame_index) {
+bool LoopClosing::DetectNearestKeyFrame(
+    int& key_frame_index,
+    float& yaw_change_in_rad
+) {
     static int skip_cnt = 0;
     static int skip_num = loop_step_;
     
-    // detect loop-closure using scan context match:
-    scan_context_manager_ptr_->DetectLoopClosure();
-
     // only perform loop closure detection for every skip_num key frames:
     if (++skip_cnt < skip_num)
         return false;
 
-    int key_num = (int)all_key_gnss_.size();
-    float min_distance = std::numeric_limits<float>::max();
-    float distance = 0.0;
+    // generate loop-closure proposal using scan context match:
+    std::pair<int, float> proposal = scan_context_manager_ptr_->DetectLoopClosure();
+    const int proposed_key_frame_id = proposal.first;
+    const float proposed_yaw_change = proposal.second;
 
-    KeyFrame history_key_frame;
-    KeyFrame current_key_frame = all_key_gnss_.back();
-
-    key_frame_index = -1;
-    for (int i = 0; i < key_num - 1; ++i) {        
-        history_key_frame = all_key_gnss_.at(i);
-        distance = fabs(current_key_frame.pose(0,3) - history_key_frame.pose(0,3)) + 
-                   fabs(current_key_frame.pose(1,3) - history_key_frame.pose(1,3)) + 
-                   fabs(current_key_frame.pose(2,3) - history_key_frame.pose(2,3));
-        if (distance < min_distance) {
-            min_distance = distance;
-            key_frame_index = i;
-        }
+    // check proposal validity:
+    if (ScanContextManager::NONE == proposed_key_frame_id) {
+        return false;
     }
 
+    // check RTK position difference:
+    const KeyFrame &current_key_frame = all_key_gnss_.back();
+    const KeyFrame &proposed_key_frame = all_key_gnss_.at(proposed_key_frame_id);
+
+    Eigen::Vector3f translation = (
+        current_key_frame.pose.block<3, 1>(0, 3) - proposed_key_frame.pose.block<3, 1>(0, 3)
+    );
+    float key_frame_distance = translation.norm();
+
+    // update detection interval:
     skip_cnt = 0;
-    skip_num = (int)min_distance;
-    if (min_distance > detect_area_) {
-        skip_num = std::max((int)(min_distance / 2.0), loop_step_);
+    skip_num = static_cast<int>(key_frame_distance);
+    if (key_frame_distance > detect_area_) {
+        skip_num = std::max((int)(key_frame_distance / 2.0), loop_step_);
         return false;
     } else {
+        key_frame_index = proposed_key_frame_id;
+        yaw_change_in_rad = proposed_yaw_change;
+
         skip_num = loop_step_;
         return true;
     }
 }
 
-bool LoopClosing::CloudRegistration(int key_frame_index) {
+bool LoopClosing::CloudRegistration(
+    const int key_frame_index,
+    const float yaw_change_in_rad
+) {
     // 生成地图
     CloudData::CLOUD_PTR map_cloud_ptr(new CloudData::CLOUD());
     Eigen::Matrix4f map_pose = Eigen::Matrix4f::Identity();
-    JointMap(key_frame_index, map_cloud_ptr, map_pose);
+    JointMap(
+        key_frame_index, yaw_change_in_rad, 
+        map_cloud_ptr, map_pose
+    );
 
     // 生成当前scan
     CloudData::CLOUD_PTR scan_cloud_ptr(new CloudData::CLOUD());
@@ -195,11 +206,11 @@ bool LoopClosing::CloudRegistration(int key_frame_index) {
     static int loop_close_cnt = 0;
     loop_close_cnt ++;
 
-    std::cout << "ICP Loop Closure Detected: "<<  loop_close_cnt
-              << ": Key Frame " << current_loop_pose_.index0 
-              << "------>" << "Key Frame" << current_loop_pose_.index1 << std::endl
-              << "fitness score: " << registration_ptr_->GetFitnessScore() 
-              << std::endl << std::endl;
+    LOG(INFO) << std::endl
+              << "[ICP Registration] Loop-Closure Detected " 
+              << current_loop_pose_.index0 << "<-->" << current_loop_pose_.index1 << std::endl 
+              << "\tFitness Score " << registration_ptr_->GetFitnessScore() << std::endl 
+              << std::endl;
 
     // std::cout << "相对位姿 x y z roll pitch yaw:";
     // PrintInfo::PrintPose("", current_loop_pose_.pose);
@@ -207,35 +218,50 @@ bool LoopClosing::CloudRegistration(int key_frame_index) {
     return true;
 }
 
-bool LoopClosing::JointMap(int key_frame_index, CloudData::CLOUD_PTR& map_cloud_ptr, Eigen::Matrix4f& map_pose) {
+bool LoopClosing::JointMap(
+    const int key_frame_index, const float yaw_change_in_rad,
+    CloudData::CLOUD_PTR& map_cloud_ptr, Eigen::Matrix4f& map_pose
+) {
+    // init map pose as loop closure pose:
     map_pose = all_key_gnss_.at(key_frame_index).pose;
+
+    // apply yaw change estimation from scan context match:
+    Eigen::AngleAxisf orientation_change(yaw_change_in_rad, Eigen::Vector3f::UnitZ());
+    map_pose.block<3, 3>(0, 0) = map_pose.block<3, 3>(0, 0) * orientation_change.toRotationMatrix();
+
     current_loop_pose_.index0 = all_key_frames_.at(key_frame_index).index;
     
-    // 合成地图
+    // create local map:
     Eigen::Matrix4f pose_to_gnss = map_pose * all_key_frames_.at(key_frame_index).pose.inverse();
-    
     for (int i = key_frame_index - extend_frame_num_; i < key_frame_index + extend_frame_num_; ++i) {
+        // a. load back surrounding key scan:
         std::string file_path = key_frames_path_ + "/key_frame_" + std::to_string(all_key_frames_.at(i).index) + ".pcd";
-        
         CloudData::CLOUD_PTR cloud_ptr(new CloudData::CLOUD());
         pcl::io::loadPCDFile(file_path, *cloud_ptr);
         
+        // b. transform surrounding key scan to map frame:
         Eigen::Matrix4f cloud_pose = pose_to_gnss * all_key_frames_.at(i).pose;
         pcl::transformPointCloud(*cloud_ptr, *cloud_ptr, cloud_pose);
 
         *map_cloud_ptr += *cloud_ptr;
     }
+    // pre-process current map:
     map_filter_ptr_->Filter(map_cloud_ptr, map_cloud_ptr);
+
     return true;
 }
 
 bool LoopClosing::JointScan(CloudData::CLOUD_PTR& scan_cloud_ptr, Eigen::Matrix4f& scan_pose) {
+    // set scan pose as GNSS estimation:
     scan_pose = all_key_gnss_.back().pose;
     current_loop_pose_.index1 = all_key_frames_.back().index;
     current_loop_pose_.time = all_key_frames_.back().time;
 
+    // load back current key scan:
     std::string file_path = key_frames_path_ + "/key_frame_" + std::to_string(all_key_frames_.back().index) + ".pcd";
     pcl::io::loadPCDFile(file_path, *scan_cloud_ptr);
+
+    // pre-process current scan:
     scan_filter_ptr_->Filter(scan_cloud_ptr, scan_cloud_ptr);
 
     return true;
@@ -245,7 +271,7 @@ bool LoopClosing::Registration(CloudData::CLOUD_PTR& map_cloud_ptr,
                                CloudData::CLOUD_PTR& scan_cloud_ptr, 
                                Eigen::Matrix4f& scan_pose, 
                                Eigen::Matrix4f& result_pose) {
-    // 点云匹配
+    // point cloud registration:
     CloudData::CLOUD_PTR result_cloud_ptr(new CloudData::CLOUD());
     registration_ptr_->SetInputTarget(map_cloud_ptr);
     registration_ptr_->ScanMatch(scan_cloud_ptr, scan_pose, result_cloud_ptr, result_pose);
