@@ -1,6 +1,6 @@
 data_path: ./   # 数据存放路径
 
-registration_method: NDT   # 选择点云匹配方法，目前支持：NDT 
+registration_method: NDT          # 选择点云匹配方法，目前支持：NDT 
 loop_closure_method: scan_context # 选择回环检测方法, 目前支持scan_context
 
 # 匹配时为了精度更高，应该选用scan-to-map的方式
@@ -8,6 +8,7 @@ loop_closure_method: scan_context # 选择回环检测方法, 目前支持scan_c
 extend_frame_num: 5
 
 loop_step: 5 # 防止检测过于频繁，每隔loop_step个关键帧检测一次闭环
+diff_num: 100
 detect_area: 10.0 # 检测区域，只有两帧距离小于这个值，才做闭环匹配
 fitness_score_limit: 0.2 # 匹配误差小于这个值才认为是有效的
 

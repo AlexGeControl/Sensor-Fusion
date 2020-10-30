@@ -46,6 +46,7 @@ bool LoopClosing::InitWithConfig() {
 bool LoopClosing::InitParam(const YAML::Node& config_node) {
     extend_frame_num_ = config_node["extend_frame_num"].as<int>();
     loop_step_ = config_node["loop_step"].as<int>();
+    diff_num_ = config_node["diff_num"].as<int>();
     detect_area_ = config_node["detect_area"].as<float>();
     fitness_score_limit_ = config_node["fitness_score_limit"].as<float>();
 
@@ -85,10 +86,10 @@ bool LoopClosing::InitFilter(
 
 bool LoopClosing::InitLoopClosure(const YAML::Node& config_node) {
     // get loop closure config:
-    std::string loop_closure_method = config_node["loop_closure_method"].as<std::string>();
+    loop_closure_method_ = config_node["loop_closure_method"].as<std::string>();
 
     // create instance:
-    scan_context_manager_ptr_ = std::make_shared<ScanContextManager>(config_node[loop_closure_method]);
+    scan_context_manager_ptr_ = std::make_shared<ScanContextManager>(config_node[loop_closure_method_]);
 
     return true;
 }
@@ -142,24 +143,64 @@ bool LoopClosing::DetectNearestKeyFrame(
     if (++skip_cnt < skip_num)
         return false;
 
-    // generate loop-closure proposal using scan context match:
-    std::pair<int, float> proposal = scan_context_manager_ptr_->DetectLoopClosure();
-    const int proposed_key_frame_id = proposal.first;
-    const float proposed_yaw_change = proposal.second;
+    #ifdef SCAN_CONTEXT
+        // generate loop-closure proposal using scan context match:
+        std::pair<int, float> proposal = scan_context_manager_ptr_->DetectLoopClosure();
+        const int proposed_key_frame_id = proposal.first;
+        const float proposed_yaw_change = proposal.second;
 
-    // check proposal validity:
-    if (ScanContextManager::NONE == proposed_key_frame_id) {
+        // check proposal validity:
+        if (ScanContextManager::NONE == proposed_key_frame_id) {
+            return false;
+        }
+
+        // check RTK position difference:
+        const KeyFrame &current_key_frame = all_key_gnss_.back();
+        const KeyFrame &proposed_key_frame = all_key_gnss_.at(proposed_key_frame_id);
+
+        Eigen::Vector3f translation = (
+            current_key_frame.pose.block<3, 1>(0, 3) - proposed_key_frame.pose.block<3, 1>(0, 3)
+        );
+        float key_frame_distance = translation.norm();
+    #else
+        // total number of GNSS/IMU key frame poses:
+        const size_t N = all_key_gnss_.size();
+
+        // ensure valid loop closure match:
+        if (
+            N < static_cast<size_t>(diff_num_ + 1)
+        )
+            return false;
+
+        const KeyFrame &current_key_frame = all_key_gnss_.back();
+
+        int proposed_key_frame_id = ScanContextManager::NONE;
+        // this orientation compensation is not available for GNSS/IMU proposal:
+        const float proposed_yaw_change = 0.0f;
+        float key_frame_distance = std::numeric_limits<float>::max();
+        for (size_t i = 0; i < N - 1; ++i) {
+            // ensure key frame seq. distance:
+            if (N - i < diff_num_)
+                break;
+            
+            const KeyFrame &proposed_key_frame = all_key_gnss_.at(i);
+
+            Eigen::Vector3f translation = (
+                current_key_frame.pose.block<3, 1>(0, 3) - proposed_key_frame.pose.block<3, 1>(0, 3)
+            );
+            float distance = translation.norm();
+
+            // get closest proposal:
+            if (distance < key_frame_distance) {
+                key_frame_distance = distance;
+                proposed_key_frame_id = i;
+            }
+        }
+    #endif
+
+    // this is needed for valid local map build:
+    if (proposed_key_frame_id < extend_frame_num_)
         return false;
-    }
-
-    // check RTK position difference:
-    const KeyFrame &current_key_frame = all_key_gnss_.back();
-    const KeyFrame &proposed_key_frame = all_key_gnss_.at(proposed_key_frame_id);
-
-    Eigen::Vector3f translation = (
-        current_key_frame.pose.block<3, 1>(0, 3) - proposed_key_frame.pose.block<3, 1>(0, 3)
-    );
-    float key_frame_distance = translation.norm();
 
     // update detection interval:
     skip_cnt = 0;
