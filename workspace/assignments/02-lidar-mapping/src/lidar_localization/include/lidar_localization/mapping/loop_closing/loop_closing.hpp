@@ -48,7 +48,10 @@ class LoopClosing {
       const int key_frame_index,
       const float yaw_change_in_rad
     );
-    bool JointMap(int key_frame_index, CloudData::CLOUD_PTR& map_cloud_ptr, Eigen::Matrix4f& map_pose);
+    bool JointMap(
+      const int key_frame_index, const float yaw_change_in_rad,
+      CloudData::CLOUD_PTR& map_cloud_ptr, Eigen::Matrix4f& map_pose
+    );
     bool JointScan(CloudData::CLOUD_PTR& scan_cloud_ptr, Eigen::Matrix4f& scan_pose);
     bool Registration(CloudData::CLOUD_PTR& map_cloud_ptr, 
                       CloudData::CLOUD_PTR& scan_cloud_ptr, 

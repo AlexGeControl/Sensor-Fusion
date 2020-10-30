@@ -21,16 +21,21 @@ bool IMUData::SyncData(std::deque<IMUData>& UnsyncedData, std::deque<IMUData>& S
     // 即找到与同步时间相邻的左右两个数据
     // 需要注意的是，如果左右相邻数据有一个离同步时间差值比较大，则说明数据有丢失，时间离得太远不适合做差值
     while (UnsyncedData.size() >= 2) {
+        // UnsyncedData.front().time should be <= sync_time:
         if (UnsyncedData.front().time > sync_time) 
             return false;
+        // sync_time should be <= UnsyncedData.at(1).time:
         if (UnsyncedData.at(1).time < sync_time) {
             UnsyncedData.pop_front();
             continue;
         }
+
+        // sync_time - UnsyncedData.front().time should be <= 0.2:
         if (sync_time - UnsyncedData.front().time > 0.2) {
             UnsyncedData.pop_front();
             return false;
         }
+        // UnsyncedData.at(1).time - sync_time should be <= 0.2
         if (UnsyncedData.at(1).time - sync_time > 0.2) {
             return false;
         }

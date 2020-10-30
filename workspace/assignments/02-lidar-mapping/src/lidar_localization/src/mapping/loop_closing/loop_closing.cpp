@@ -112,18 +112,19 @@ bool LoopClosing::Update(
     const KeyFrame &key_frame, 
     const KeyFrame &key_gnss
 ) {
+    static int key_frame_index = 0;
+    static float yaw_change_in_rad = 0.0f;
+
     has_new_loop_pose_ = false;
 
     scan_context_manager_ptr_->Update(key_scan);
     all_key_frames_.push_back(key_frame);
     all_key_gnss_.push_back(key_gnss);
 
-    int key_frame_index = 0;
-    float yaw_change_in_rad = 0.0f;
     if (!DetectNearestKeyFrame(key_frame_index, yaw_change_in_rad))
         return false;
 
-    if (!CloudRegistration(key_frame_index))
+    if (!CloudRegistration(key_frame_index, yaw_change_in_rad))
         return false;
 
     has_new_loop_pose_ = true;
@@ -211,9 +212,6 @@ bool LoopClosing::CloudRegistration(
               << current_loop_pose_.index0 << "<-->" << current_loop_pose_.index1 << std::endl 
               << "\tFitness Score " << registration_ptr_->GetFitnessScore() << std::endl 
               << std::endl;
-
-    // std::cout << "相对位姿 x y z roll pitch yaw:";
-    // PrintInfo::PrintPose("", current_loop_pose_.pose);
 
     return true;
 }
