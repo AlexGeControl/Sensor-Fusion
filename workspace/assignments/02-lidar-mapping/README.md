@@ -71,17 +71,17 @@ This is the solution of Assignment 02 of Sensor Fusion from [深蓝学院](https
 
 GNSS/IMU Proposal          |Scan Context Proposal
 :-------------------------:|:-------------------------:
-![EVO APE GNSS/IMU](doc/images/01-error-map-scan-context.png)  |  ![EVO APE ICP](doc/images/01-error-map-scan-context.png)
+![EVO APE GNSS/IMU](doc/images/01-error-map-gnss-imu.png)  |  ![EVO APE ICP](doc/images/01-error-map-scan-context.png)
 
 |  Prop. |    GNSS/IMU   |  Scan Context |
 |:------:|:-------------:|:-------------:|
-|   max  |    0.514676   |    0.514676   |
-|  mean  |    0.095825   |    0.095825   |
-| median |    0.050754   |    0.050754   |
-|   min  |    0.008929   |    0.008929   |
-|  rmse  |    0.133023   |    0.133023   |
-|   sse  |   33.620606   |   33.620606   |
-|   std  |    0.092264   |    0.092264   |
+|   max  |    0.584266   |    0.514676   |
+|  mean  |    0.105530   |    0.095825   |
+| median |    0.056007   |    0.050754   |
+|   min  |    0.009975   |    0.008929   |
+|  rmse  |    0.145464   |    0.133023   |
+|   sse  |   40.499873   |   33.620606   |
+|   std  |    0.100116   |    0.092264   |
 
 由上述结果可知, `Scan Context`的使用, `可以显著提升轨迹估计精度`.
 
