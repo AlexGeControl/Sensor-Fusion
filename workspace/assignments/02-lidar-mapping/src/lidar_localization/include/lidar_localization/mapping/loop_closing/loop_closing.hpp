@@ -53,7 +53,6 @@ class LoopClosing {
     std::string key_frames_path_ = "";
     int extend_frame_num_ = 3;
     int loop_step_ = 10;
-    int diff_num_ = 100;
     float detect_area_ = 10.0;
     float fitness_score_limit_ = 2.0;
 

@@ -70,6 +70,11 @@
         "*.ipp": "cpp",
         "string": "cpp",
         "random": "cpp",
-        "iterator": "cpp"
+        "iterator": "cpp",
+        "map": "cpp",
+        "memory_resource": "cpp",
+        "optional": "cpp",
+        "set": "cpp",
+        "string_view": "cpp"
     }
 }

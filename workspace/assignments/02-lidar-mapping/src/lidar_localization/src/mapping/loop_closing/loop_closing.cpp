@@ -7,8 +7,11 @@
 
 #include <cmath>
 #include <algorithm>
+#include <limits>
+
 #include <pcl/common/transforms.h>
 #include <pcl/io/pcd_io.h>
+
 #include "glog/logging.h"
 
 #include "lidar_localization/global_defination/global_defination.h"
@@ -43,7 +46,6 @@ bool LoopClosing::InitWithConfig() {
 bool LoopClosing::InitParam(const YAML::Node& config_node) {
     extend_frame_num_ = config_node["extend_frame_num"].as<int>();
     loop_step_ = config_node["loop_step"].as<int>();
-    diff_num_ = config_node["diff_num"].as<int>();
     detect_area_ = config_node["detect_area"].as<float>();
     fitness_score_limit_ = config_node["fitness_score_limit"].as<float>();
 
@@ -112,6 +114,7 @@ bool LoopClosing::Update(
 ) {
     has_new_loop_pose_ = false;
 
+    scan_context_manager_ptr_->Update(key_scan);
     all_key_frames_.push_back(key_frame);
     all_key_gnss_.push_back(key_gnss);
 
@@ -130,24 +133,22 @@ bool LoopClosing::DetectNearestKeyFrame(int& key_frame_index) {
     static int skip_cnt = 0;
     static int skip_num = loop_step_;
     
+    // detect loop-closure using scan context match:
+    scan_context_manager_ptr_->DetectLoopClosure();
+
+    // only perform loop closure detection for every skip_num key frames:
     if (++skip_cnt < skip_num)
         return false;
 
-    if ((int)all_key_gnss_.size() < diff_num_ + 1)
-        return false;
-
     int key_num = (int)all_key_gnss_.size();
-    float min_distance = 1000000.0;
+    float min_distance = std::numeric_limits<float>::max();
     float distance = 0.0;
 
     KeyFrame history_key_frame;
     KeyFrame current_key_frame = all_key_gnss_.back();
 
     key_frame_index = -1;
-    for (int i = 0; i < key_num - 1; ++i) {
-        if (key_num - i < diff_num_)
-            break;
-        
+    for (int i = 0; i < key_num - 1; ++i) {        
         history_key_frame = all_key_gnss_.at(i);
         distance = fabs(current_key_frame.pose(0,3) - history_key_frame.pose(0,3)) + 
                    fabs(current_key_frame.pose(1,3) - history_key_frame.pose(1,3)) + 
@@ -157,8 +158,6 @@ bool LoopClosing::DetectNearestKeyFrame(int& key_frame_index) {
             key_frame_index = i;
         }
     }
-    if (key_frame_index < extend_frame_num_)
-        return false;
 
     skip_cnt = 0;
     skip_num = (int)min_distance;
@@ -196,9 +195,9 @@ bool LoopClosing::CloudRegistration(int key_frame_index) {
     static int loop_close_cnt = 0;
     loop_close_cnt ++;
 
-    std::cout << "检测到闭环 "<<  loop_close_cnt
-              << ": 帧" << current_loop_pose_.index0 
-              << "------>" << "帧" << current_loop_pose_.index1 << std::endl
+    std::cout << "ICP Loop Closure Detected: "<<  loop_close_cnt
+              << ": Key Frame " << current_loop_pose_.index0 
+              << "------>" << "Key Frame" << current_loop_pose_.index1 << std::endl
               << "fitness score: " << registration_ptr_->GetFitnessScore() 
               << std::endl << std::endl;
 

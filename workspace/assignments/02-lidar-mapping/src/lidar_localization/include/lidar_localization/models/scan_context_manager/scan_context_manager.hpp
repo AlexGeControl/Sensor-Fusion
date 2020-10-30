@@ -9,21 +9,61 @@
 
 #include <yaml-cpp/yaml.h>
 
+#include <vector>
+
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
 #include "lidar_localization/sensor_data/cloud_data.hpp"
 
+#include "lidar_localization/models/scan_context_manager/kdtree_vector_of_vectors_adaptor.hpp"
+
 namespace lidar_localization {
 
 class ScanContextManager {
 public:
+    typedef Eigen::MatrixXf ScanContext;
+    typedef std::vector<float> RingKey;
+    typedef std::vector<RingKey> RingKeys;
+    typedef KDTreeVectorOfVectorsAdaptor<RingKeys, float> RingKeyIndex;
+
     ScanContextManager(const YAML::Node& node);
+
     void Update(const CloudData &scan);
+    
     void DetectLoopClosure(void);
 
 private:
-    Eigen::MatrixXf GetScanContext(const CloudData &scan);
+    /**
+     * @brief  get scan context of given lidar scan
+     * @param  scan, lidar scan of key frame
+     * @return scan context as Eigen::MatrixXd
+     */
+    ScanContext GetScanContext(const CloudData &scan);
+    /**
+     * @brief  get ring key of given scan context
+     * @param  scan_context, scan context of key scan
+     * @return ring key as RingKey
+     */
+    RingKey GetRingKey(
+        const ScanContext &scan_context
+    );
+    /**
+     * @brief  generate random ring keys for indexing test
+     * @return void
+     */
+    void GenerateRandomRingKey(
+        RingKeys &samples, 
+        const int N, const int D, const float max_range
+    );
+    /**
+     * @brief  get sector key of given scan context
+     * @param  scan_context, scan context of key scan
+     * @return sector key as RingKey
+     */
+    Eigen::MatrixXf GetSectorKey(
+        const Eigen::MatrixXf &scan_context
+    );
 
     /**
      * @brief  get orientation of point measurement 
@@ -40,13 +80,98 @@ private:
      * @return integer index, {0, ..., RESOLUTION - 1}
      */
     int GetIndex(const float &value, const float &MAX_VALUE, const int RESOLUTION);
+    /**
+     * @brief  get candidate scan context indices 
+     * @param  ring_key, query ring key 
+     * @param  N, num. of nearest neighbor candidates
+     * @param  indices, candidate indices
+     * @param  distances, candidate distances
+     * @return void
+     */
+    void GetCandidateIndices(
+        const RingKey &ring_key, const int N,
+        std::vector<size_t> &indices,
+        std::vector<float> &distances
+    );
+    /**
+     * @brief  circular shift mat to right by shift
+     * @param  mat, original matrix 
+     * @param  shift, right shift amount  
+     * @return shifted matrix
+     */
+    Eigen::MatrixXf CircularShift(const Eigen::MatrixXf &mat, int shift);
+    /**
+     * @brief  get optimal shift estimation using sector key 
+     * @param  target, target sector key 
+     * @param  source, source sector key  
+     * @return void
+     */
+    int GetOptimalShiftUsingSectorKey(
+        const Eigen::MatrixXf &target, 
+        const Eigen::MatrixXf &source
+    );
+    /**
+     * @brief  compute cosine distance between target and source scan context 
+     * @param  target_scan_context, target scan context 
+     * @param  source_scan_context, source scan context 
+     * @return scan context cosine distance
+     */
+    float GetCosineDistance(
+        const ScanContext &target_scan_context, 
+        const ScanContext &source_scan_context
+    );
+    /**
+     * @brief  get scan context match result between target and source scan context 
+     * @param  target_scan_context, target scan context 
+     * @param  source_scan_context, source scan context 
+     * @return scan context match result as std::pair<int, float>
+     */
+    std::pair<int, float> GetScanContextMatch(
+        const ScanContext &target_scan_context, 
+        const ScanContext &source_scan_context
+    );
+    /**
+     * @brief  get loop closure match result for given scan context and ring key 
+     * @param  query_scan_context, query scan context 
+     * @param  query_ring_key, query ring key
+     * @return loop closure match result as std::pair<int, float>
+     */
+    std::pair<int, float> GetLoopClosureMatch(
+        const ScanContext &query_scan_context,
+        const RingKey &query_ring_key
+    );
+
+    // states:
+    struct {
+        // a. scan context buffer:
+        std::vector<ScanContext> scan_context_;
+        // b. ring-key buffer:
+        RingKeys ring_key_;
+        // c. ring key indexing counter:
+        int indexing_counter_;
+        // d. ring key index:
+        std::shared_ptr<RingKeyIndex> ring_key_index_;
+        RingKeys ring_key_data_;
+    } state_;
 
     // hyper-params:
+    // a. ROI definition:
     float MAX_RADIUS_;
     float MAX_THETA_;
-
+    // b. resolution:
     int NUM_RINGS_;
     int NUM_SECTORS_; 
+    float DEG_PER_SECTOR_;
+    // c. ring key indexing interval:
+    int INDEXING_INTERVAL_;
+    // d. min key frame sequence distance:
+    int MIN_KEY_FRAME_SEQ_DISTANCE_;
+    // e. num. of nearest-neighbor search candidates:
+    int NUM_CANDIDATES_;
+    // f. sector key fast alignment search ratio:
+    float FAST_ALIGNMENT_SEARCH_RATIO_;
+    // g. scan context distance threshold:
+    float SCAN_CONTEXT_DISTANCE_THRESH_;
 };
 
 } // namespace lidar_localization
