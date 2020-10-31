@@ -42,8 +42,10 @@ bool MatchingFlow::Run() {
     ReadData();
 
     while(HasData()) {
-        if (!ValidData())
+        if (!ValidData()) {
+            LOG(INFO) << "Invalid data. Skip matching" << std::endl;
             continue;
+        }
 
         if (UpdateMatching()) {
             PublishData();
@@ -61,19 +63,21 @@ bool MatchingFlow::ReadData() {
 }
 
 bool MatchingFlow::HasData() {
-    if (
-        0 == cloud_data_buff_.size() ||
-        0 == gnss_data_buff_.size() ||
-        !matching_ptr_->HasInited()
-    ) {
+    if (cloud_data_buff_.size() == 0)
         return false;
-    }
     
+    if (matching_ptr_->HasInited())
+        return true;
+    
+    if (gnss_data_buff_.size() == 0)
+        return false;
+        
     return true;
 }
 
 bool MatchingFlow::ValidData() {
     current_cloud_data_ = cloud_data_buff_.front();
+
     if (matching_ptr_->HasInited()) {
         cloud_data_buff_.pop_front();
         gnss_data_buff_.clear();
@@ -112,15 +116,13 @@ bool MatchingFlow::UpdateMatching() {
             ).norm();
 
             // prompt:
-            LOG(INFO) << std::endl
-                      << "Scan Context Localization Init Succeeded. Deviation between GNSS/IMU: " 
+            LOG(INFO) << "Scan Context Localization Init Succeeded. Deviation between GNSS/IMU: " 
                       << deviation
                       << std::endl;
         } else {
             matching_ptr_->SetGNSSPose(current_gnss_data_.pose);
 
-            LOG(INFO) << std::endl
-                      << "Scan Context Localization Init Failed. Fallback to GNSS/IMU." 
+            LOG(INFO) << "Scan Context Localization Init Failed. Fallback to GNSS/IMU." 
                       << std::endl;
         }
     }

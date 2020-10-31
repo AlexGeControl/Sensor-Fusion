@@ -374,7 +374,8 @@ bool ScanContextManager::Load(const std::string &input_path) {
             output_ring_key.at(j) = input_ring_key.data(j);
         }
 
-
+        state_.ring_key_.at(i) = output_ring_key;
+        state_.index_.data_.ring_key_.at(i) = output_ring_key;
     }
 
     LOG(INFO) << "\tNum. Ring Keys: " << state_.ring_key_.size()
