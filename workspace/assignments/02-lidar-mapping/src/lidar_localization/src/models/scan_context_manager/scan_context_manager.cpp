@@ -108,14 +108,38 @@ std::pair<int, float> ScanContextManager::DetectLoopClosure(void) {
 /**
  * @brief  get loop closure proposal using the given key scan
  * @param  scan, query key scan
- * @return loop closure proposal (key_frame_id, scan_context_distance) as std::pair<int, float>
+ * @param  pose, matched pose
+ * @return true for success match otherwise false
  */
-std::pair<int, float> ScanContextManager::DetectLoopClosure(const CloudData &scan) {
+bool ScanContextManager::DetectLoopClosure(
+    const CloudData &scan,
+    Eigen::Matrix4f &pose
+) {
     // extract scan context and corresponding ring key:
     ScanContext query_scan_context = GetScanContext(scan);
     RingKey query_ring_key = GetRingKey(query_scan_context);
 
-    return GetLoopClosureMatch(query_scan_context, query_ring_key);
+    // get proposal:
+    std::pair<int, float> proposal = GetLoopClosureMatch(
+        query_scan_context, query_ring_key
+    );
+
+    const int key_frame_id = proposal.first;
+    const float yaw_change_in_rad = proposal.second;
+
+    // check proposal validity:
+    if (ScanContextManager::NONE == key_frame_id) {
+        return false;
+    }
+
+    // set matched pose:
+    pose = state_.index_.data_.key_frame_.at(key_frame_id).pose;
+    // apply orientation change estimation:
+    Eigen::AngleAxisf orientation_change(yaw_change_in_rad, Eigen::Vector3f::UnitZ());
+    pose.block<3, 3>(0, 0) = pose.block<3, 3>(0, 0) * orientation_change.toRotationMatrix();
+
+    // finally:
+    return true;
 }
 
 /**
@@ -129,9 +153,9 @@ bool ScanContextManager::Save(const std::string &output_path) {
         UpdateIndex(0)
     ) {
         // prompt:
-        LOG(ERROR) << std::endl
-                    << "[Scan Context]: Save index to " << output_path
-                    << std::endl << std::endl;
+        LOG(INFO) << std::endl
+                  << "[Scan Context]: Index size " << state_.index_.kd_tree_->kdtree_get_point_count()
+                  << std::endl;
 
         // a. save index:
         std::string index_output_path = output_path + "/index.bin";
@@ -144,6 +168,9 @@ bool ScanContextManager::Save(const std::string &output_path) {
         };
         state_.index_.kd_tree_->index->saveIndex(index_output_fptr);
         fclose(index_output_fptr);
+
+        LOG(INFO) << "\tSave index to: " << index_output_path
+                  << std::endl;
 
         // b. save ring key data:
 
@@ -181,6 +208,10 @@ bool ScanContextManager::Save(const std::string &output_path) {
             return false;
         }
 
+        LOG(INFO) << "\tSave scan context of size " << scan_contexts.data_size()
+                  << " to: " << scan_contexts_output_path
+                  << std::endl;
+
         // 2. ring keys:
         scan_context_io::RingKeys ring_keys;
         for (size_t i = 0; i < state_.index_.data_.ring_key_.size(); ++i) {
@@ -204,6 +235,9 @@ bool ScanContextManager::Save(const std::string &output_path) {
             return false;
         }
 
+        LOG(INFO) << "\tSave ring keys of size " << ring_keys.data_size()
+                  << " to: " << ring_keys_output_path
+                  << std::endl;
 
         // 3. key frames:
         scan_context_io::KeyFrames key_frames;
@@ -244,6 +278,10 @@ bool ScanContextManager::Save(const std::string &output_path) {
             return false;
         }
 
+        LOG(INFO) << "\tSave key frames of size " << key_frames.data_size()
+                  << " to: " << key_frames_output_path
+                  << std::endl;
+
         google::protobuf::ShutdownProtobufLibrary();
     } else {
         LOG(ERROR) << std::endl
@@ -266,6 +304,9 @@ bool ScanContextManager::Load(const std::string &input_path) {
     // compatible with the version of the headers we compiled against.
     GOOGLE_PROTOBUF_VERIFY_VERSION;
 
+    LOG(INFO) << std::endl
+              << "[Scan Context]: Load Scan Context Index."
+              << std::endl;
 
     // 1. scan contexts:
     scan_context_io::ScanContexts scan_contexts;
@@ -301,6 +342,9 @@ bool ScanContextManager::Load(const std::string &input_path) {
         state_.scan_context_.at(i) = output_scan_context;
     }
 
+    LOG(INFO) << "\tNum. Scan Contexts: " << state_.scan_context_.size()
+              << std::endl;
+
     // 2. ring keys:
     scan_context_io::RingKeys ring_keys;
 
@@ -309,7 +353,7 @@ bool ScanContextManager::Load(const std::string &input_path) {
         ring_keys_input_path, 
         std::ios::in | std::ios::binary
     );
-    if (!ring_keys.SerializeToOstream(&ring_keys_input)) {
+    if (!ring_keys.ParseFromIstream(&ring_keys_input)) {
         LOG(ERROR) << std::endl
                 << "[Scan Context]: Failed to load ring keys."
                 << std::endl << std::endl;
@@ -322,17 +366,19 @@ bool ScanContextManager::Load(const std::string &input_path) {
     state_.index_.data_.ring_key_.resize(ring_keys.data_size());
     for (int i = 0; i < ring_keys.data_size(); ++i) {
         const scan_context_io::RingKey &input_ring_key = ring_keys.data(i);
-        RingKey &output_ring_key_data = state_.ring_key_.at(i);
-        RingKey &output_ring_key_index = state_.index_.data_.ring_key_.at(i);
+        RingKey output_ring_key;
 
-        output_ring_key_data.clear();
-        output_ring_key_data.resize(input_ring_key.data_size());
-        output_ring_key_index.clear();
-        output_ring_key_index.resize(input_ring_key.data_size());
+        output_ring_key.clear();
+        output_ring_key.resize(input_ring_key.data_size());
         for (int j = 0; j < input_ring_key.data_size(); ++j) {
-            output_ring_key_data.at(j) = output_ring_key_index.at(j) = input_ring_key.data(j);
+            output_ring_key.at(j) = input_ring_key.data(j);
         }
+
+
     }
+
+    LOG(INFO) << "\tNum. Ring Keys: " << state_.ring_key_.size()
+              << std::endl;
 
     // 3. key frames:
     scan_context_io::KeyFrames key_frames;
@@ -342,7 +388,7 @@ bool ScanContextManager::Load(const std::string &input_path) {
         key_frames_input_path, 
         std::ios::in | std::ios::binary
     );
-    if (!key_frames.SerializeToOstream(&key_frames_input)) {
+    if (!key_frames.ParseFromIstream(&key_frames_input)) {
         LOG(ERROR) << std::endl
                 << "[Scan Context]: Failed to load key frames."
                 << std::endl << std::endl;
@@ -373,6 +419,9 @@ bool ScanContextManager::Load(const std::string &input_path) {
         output_key_frame.pose.block<3, 1>(0, 3) = input_t;
     }
 
+    LOG(INFO) << "\tNum. Key Frames: " << state_.index_.data_.key_frame_.size()
+              << std::endl;
+
     // b. load scan context index:
     state_.index_.kd_tree_.reset(); 
     state_.index_.kd_tree_ = std::make_shared<RingKeyIndex>(
@@ -380,6 +429,9 @@ bool ScanContextManager::Load(const std::string &input_path) {
         state_.index_.data_.ring_key_,
         10           /* max leaf size */
     );
+
+    LOG(INFO) << "\tIndex Size: " << state_.index_.kd_tree_->kdtree_get_point_count() 
+              << std::endl;
 
     google::protobuf::ShutdownProtobufLibrary();
 

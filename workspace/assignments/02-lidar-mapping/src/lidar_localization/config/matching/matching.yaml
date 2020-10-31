@@ -1,4 +1,11 @@
-map_path: /home/rq/matching_map/filtered_map.pcd   # 地图存放路径
+# data storage:
+# a. scan context:
+scan_context_path: /workspace/assignments/02-lidar-mapping/src/lidar_localization/slam_data/scan_context   
+# b. global map:
+map_path: /workspace/assignments/02-lidar-mapping/src/lidar_localization/slam_data/map/filtered_map.pcd
+
+# 回环检测:
+loop_closure_method: scan_context # 选择回环检测方法, 目前支持scan_context
 
 # 匹配
 registration_method: NDT   # 选择点云匹配方法，目前支持：NDT 
@@ -19,6 +26,27 @@ global_map_filter: voxel_filter # 选择滑窗地图点云滤波方法，目前�
 
 
 # 各配置选项对应参数
+## ScanContext params:
+scan_context:
+    # a. ROI definition:
+    max_radius: 80.0
+    max_theta: 360.0
+    # b. resolution:
+    num_rings: 20
+    num_sectors: 60
+    # c. ring key indexing interval:
+    indexing_interval: 1
+    # d. min. key frame sequence distance:
+    min_key_frame_seq_distance: 100
+    # e. num. of nearest-neighbor candidates to check:
+    num_candidates: 5
+    # f. sector key fast alignment search ratio:
+    #   avoid brute-force match using sector key
+    fast_alignment_search_ratio: 0.1
+    # g. scan context distance threshold for proposal generation:
+    #   0.4-0.6 is good choice for using with robust kernel (e.g., Cauchy, DCS) + icp fitness threshold 
+    #   if not, recommend 0.1-0.15
+    scan_context_distance_thresh: 0.20
 ## 匹配相关参数
 NDT:
     res : 1.0

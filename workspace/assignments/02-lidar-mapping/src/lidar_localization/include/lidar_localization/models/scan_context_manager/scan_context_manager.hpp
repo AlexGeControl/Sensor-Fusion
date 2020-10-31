@@ -46,9 +46,10 @@ public:
     /**
      * @brief  get loop closure proposal using the given key scan
      * @param  scan, query key scan
-     * @return loop closure proposal (key_frame_id, scan_context_distance) as std::pair<int, float>
+     * @param  pose, matched pose
+     * @return true for success match otherwise false
      */
-    std::pair<int, float> DetectLoopClosure(const CloudData &scan);
+    bool DetectLoopClosure(const CloudData &scan,Eigen::Matrix4f &pose);
 
     /**
      * @brief  save scan context index & data to persistent storage

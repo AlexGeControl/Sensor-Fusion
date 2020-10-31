@@ -101,7 +101,28 @@ bool MatchingFlow::ValidData() {
 
 bool MatchingFlow::UpdateMatching() {
     if (!matching_ptr_->HasInited()) {
-        matching_ptr_->SetGNSSPose(current_gnss_data_.pose);
+        if (
+            matching_ptr_->SetScanContextPose(current_cloud_data_)
+        ) {
+            Eigen::Matrix4f init_pose = matching_ptr_->GetInitPose();
+
+            // evaluate deviation from GNSS/IMU:
+            float deviation = (
+                init_pose.block<3, 1>(0, 3) - current_gnss_data_.pose.block<3, 1>(0, 3)
+            ).norm();
+
+            // prompt:
+            LOG(INFO) << std::endl
+                      << "Scan Context Localization Init Succeeded. Deviation between GNSS/IMU: " 
+                      << deviation
+                      << std::endl;
+        } else {
+            matching_ptr_->SetGNSSPose(current_gnss_data_.pose);
+
+            LOG(INFO) << std::endl
+                      << "Scan Context Localization Init Failed. Fallback to GNSS/IMU." 
+                      << std::endl;
+        }
     }
 
     return matching_ptr_->Update(current_cloud_data_, laser_odometry_);

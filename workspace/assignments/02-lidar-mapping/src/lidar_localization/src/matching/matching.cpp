@@ -16,9 +16,10 @@
 
 namespace lidar_localization {
 Matching::Matching()
-    :local_map_ptr_(new CloudData::CLOUD()),
-     global_map_ptr_(new CloudData::CLOUD()),
-     current_scan_ptr_(new CloudData::CLOUD()) {
+    : global_map_ptr_(new CloudData::CLOUD()),
+      local_map_ptr_(new CloudData::CLOUD()),
+      current_scan_ptr_(new CloudData::CLOUD()) 
+{
     
     InitWithConfig();
 
@@ -31,30 +32,53 @@ bool Matching::InitWithConfig() {
     std::string config_file_path = WORK_SPACE_PATH + "/config/matching/matching.yaml";
     YAML::Node config_node = YAML::LoadFile(config_file_path);
 
-    std::cout << "-----------------地图定位初始化-------------------" << std::endl;
+    LOG(INFO) << std::endl
+              << "-----------------Init Localization-------------------" 
+              << std::endl;
+
     InitDataPath(config_node);
+
+    InitScanContextManager(config_node);
     InitRegistration(registration_ptr_, config_node);
+
     InitFilter("global_map", global_map_filter_ptr_, config_node);
-    InitFilter("local_map", local_map_filter_ptr_, config_node);
-    InitFilter("frame", frame_filter_ptr_, config_node);
+
     InitBoxFilter(config_node);
+    InitFilter("local_map", local_map_filter_ptr_, config_node);
+
+    InitFilter("frame", frame_filter_ptr_, config_node);
 
     return true;
 }
 
 bool Matching::InitDataPath(const YAML::Node& config_node) {
     map_path_ = config_node["map_path"].as<std::string>();
+
+    return true;
+}
+
+bool Matching::InitScanContextManager(const YAML::Node& config_node) {
+    // get loop closure config:
+    loop_closure_method_ = config_node["loop_closure_method"].as<std::string>();
+
+    // create instance:
+    scan_context_manager_ptr_ = std::make_shared<ScanContextManager>(config_node[loop_closure_method_]);
+
+    // load pre-built index:
+    scan_context_path_ = config_node["scan_context_path"].as<std::string>();
+    scan_context_manager_ptr_->Load(scan_context_path_);
+
     return true;
 }
 
 bool Matching::InitRegistration(std::shared_ptr<RegistrationInterface>& registration_ptr, const YAML::Node& config_node) {
     std::string registration_method = config_node["registration_method"].as<std::string>();
-    std::cout << "地图匹配选择的点云匹配方式为：" << registration_method << std::endl;
+    std::cout << "\tPoint Cloud Registration Method: " << registration_method << std::endl;
 
     if (registration_method == "NDT") {
         registration_ptr = std::make_shared<NDTRegistration>(config_node[registration_method]);
     } else {
-        LOG(ERROR) << "没找到与 " << registration_method << " 相对应的点云匹配方式!";
+        LOG(ERROR) << "Registration method " << registration_method << " NOT FOUND!";
         return false;
     }
 
@@ -63,14 +87,14 @@ bool Matching::InitRegistration(std::shared_ptr<RegistrationInterface>& registra
 
 bool Matching::InitFilter(std::string filter_user, std::shared_ptr<CloudFilterInterface>& filter_ptr, const YAML::Node& config_node) {
     std::string filter_mothod = config_node[filter_user + "_filter"].as<std::string>();
-    std::cout << "地图匹配" << filter_user << "选择的滤波方法为：" << filter_mothod << std::endl;
+    std::cout << "\tFilter Method for " << filter_user << ": " << filter_mothod << std::endl;
 
     if (filter_mothod == "voxel_filter") {
         filter_ptr = std::make_shared<VoxelFilter>(config_node[filter_mothod][filter_user]);
     } else if (filter_mothod == "no_filter") {
         filter_ptr = std::make_shared<NoFilter>();
     } else {
-        LOG(ERROR) << "没有为 " << filter_user << " 找到与 " << filter_mothod << " 相对应的滤波方法!";
+        LOG(ERROR) << "Filter method " << filter_mothod << " for " << filter_user << " NOT FOUND!";
         return false;
     }
 
@@ -84,10 +108,10 @@ bool Matching::InitBoxFilter(const YAML::Node& config_node) {
 
 bool Matching::InitGlobalMap() {
     pcl::io::loadPCDFile(map_path_, *global_map_ptr_);
-    LOG(INFO) << "load global map size:" << global_map_ptr_->points.size();
+    LOG(INFO) << "Load global map, size:" << global_map_ptr_->points.size();
 
-    local_map_filter_ptr_->Filter(global_map_ptr_, global_map_ptr_);
-    LOG(INFO) << "filtered global map size:" << global_map_ptr_->points.size();
+    global_map_filter_ptr_->Filter(global_map_ptr_, global_map_ptr_);
+    LOG(INFO) << "Filtered global map, size:" << global_map_ptr_->points.size();
 
     has_new_global_map_ = true;
 
@@ -96,6 +120,7 @@ bool Matching::InitGlobalMap() {
 
 bool Matching::ResetLocalMap(float x, float y, float z) {
     std::vector<float> origin = {x, y, z};
+
     box_filter_ptr_->SetOrigin(origin);
     box_filter_ptr_->Filter(global_map_ptr_, local_map_ptr_);
 
@@ -104,7 +129,7 @@ bool Matching::ResetLocalMap(float x, float y, float z) {
     has_new_local_map_ = true;
 
     std::vector<float> edge = box_filter_ptr_->GetEdge();
-    LOG(INFO) << "new local map:" << edge.at(0) << ","
+    LOG(INFO) << "New local map:" << edge.at(0) << ","
                                   << edge.at(1) << ","
                                   << edge.at(2) << ","
                                   << edge.at(3) << ","
@@ -142,9 +167,13 @@ bool Matching::Update(const CloudData& cloud_data, Eigen::Matrix4f& cloud_pose) 
     // 匹配之后判断是否需要更新局部地图
     std::vector<float> edge = box_filter_ptr_->GetEdge();
     for (int i = 0; i < 3; i++) {
-        if (fabs(cloud_pose(i, 3) - edge.at(2 * i)) > 50.0 &&
-            fabs(cloud_pose(i, 3) - edge.at(2 * i + 1)) > 50.0)
+        if (
+            fabs(cloud_pose(i, 3) - edge.at(2 * i)) > 50.0 &&
+            fabs(cloud_pose(i, 3) - edge.at(2 * i + 1)) > 50.0
+        ) {
             continue;
+        }
+            
         ResetLocalMap(cloud_pose(0,3), cloud_pose(1,3), cloud_pose(2,3));
         break;
     }
@@ -153,15 +182,43 @@ bool Matching::Update(const CloudData& cloud_data, Eigen::Matrix4f& cloud_pose) 
 }
 
 bool Matching::SetGNSSPose(const Eigen::Matrix4f& gnss_pose) {
+    static int gnss_cnt = 0;
+
     current_gnss_pose_ = gnss_pose;
 
-    static int gnss_cnt = 0;
     if (gnss_cnt == 0) {
         SetInitPose(gnss_pose);
     } else if (gnss_cnt > 3) {
         has_inited_ = true;
     }
-    gnss_cnt ++;
+    gnss_cnt++;
+
+    return true;
+}
+
+/**
+ * @brief  get init pose using scan context matching
+ * @param  init_scan, init key scan
+ * @return true if success otherwise false
+ */
+bool Matching::SetScanContextPose(const CloudData& init_scan) {
+    static int scan_context_cnt = 0;
+
+    // get init pose proposal using scan context match:
+    Eigen::Matrix4f init_pose =  Eigen::Matrix4f::Identity();
+    if (
+        !scan_context_manager_ptr_->DetectLoopClosure(init_scan, init_pose)
+    ) {
+        return false;
+    }
+
+    if (scan_context_cnt == 0) {
+        SetInitPose(init_pose);
+    } else if (scan_context_cnt > 3) {
+        has_inited_ = true;
+    }
+    scan_context_cnt++;
+    
     return true;
 }
 
@@ -170,6 +227,10 @@ bool Matching::SetInitPose(const Eigen::Matrix4f& init_pose) {
     ResetLocalMap(init_pose(0,3), init_pose(1,3), init_pose(2,3));
 
     return true;
+}
+
+Eigen::Matrix4f Matching::GetInitPose(void) {
+    return init_pose_;
 }
 
 void Matching::GetGlobalMap(CloudData::CLOUD_PTR& global_map) {
