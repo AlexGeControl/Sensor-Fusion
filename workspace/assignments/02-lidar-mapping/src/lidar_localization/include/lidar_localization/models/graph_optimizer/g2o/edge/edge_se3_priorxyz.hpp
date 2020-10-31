@@ -34,14 +34,18 @@ class EdgeSE3PriorXYZ : public g2o::BaseUnaryEdge<3, Eigen::Vector3d, g2o::Verte
 
     	setMeasurement(Eigen::Vector3d(v));
 
-		for (int i = 0; i < information().rows(); ++i)
+		for (int i = 0; i < information().rows(); ++i) {
 			for (int j = i; j < information().cols(); ++j) {
 				is >> information()(i, j);
-				if (i != j)
+				// update cross-diagonal element:
+				if (i != j) {
 					information()(j, i) = information()(i, j);
+				}
 			}
-			return true;
 		}
+
+		return true;
+	}
 
 	virtual bool write(std::ostream& os) const override {
     	Eigen::Vector3d v = _measurement;

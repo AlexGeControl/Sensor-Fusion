@@ -16,7 +16,8 @@ class KeyFrame {
     Eigen::Matrix4f pose = Eigen::Matrix4f::Identity();
 
   public:
-    Eigen::Quaternionf GetQuaternion();
+    Eigen::Quaternionf GetQuaternion() const;
+    Eigen::Vector3f GetTranslation() const;
 };
 }
 

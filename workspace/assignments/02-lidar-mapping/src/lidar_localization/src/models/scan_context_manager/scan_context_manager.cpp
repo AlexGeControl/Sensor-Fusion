@@ -16,7 +16,9 @@
 
 #include "lidar_localization/models/scan_context_manager/scan_context_manager.hpp"
 
+#include "lidar_localization/models/scan_context_manager/scan_contexts.pb.h"
 #include "lidar_localization/models/scan_context_manager/ring_keys.pb.h"
+#include "lidar_localization/models/scan_context_manager/key_frames.pb.h"
 
 #include "glog/logging.h"
 
@@ -92,6 +94,14 @@ std::pair<int, float> ScanContextManager::DetectLoopClosure(void) {
     const ScanContext &query_scan_context = state_.scan_context_.back();
     const RingKey &query_ring_key = state_.ring_key_.back();
 
+    // update ring key index:
+    ++state_.index_.counter_;
+    if (
+        0 == (state_.index_.counter_ % INDEXING_INTERVAL_)
+    ) {
+        UpdateIndex(MIN_KEY_FRAME_SEQ_DISTANCE_);
+    }
+
     return GetLoopClosureMatch(query_scan_context, query_ring_key);
 }
 
@@ -114,12 +124,11 @@ std::pair<int, float> ScanContextManager::DetectLoopClosure(const CloudData &sca
  * @return true for success otherwise false
  */
 bool ScanContextManager::Save(const std::string &output_path) {
+     // get the latest scan context index:
     if (
-        state_.ring_key_.size() > static_cast<size_t>(MIN_KEY_FRAME_SEQ_DISTANCE_)
+        UpdateIndex(0)
     ) {
-        // get the latest scan context index:
-        UpdateIndex(MIN_KEY_FRAME_SEQ_DISTANCE_);
-
+        // prompt:
         LOG(ERROR) << std::endl
                     << "[Scan Context]: Save index to " << output_path
                     << std::endl << std::endl;
@@ -142,8 +151,38 @@ bool ScanContextManager::Save(const std::string &output_path) {
         // compatible with the version of the headers we compiled against.
         GOOGLE_PROTOBUF_VERIFY_VERSION;
 
-        scan_context_io::RingKeys ring_keys;
+        // 1. scan contexts:
+        scan_context_io::ScanContexts scan_contexts;
 
+        scan_contexts.set_num_rings(NUM_RINGS_);
+        scan_contexts.set_num_sectors(NUM_SECTORS_);
+        for (size_t i = 0; i < state_.scan_context_.size(); ++i) {
+            const ScanContext &input_scan_context = state_.scan_context_.at(i);
+            scan_context_io::ScanContext *output_scan_context = scan_contexts.add_data();
+
+            for (int rid = 0; rid < NUM_RINGS_; ++rid) {
+                for (int sid = 0; sid < NUM_SECTORS_; ++sid) {
+                    output_scan_context->add_data(
+                        input_scan_context(rid, sid)
+                    );
+                }
+            }
+        }
+
+        std::string scan_contexts_output_path = output_path + "/scan_contexts.proto";
+        std::fstream scan_contexts_output(
+            scan_contexts_output_path, 
+            std::ios::out | std::ios::trunc | std::ios::binary
+        );
+        if (!scan_contexts.SerializeToOstream(&scan_contexts_output)) {
+            LOG(ERROR) << std::endl
+                    << "[Scan Context]: Failed to write scan contexts."
+                    << std::endl << std::endl;
+            return false;
+        }
+
+        // 2. ring keys:
+        scan_context_io::RingKeys ring_keys;
         for (size_t i = 0; i < state_.index_.data_.ring_key_.size(); ++i) {
             const RingKey &input_ring_key = state_.index_.data_.ring_key_.at(i);
             scan_context_io::RingKey *output_ring_key = ring_keys.add_data();
@@ -165,12 +204,184 @@ bool ScanContextManager::Save(const std::string &output_path) {
             return false;
         }
 
+
+        // 3. key frames:
+        scan_context_io::KeyFrames key_frames;
+        for (size_t i = 0; i < state_.index_.data_.key_frame_.size(); ++i) {
+            const KeyFrame &input_key_frame = state_.index_.data_.key_frame_.at(i);
+            scan_context_io::KeyFrame *output_key_frame = key_frames.add_data();
+
+            // a. set orientation:
+            const Eigen::Quaternionf input_q = input_key_frame.GetQuaternion();
+            scan_context_io::Quat *output_q = new scan_context_io::Quat();
+
+            output_q->set_w(input_q.w());
+            output_q->set_x(input_q.x());
+            output_q->set_y(input_q.y());
+            output_q->set_z(input_q.z());
+
+            // b. set translation:
+            const Eigen::Vector3f input_t = input_key_frame.GetTranslation();
+            scan_context_io::Trans *output_t = new scan_context_io::Trans();
+
+            output_t->set_x(input_t.x());
+            output_t->set_y(input_t.y());
+            output_t->set_z(input_t.z());
+
+            output_key_frame->set_allocated_q(output_q);
+            output_key_frame->set_allocated_t(output_t);
+        }
+
+        std::string key_frames_output_path = output_path + "/key_frames.proto";
+        std::fstream key_frames_output(
+            key_frames_output_path, 
+            std::ios::out | std::ios::trunc | std::ios::binary
+        );
+        if (!key_frames.SerializeToOstream(&key_frames_output)) {
+            LOG(ERROR) << std::endl
+                    << "[Scan Context]: Failed to write key frames."
+                    << std::endl << std::endl;
+            return false;
+        }
+
         google::protobuf::ShutdownProtobufLibrary();
     } else {
         LOG(ERROR) << std::endl
                     << "[Scan Context]: Skip empty index"
                     << std::endl << std::endl;
     }
+
+    return true;
+}
+
+/**
+ * @brief  load scan context index & data from persistent storage
+ * @param  input_path, scan context input path
+ * @return true for success otherwise false
+ */
+bool ScanContextManager::Load(const std::string &input_path) {
+    // a. load ring key data:
+
+    // Verify that the version of the library that we linked against is
+    // compatible with the version of the headers we compiled against.
+    GOOGLE_PROTOBUF_VERIFY_VERSION;
+
+
+    // 1. scan contexts:
+    scan_context_io::ScanContexts scan_contexts;
+
+    std::string scan_contexts_input_path = input_path + "/scan_contexts.proto";
+    std::fstream scan_contexts_input(
+        scan_contexts_input_path, 
+        std::ios::in | std::ios::binary
+    );
+    if (!scan_contexts.ParseFromIstream(&scan_contexts_input)) {
+        LOG(ERROR) << std::endl
+                << "[Scan Context]: Failed to load scan contexts."
+                << std::endl << std::endl;
+        return false;
+    }
+
+    state_.scan_context_.clear();
+    state_.scan_context_.resize(scan_contexts.data_size());
+    for (int i = 0; i < scan_contexts.data_size(); ++i) {
+        const scan_context_io::ScanContext &input_scan_context = scan_contexts.data(i);
+        ScanContext output_scan_context = ScanContext::Zero(
+            scan_contexts.num_rings(), scan_contexts.num_sectors()
+        );
+
+        for (int rid = 0; rid < scan_contexts.num_rings(); ++rid) {
+            for (int sid = 0; sid < scan_contexts.num_sectors(); ++sid) {
+                // get data id:
+                int did = rid * scan_contexts.num_sectors() + sid;
+                output_scan_context(rid, sid) = input_scan_context.data(did);
+            }
+        }
+
+        state_.scan_context_.at(i) = output_scan_context;
+    }
+
+    // 2. ring keys:
+    scan_context_io::RingKeys ring_keys;
+
+    std::string ring_keys_input_path = input_path + "/ring_keys.proto";
+    std::fstream ring_keys_input(
+        ring_keys_input_path, 
+        std::ios::in | std::ios::binary
+    );
+    if (!ring_keys.SerializeToOstream(&ring_keys_input)) {
+        LOG(ERROR) << std::endl
+                << "[Scan Context]: Failed to load ring keys."
+                << std::endl << std::endl;
+        return false;
+    }
+
+    state_.ring_key_.clear();
+    state_.ring_key_.resize(ring_keys.data_size());
+    state_.index_.data_.ring_key_.clear();
+    state_.index_.data_.ring_key_.resize(ring_keys.data_size());
+    for (int i = 0; i < ring_keys.data_size(); ++i) {
+        const scan_context_io::RingKey &input_ring_key = ring_keys.data(i);
+        RingKey &output_ring_key_data = state_.ring_key_.at(i);
+        RingKey &output_ring_key_index = state_.index_.data_.ring_key_.at(i);
+
+        output_ring_key_data.clear();
+        output_ring_key_data.resize(input_ring_key.data_size());
+        output_ring_key_index.clear();
+        output_ring_key_index.resize(input_ring_key.data_size());
+        for (int j = 0; j < input_ring_key.data_size(); ++j) {
+            output_ring_key_data.at(j) = output_ring_key_index.at(j) = input_ring_key.data(j);
+        }
+    }
+
+    // 3. key frames:
+    scan_context_io::KeyFrames key_frames;
+
+    std::string key_frames_input_path = input_path + "/key_frames.proto";
+    std::fstream key_frames_input(
+        key_frames_input_path, 
+        std::ios::in | std::ios::binary
+    );
+    if (!key_frames.SerializeToOstream(&key_frames_input)) {
+        LOG(ERROR) << std::endl
+                << "[Scan Context]: Failed to load key frames."
+                << std::endl << std::endl;
+        return false;
+    }
+    
+    state_.index_.data_.key_frame_.clear();
+    state_.index_.data_.key_frame_.resize(key_frames.data_size());
+    for (int i = 0; i < key_frames.data_size(); ++i) {
+        const scan_context_io::KeyFrame &input_key_frame = key_frames.data(i);
+        KeyFrame &output_key_frame = state_.index_.data_.key_frame_.at(i);
+
+        output_key_frame.index = i;
+
+        Eigen::Quaternionf input_q(
+            input_key_frame.q().w(),
+            input_key_frame.q().x(),
+            input_key_frame.q().y(),
+            input_key_frame.q().z()
+        );
+        Eigen::Vector3f input_t(
+            input_key_frame.t().x(),
+            input_key_frame.t().y(),
+            input_key_frame.t().z()
+        );
+
+        output_key_frame.pose.block<3, 3>(0, 0) = input_q.toRotationMatrix();
+        output_key_frame.pose.block<3, 1>(0, 3) = input_t;
+    }
+
+    // b. load scan context index:
+    state_.index_.kd_tree_.reset(); 
+    state_.index_.kd_tree_ = std::make_shared<RingKeyIndex>(
+        NUM_RINGS_,  /* dim */
+        state_.index_.data_.ring_key_,
+        10           /* max leaf size */
+    );
+
+    google::protobuf::ShutdownProtobufLibrary();
 
     return true;
 }
@@ -497,33 +708,41 @@ std::pair<int, float> ScanContextManager::GetScanContextMatch(
 /**
  * @brief  update scan context index 
  * @param  MIN_KEY_FRAME_SEQ_DISTANCE, min. seq distance from current key frame 
- * @return none
+ * @return true if success otherwise false
  */
-void ScanContextManager::UpdateIndex(const int MIN_KEY_FRAME_SEQ_DISTANCE) {
-    // fetch to-be-indexed ring keys from buffer:
-    state_.index_.data_.ring_key_.clear();
-    state_.index_.data_.ring_key_.insert(
-        state_.index_.data_.ring_key_.end(),
-        state_.ring_key_.begin(), 
-        // this ensures the min. key frame seq. distance
-        state_.ring_key_.end() - MIN_KEY_FRAME_SEQ_DISTANCE
-    );
+bool ScanContextManager::UpdateIndex(const int MIN_KEY_FRAME_SEQ_DISTANCE) {
+    if (
+        state_.ring_key_.size() > static_cast<size_t>(MIN_KEY_FRAME_SEQ_DISTANCE)
+    ) {
+        // fetch to-be-indexed ring keys from buffer:
+        state_.index_.data_.ring_key_.clear();
+        state_.index_.data_.ring_key_.insert(
+            state_.index_.data_.ring_key_.end(),
+            state_.ring_key_.begin(), 
+            // this ensures the min. key frame seq. distance
+            state_.ring_key_.end() - MIN_KEY_FRAME_SEQ_DISTANCE
+        );
 
-    state_.index_.data_.key_frame_.clear();
-    state_.index_.data_.key_frame_.insert(
-        state_.index_.data_.key_frame_.end(),
-        state_.key_frame_.begin(), 
-        // this ensures the min. key frame seq. distance
-        state_.key_frame_.end() - MIN_KEY_FRAME_SEQ_DISTANCE
-    );
+        state_.index_.data_.key_frame_.clear();
+        state_.index_.data_.key_frame_.insert(
+            state_.index_.data_.key_frame_.end(),
+            state_.key_frame_.begin(), 
+            // this ensures the min. key frame seq. distance
+            state_.key_frame_.end() - MIN_KEY_FRAME_SEQ_DISTANCE
+        );
 
-    // TODO: enable in-place update of KDTree
-    state_.index_.kd_tree_.reset(); 
-    state_.index_.kd_tree_ = std::make_shared<RingKeyIndex>(
-        NUM_RINGS_,  /* dim */
-        state_.index_.data_.ring_key_,
-        10           /* max leaf size */
-    );
+        // TODO: enable in-place update of KDTree
+        state_.index_.kd_tree_.reset(); 
+        state_.index_.kd_tree_ = std::make_shared<RingKeyIndex>(
+            NUM_RINGS_,  /* dim */
+            state_.index_.data_.ring_key_,
+            10           /* max leaf size */
+        );
+
+        return true;
+    }
+
+    return false;
 }
 
 /**
@@ -539,7 +758,7 @@ std::pair<int, float> ScanContextManager::GetLoopClosureMatch(
     int match_id = NONE;
 
     //
-    // step 0: loop closure detection criteria check -- only perform loop closure detection when
+    // step 1: loop closure detection criteria check -- only perform loop closure detection when
     //   a. current key scan is temporally far away from previous key scan:
     // 
     if(
@@ -547,16 +766,6 @@ std::pair<int, float> ScanContextManager::GetLoopClosureMatch(
     ) {
         std::pair<int, float> result {match_id, 0.0};
         return result; 
-    }
-
-    //
-    // step 1: update ring key index
-    // 
-    ++state_.index_.counter_;
-    if (
-        0 == (state_.index_.counter_ % INDEXING_INTERVAL_)
-    ) {
-        UpdateIndex(MIN_KEY_FRAME_SEQ_DISTANCE_);
     }
 
     //

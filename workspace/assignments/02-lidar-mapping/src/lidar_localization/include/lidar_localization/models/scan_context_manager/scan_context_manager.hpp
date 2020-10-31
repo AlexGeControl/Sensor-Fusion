@@ -56,6 +56,12 @@ public:
      * @return true for success otherwise false
      */
     bool Save(const std::string &output_path);
+    /**
+     * @brief  load scan context index & data from persistent storage
+     * @param  input_path, scan context input path
+     * @return true for success otherwise false
+     */
+    bool Load(const std::string &input_path);
 
 private:
     /**
@@ -158,9 +164,9 @@ private:
     /**
      * @brief  update scan context index 
      * @param  MIN_KEY_FRAME_SEQ_DISTANCE, min. seq distance from current key frame 
-     * @return none
+     * @return true if success otherwise false
      */
-    void UpdateIndex(const int MIN_KEY_FRAME_SEQ_DISTANCE);
+    bool UpdateIndex(const int MIN_KEY_FRAME_SEQ_DISTANCE);
     
     /**
      * @brief  get loop closure match result for given scan context and ring key 
