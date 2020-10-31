@@ -22,7 +22,8 @@ class LoopClosingFlow {
     LoopClosingFlow(ros::NodeHandle& nh);
 
     bool Run();
-
+    bool Save();
+    
   private:
     bool ReadData();
     bool HasData();

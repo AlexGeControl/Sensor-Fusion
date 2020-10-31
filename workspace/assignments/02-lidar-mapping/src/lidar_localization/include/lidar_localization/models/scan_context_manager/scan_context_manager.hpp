@@ -15,6 +15,7 @@
 #include <Eigen/Dense>
 
 #include "lidar_localization/sensor_data/cloud_data.hpp"
+#include "lidar_localization/sensor_data/key_frame.hpp"
 
 #include "lidar_localization/models/scan_context_manager/kdtree_vector_of_vectors_adaptor.hpp"
 
@@ -31,9 +32,30 @@ public:
     
     ScanContextManager(const YAML::Node& node);
 
-    void Update(const CloudData &scan);
-    
+    void Update(
+        const CloudData &scan,
+        const KeyFrame &key_frame
+    );
+
+    /**
+     * @brief  get loop closure proposal using the latest key scan
+     * @param  none
+     * @return loop closure proposal (key_frame_id, scan_context_distance) as std::pair<int, float>
+     */
     std::pair<int, float> DetectLoopClosure(void);
+    /**
+     * @brief  get loop closure proposal using the given key scan
+     * @param  scan, query key scan
+     * @return loop closure proposal (key_frame_id, scan_context_distance) as std::pair<int, float>
+     */
+    std::pair<int, float> DetectLoopClosure(const CloudData &scan);
+
+    /**
+     * @brief  save scan context index & data to persistent storage
+     * @param  output_path, scan context output path
+     * @return true for success otherwise false
+     */
+    bool Save(const std::string &output_path);
 
 private:
     /**
@@ -132,6 +154,14 @@ private:
         const ScanContext &target_scan_context, 
         const ScanContext &source_scan_context
     );
+
+    /**
+     * @brief  update scan context index 
+     * @param  MIN_KEY_FRAME_SEQ_DISTANCE, min. seq distance from current key frame 
+     * @return none
+     */
+    void UpdateIndex(const int MIN_KEY_FRAME_SEQ_DISTANCE);
+    
     /**
      * @brief  get loop closure match result for given scan context and ring key 
      * @param  query_scan_context, query scan context 
@@ -149,11 +179,20 @@ private:
         std::vector<ScanContext> scan_context_;
         // b. ring-key buffer:
         RingKeys ring_key_;
-        // c. ring key indexing counter:
-        int indexing_counter_;
-        // d. ring key index:
-        std::shared_ptr<RingKeyIndex> ring_key_index_;
-        RingKeys ring_key_data_;
+        // c. key frame buffer:
+        std::vector<KeyFrame> key_frame_;
+        // d. ring key indexing counter:
+        struct {
+            // 1. indexing interval counter:
+            int counter_ = 0;
+            // 2. kd-tree:
+            std::shared_ptr<RingKeyIndex> kd_tree_;
+            // 3. data:
+            struct {
+                RingKeys ring_key_;
+                std::vector<KeyFrame> key_frame_;
+            } data_;
+        } index_;
     } state_;
 
     // hyper-params:

@@ -8,8 +8,17 @@
 
 #include "lidar_localization/global_defination/global_defination.h"
 #include "lidar_localization/mapping/loop_closing/loop_closing_flow.hpp"
+#include <lidar_localization/saveScanContext.h>
 
 using namespace lidar_localization;
+
+bool save_scan_context = false;
+
+bool SaveScanContextCb(saveScanContext::Request &request, saveScanContext::Response &response) {
+    save_scan_context = true;
+    response.succeed = true;
+    return response.succeed;
+}
 
 int main(int argc, char *argv[]) {
     google::InitGoogleLogging(argv[0]);
@@ -25,11 +34,19 @@ int main(int argc, char *argv[]) {
     // a. loop closure detection result for backend node:
     std::shared_ptr<LoopClosingFlow> loop_closing_flow_ptr = std::make_shared<LoopClosingFlow>(nh);
 
+    // register service for scan context save:
+    ros::ServiceServer service = nh.advertiseService("save_scan_context", SaveScanContextCb);
+
     ros::Rate rate(100);
     while (ros::ok()) {
         ros::spinOnce();
 
         loop_closing_flow_ptr->Run();
+
+        if (save_scan_context) {
+            save_scan_context = false;
+            loop_closing_flow_ptr->Save();
+        }
 
         rate.sleep();
     }

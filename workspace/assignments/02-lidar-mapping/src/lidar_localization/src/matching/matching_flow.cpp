@@ -9,12 +9,20 @@
 
 namespace lidar_localization {
 MatchingFlow::MatchingFlow(ros::NodeHandle& nh) {
+    // subscriber:
+    // a. undistorted Velodyne measurement: 
     cloud_sub_ptr_ = std::make_shared<CloudSubscriber>(nh, "/synced_cloud", 100000);
+    // b. lidar pose in map frame:
     gnss_sub_ptr_ = std::make_shared<OdometrySubscriber>(nh, "/synced_gnss", 100000);
 
+    // publisher:
+    // a. global point cloud map:
     global_map_pub_ptr_ = std::make_shared<CloudPublisher>(nh, "/global_map", "/map", 100);
+    // b. local point cloud map:
     local_map_pub_ptr_ = std::make_shared<CloudPublisher>(nh, "/local_map", "/map", 100);
+    // c. current scan:
     current_scan_pub_ptr_ = std::make_shared<CloudPublisher>(nh, "/current_scan", "/map", 100);
+    // d. estimated lidar pose in map frame:
     laser_odom_pub_ptr_ = std::make_shared<OdometryPublisher>(nh, "/laser_localization", "/map", "/lidar", 100);
     laser_tf_pub_ptr_ = std::make_shared<TFBroadCaster>("/map", "/vehicle_link");
 
@@ -46,20 +54,20 @@ bool MatchingFlow::Run() {
 }
 
 bool MatchingFlow::ReadData() {
+    // pipe lidar measurements and pose into buffer:
     cloud_sub_ptr_->ParseData(cloud_data_buff_);
     gnss_sub_ptr_->ParseData(gnss_data_buff_);
     return true;
 }
 
 bool MatchingFlow::HasData() {
-    if (cloud_data_buff_.size() == 0)
+    if (
+        0 == cloud_data_buff_.size() ||
+        0 == gnss_data_buff_.size() ||
+        !matching_ptr_->HasInited()
+    ) {
         return false;
-    
-    if (matching_ptr_->HasInited())
-        return true;
-    
-    if (gnss_data_buff_.size() == 0)
-        return false;
+    }
     
     return true;
 }

@@ -49,6 +49,7 @@ class BackEnd {
 
   private:
     std::string key_frames_path_ = "";
+    std::string scan_context_path_ = "";
     std::string trajectory_path_ = "";
 
     std::ofstream ground_truth_ofs_;

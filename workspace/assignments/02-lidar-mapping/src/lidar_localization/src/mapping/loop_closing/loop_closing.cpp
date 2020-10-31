@@ -60,6 +60,7 @@ bool LoopClosing::InitDataPath(const YAML::Node& config_node) {
     }
 
     key_frames_path_ = data_path + "/slam_data/key_frames";
+    scan_context_path_ = data_path + "/slam_data/scan_context";
 
     return true;
 }
@@ -118,7 +119,10 @@ bool LoopClosing::Update(
 
     has_new_loop_pose_ = false;
 
-    scan_context_manager_ptr_->Update(key_scan);
+    scan_context_manager_ptr_->Update(
+        key_scan, key_gnss
+    );
+
     all_key_frames_.push_back(key_frame);
     all_key_gnss_.push_back(key_gnss);
 
@@ -180,7 +184,7 @@ bool LoopClosing::DetectNearestKeyFrame(
         float key_frame_distance = std::numeric_limits<float>::max();
         for (size_t i = 0; i < N - 1; ++i) {
             // ensure key frame seq. distance:
-            if (N - i < diff_num_)
+            if (N < static_cast<size_t>(i + diff_num_))
                 break;
             
             const KeyFrame &proposed_key_frame = all_key_gnss_.at(i);
@@ -325,4 +329,9 @@ bool LoopClosing::HasNewLoopPose() {
 LoopPose& LoopClosing::GetCurrentLoopPose() {
     return current_loop_pose_;
 }
+
+bool LoopClosing::Save(void) {
+    return scan_context_manager_ptr_->Save(scan_context_path_);
+}
+
 }

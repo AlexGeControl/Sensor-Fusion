@@ -6,11 +6,18 @@
 #include <limits>
 
 #include <math.h>
+#include <ctime>
 #include <cmath>
+#include <cstdlib>
 #include <memory>
+#include <iostream>
+#include <fstream>
 #include <ostream>
 
 #include "lidar_localization/models/scan_context_manager/scan_context_manager.hpp"
+
+#include "lidar_localization/models/scan_context_manager/ring_keys.pb.h"
+
 #include "glog/logging.h"
 
 namespace lidar_localization {
@@ -54,13 +61,17 @@ ScanContextManager::ScanContextManager(const YAML::Node& node) {
     state_.scan_context_.clear();
     state_.ring_key_.clear();
 
-    state_.indexing_counter_ = 0;
+    state_.index_.counter_ = 0;
 
-    state_.ring_key_index_.reset();
-    state_.ring_key_data_.clear();
+    state_.index_.kd_tree_.reset();
+    state_.index_.data_.ring_key_.clear();
+    state_.index_.data_.key_frame_.clear();
 }
 
-void ScanContextManager::Update(const CloudData &scan) {
+void ScanContextManager::Update(
+    const CloudData &scan,
+    const KeyFrame &key_frame
+) {
     // extract scan context and corresponding ring key:
     ScanContext scan_context = GetScanContext(scan);
     RingKey ring_key = GetRingKey(scan_context);
@@ -68,6 +79,7 @@ void ScanContextManager::Update(const CloudData &scan) {
     // update buffer:
     state_.scan_context_.push_back(scan_context);
     state_.ring_key_.push_back(ring_key);
+    state_.key_frame_.push_back(key_frame);
 }
 
 /**
@@ -77,10 +89,90 @@ void ScanContextManager::Update(const CloudData &scan) {
  */
 std::pair<int, float> ScanContextManager::DetectLoopClosure(void) {
     // use latest key scan for query:
-    const ScanContext &latest_scan_context = state_.scan_context_.back();
-    const RingKey &latest_ring_key = state_.ring_key_.back();
+    const ScanContext &query_scan_context = state_.scan_context_.back();
+    const RingKey &query_ring_key = state_.ring_key_.back();
 
-    return GetLoopClosureMatch(latest_scan_context, latest_ring_key);
+    return GetLoopClosureMatch(query_scan_context, query_ring_key);
+}
+
+/**
+ * @brief  get loop closure proposal using the given key scan
+ * @param  scan, query key scan
+ * @return loop closure proposal (key_frame_id, scan_context_distance) as std::pair<int, float>
+ */
+std::pair<int, float> ScanContextManager::DetectLoopClosure(const CloudData &scan) {
+    // extract scan context and corresponding ring key:
+    ScanContext query_scan_context = GetScanContext(scan);
+    RingKey query_ring_key = GetRingKey(query_scan_context);
+
+    return GetLoopClosureMatch(query_scan_context, query_ring_key);
+}
+
+/**
+ * @brief  save scan context index & data to persistent storage
+ * @param  output_path, scan context output path
+ * @return true for success otherwise false
+ */
+bool ScanContextManager::Save(const std::string &output_path) {
+    if (
+        state_.ring_key_.size() > static_cast<size_t>(MIN_KEY_FRAME_SEQ_DISTANCE_)
+    ) {
+        // get the latest scan context index:
+        UpdateIndex(MIN_KEY_FRAME_SEQ_DISTANCE_);
+
+        LOG(ERROR) << std::endl
+                    << "[Scan Context]: Save index to " << output_path
+                    << std::endl << std::endl;
+
+        // a. save index:
+        std::string index_output_path = output_path + "/index.bin";
+        FILE *index_output_fptr = fopen(index_output_path.c_str(), "wb");
+        if (!index_output_fptr) {
+            LOG(ERROR) << std::endl
+                    << "[Scan Context]: Failed to write index." 
+                    << std::endl << std::endl;
+            return false;
+        };
+        state_.index_.kd_tree_->index->saveIndex(index_output_fptr);
+        fclose(index_output_fptr);
+
+        // b. save ring key data:
+
+        // Verify that the version of the library that we linked against is
+        // compatible with the version of the headers we compiled against.
+        GOOGLE_PROTOBUF_VERIFY_VERSION;
+
+        scan_context_io::RingKeys ring_keys;
+
+        for (size_t i = 0; i < state_.index_.data_.ring_key_.size(); ++i) {
+            const RingKey &input_ring_key = state_.index_.data_.ring_key_.at(i);
+            scan_context_io::RingKey *output_ring_key = ring_keys.add_data();
+
+            for (size_t j = 0; j < input_ring_key.size(); ++j) {
+                output_ring_key->add_data(input_ring_key.at(j));
+            }
+        }
+
+        std::string ring_keys_output_path = output_path + "/ring_keys.proto";
+        std::fstream ring_keys_output(
+            ring_keys_output_path, 
+            std::ios::out | std::ios::trunc | std::ios::binary
+        );
+        if (!ring_keys.SerializeToOstream(&ring_keys_output)) {
+            LOG(ERROR) << std::endl
+                    << "[Scan Context]: Failed to write ring keys."
+                    << std::endl << std::endl;
+            return false;
+        }
+
+        google::protobuf::ShutdownProtobufLibrary();
+    } else {
+        LOG(ERROR) << std::endl
+                    << "[Scan Context]: Skip empty index"
+                    << std::endl << std::endl;
+    }
+
+    return true;
 }
 
 /**
@@ -241,7 +333,7 @@ void ScanContextManager::GetCandidateIndices(
     std::vector<size_t> &indices,
 	std::vector<float> &distances
 ) {    
-    state_.ring_key_index_->query(
+    state_.index_.kd_tree_->query(
         &ring_key.at(0),
         N,
         &indices.at(0),
@@ -403,6 +495,38 @@ std::pair<int, float> ScanContextManager::GetScanContextMatch(
 }
 
 /**
+ * @brief  update scan context index 
+ * @param  MIN_KEY_FRAME_SEQ_DISTANCE, min. seq distance from current key frame 
+ * @return none
+ */
+void ScanContextManager::UpdateIndex(const int MIN_KEY_FRAME_SEQ_DISTANCE) {
+    // fetch to-be-indexed ring keys from buffer:
+    state_.index_.data_.ring_key_.clear();
+    state_.index_.data_.ring_key_.insert(
+        state_.index_.data_.ring_key_.end(),
+        state_.ring_key_.begin(), 
+        // this ensures the min. key frame seq. distance
+        state_.ring_key_.end() - MIN_KEY_FRAME_SEQ_DISTANCE
+    );
+
+    state_.index_.data_.key_frame_.clear();
+    state_.index_.data_.key_frame_.insert(
+        state_.index_.data_.key_frame_.end(),
+        state_.key_frame_.begin(), 
+        // this ensures the min. key frame seq. distance
+        state_.key_frame_.end() - MIN_KEY_FRAME_SEQ_DISTANCE
+    );
+
+    // TODO: enable in-place update of KDTree
+    state_.index_.kd_tree_.reset(); 
+    state_.index_.kd_tree_ = std::make_shared<RingKeyIndex>(
+        NUM_RINGS_,  /* dim */
+        state_.index_.data_.ring_key_,
+        10           /* max leaf size */
+    );
+}
+
+/**
  * @brief  get loop closure match result for given scan context and ring key 
  * @param  query_scan_context, query scan context 
  * @param  query_ring_key, query ring key
@@ -428,26 +552,11 @@ std::pair<int, float> ScanContextManager::GetLoopClosureMatch(
     //
     // step 1: update ring key index
     // 
-    ++state_.indexing_counter_;
+    ++state_.index_.counter_;
     if (
-        0 == (state_.indexing_counter_ % INDEXING_INTERVAL_)
+        0 == (state_.index_.counter_ % INDEXING_INTERVAL_)
     ) {
-        // fetch to-be-indexed ring keys from buffer:
-        state_.ring_key_data_.clear();
-        state_.ring_key_data_.insert(
-            state_.ring_key_data_.end(),
-            state_.ring_key_.begin(), 
-            // this ensures the min. key frame seq. distance
-            state_.ring_key_.end() - MIN_KEY_FRAME_SEQ_DISTANCE_
-        );
-
-        // TODO: enable in-place update of KDTree
-        state_.ring_key_index_.reset(); 
-        state_.ring_key_index_ = std::make_shared<RingKeyIndex>(
-            NUM_RINGS_,  /* dim */
-            state_.ring_key_data_,
-            10           /* max leaf size */
-        );
+        UpdateIndex(MIN_KEY_FRAME_SEQ_DISTANCE_);
     }
 
     //

@@ -79,9 +79,12 @@ bool BackEnd::InitDataPath(const YAML::Node& config_node) {
         return false;
 
     key_frames_path_ = data_path + "/slam_data/key_frames";
+    scan_context_path_ = data_path + "/slam_data/scan_context";
     trajectory_path_ = data_path + "/slam_data/trajectory";
 
     if (!FileManager::InitDirectory(key_frames_path_, "Point Cloud Key Frames"))
+        return false;
+    if (!FileManager::InitDirectory(scan_context_path_, "Scan Context Index & Data"))
         return false;
     if (!FileManager::InitDirectory(trajectory_path_, "Estimated Trajectory"))
         return false;

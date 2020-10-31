@@ -20,6 +20,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 add_service_files(
    FILES
+   saveScanContext.srv
    saveMap.srv
    optimizeMap.srv
 )
@@ -34,6 +35,7 @@ set(ALL_TARGET_LIBRARIES "")
 include(cmake/glog.cmake)
 include(cmake/YAML.cmake)
 include(cmake/geographic.cmake)
+include(cmake/protobuf.cmake)
 include(cmake/PCL.cmake)
 include(cmake/g2o.cmake)
 

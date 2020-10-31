@@ -32,6 +32,8 @@ class LoopClosing {
     bool HasNewLoopPose();
     LoopPose& GetCurrentLoopPose();
 
+    bool Save(void);
+
   private:
     bool InitWithConfig();
     bool InitParam(const YAML::Node& config_node);
@@ -60,7 +62,10 @@ class LoopClosing {
 
   private:
     std::string key_frames_path_ = "";
+    std::string scan_context_path_ = "";
+
     std::string loop_closure_method_ = "";
+
     int extend_frame_num_ = 3;
     int loop_step_ = 10;
     int diff_num_ = 100;

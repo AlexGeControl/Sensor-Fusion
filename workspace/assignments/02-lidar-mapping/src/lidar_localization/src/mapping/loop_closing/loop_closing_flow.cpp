@@ -37,6 +37,10 @@ bool LoopClosingFlow::Run() {
     return true;
 }
 
+bool LoopClosingFlow::Save(void) {
+    return loop_closing_ptr_->Save();
+}
+
 bool LoopClosingFlow::ReadData() {
     key_scan_sub_ptr_->ParseData(key_scan_buff_);
     key_frame_sub_ptr_->ParseData(key_frame_buff_);
