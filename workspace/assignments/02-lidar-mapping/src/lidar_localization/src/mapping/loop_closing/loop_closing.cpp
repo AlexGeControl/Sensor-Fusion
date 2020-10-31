@@ -147,7 +147,7 @@ bool LoopClosing::DetectNearestKeyFrame(
     if (++skip_cnt < skip_num)
         return false;
 
-    #ifdef SCAN_CONTEXT
+    #ifndef SCAN_CONTEXT
         // generate loop-closure proposal using scan context match:
         std::pair<int, float> proposal = scan_context_manager_ptr_->DetectLoopClosure();
         const int proposed_key_frame_id = proposal.first;
