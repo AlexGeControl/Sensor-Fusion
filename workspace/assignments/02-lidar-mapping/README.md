@@ -135,7 +135,7 @@ bool MatchingFlow::UpdateMatching() {
 }
 ```
 
-`Localization Init Using Scan Context`的实时轨迹估计如下图所示. `Scan Context Init` & `NDT Lidar Odometry`的估计轨迹与`GNSS/IMU`的观测轨迹有很高的重合度, 证明了`Scan Context Init`的可行性.
+`Localization Init Using Scan Context`的实时轨迹估计如下图所示. 在Playback的整个过程中, `Scan Context Init` & `NDT Lidar Odometry`的估计轨迹与`GNSS/IMU`的观测轨迹有很高的重合度, 证明了`Scan Context Init`的可行性.
 
 <img src="doc/images/02-localization-init-with-scan-context.png" width="%100" alt="Localization Init using Scan Context">
 
