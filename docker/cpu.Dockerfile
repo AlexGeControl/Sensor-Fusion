@@ -74,7 +74,9 @@ RUN apt-fast update --fix-missing && \
         mesa-utils libgl1-mesa-dri libxrender1 \
         texlive-latex-extra \
         # c++:
-        cmake gcc g++ build-essential libglib2.0-dev libboost-dev libboost-all-dev libtbb-dev \
+        gcc g++ \
+        make cmake build-essential autoconf automake libtool \
+        libglib2.0-dev libboost-dev libboost-all-dev libtbb-dev \
         # python 2:
         python-pip python-dev python-tk \
         # ROS melodic:
@@ -158,6 +160,17 @@ RUN wget https://nchc.dl.sourceforge.net/project/geographiclib/distrib/Geographi
     mkdir build && cd build && \
     # config:
     cmake .. && \
+    # build:
+    make -j8 && \
+    # install:
+    make install
+
+# install Google Protobuf latest:
+RUN git clone https://github.com/google/protobuf.git -o protobuf && cd protobuf && \
+    # sync:
+    git submodule update --init --recursive && \
+    # config:
+    ./autogen.sh && ./configure && \ 
     # build:
     make -j8 && \
     # install:
