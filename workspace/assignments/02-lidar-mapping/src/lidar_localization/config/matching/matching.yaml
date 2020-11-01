@@ -46,7 +46,7 @@ scan_context:
     # g. scan context distance threshold for proposal generation:
     #   0.4-0.6 is good choice for using with robust kernel (e.g., Cauchy, DCS) + icp fitness threshold 
     #   if not, recommend 0.1-0.15
-    scan_context_distance_thresh: 0.20
+    scan_context_distance_thresh: 0.15
 ## 匹配相关参数
 NDT:
     res : 1.0

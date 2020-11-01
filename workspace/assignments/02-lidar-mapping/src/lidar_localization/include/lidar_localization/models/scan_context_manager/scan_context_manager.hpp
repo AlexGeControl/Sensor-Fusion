@@ -180,6 +180,50 @@ private:
         const RingKey &query_ring_key
     );
 
+    /**
+     * @brief  save scan context index
+     * @param  output_path, scan context index output path
+     * @return true for success otherwise false
+     */
+    bool SaveIndex(const std::string &output_path);
+    /**
+     * @brief  save scan contexts
+     * @param  output_path, scan contexts output path
+     * @return true for success otherwise false
+     */
+    bool SaveScanContexts(const std::string &output_path);
+    /**
+     * @brief  save ring keys
+     * @param  output_path, ring keys output path
+     * @return true for success otherwise false
+     */
+    bool SaveRingKeys(const std::string &output_path);
+    /**
+     * @brief  save key frames
+     * @param  output_path, key frames output path
+     * @return true for success otherwise false
+     */
+    bool SaveKeyFrames(const std::string &output_path);
+
+    /**
+     * @brief  load scan contexts
+     * @param  input_path, scan contexts input path
+     * @return true for success otherwise false
+     */
+    bool LoadScanContexts(const std::string &input_path);
+    /**
+     * @brief  load ring keys
+     * @param  input_path, ring keys input path
+     * @return true for success otherwise false
+     */
+    bool LoadRingKeys(const std::string &input_path);
+    /**
+     * @brief  load key frames
+     * @param  input_path, key frames input path
+     * @return true for success otherwise false
+     */
+    bool LoadKeyFrames(const std::string &input_path);
+
     // states:
     struct {
         // a. scan context buffer:

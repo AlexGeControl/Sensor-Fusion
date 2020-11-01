@@ -159,18 +159,14 @@ bool ScanContextManager::Save(const std::string &output_path) {
 
         // a. save index:
         std::string index_output_path = output_path + "/index.bin";
-        FILE *index_output_fptr = fopen(index_output_path.c_str(), "wb");
-        if (!index_output_fptr) {
-            LOG(ERROR) << std::endl
-                    << "[Scan Context]: Failed to write index." 
-                    << std::endl << std::endl;
+        if (
+            !SaveIndex(index_output_path)
+        ) {
+            LOG(ERROR) << "[Scan Context]: Failed to write index." << std::endl;
             return false;
-        };
-        state_.index_.kd_tree_->index->saveIndex(index_output_fptr);
-        fclose(index_output_fptr);
-
-        LOG(INFO) << "\tSave index to: " << index_output_path
-                  << std::endl;
+        } else {
+            LOG(INFO) << "\tSave index to: " << index_output_path << std::endl;
+        }
 
         // b. save ring key data:
 
@@ -179,108 +175,43 @@ bool ScanContextManager::Save(const std::string &output_path) {
         GOOGLE_PROTOBUF_VERIFY_VERSION;
 
         // 1. scan contexts:
-        scan_context_io::ScanContexts scan_contexts;
-
-        scan_contexts.set_num_rings(NUM_RINGS_);
-        scan_contexts.set_num_sectors(NUM_SECTORS_);
-        for (size_t i = 0; i < state_.scan_context_.size(); ++i) {
-            const ScanContext &input_scan_context = state_.scan_context_.at(i);
-            scan_context_io::ScanContext *output_scan_context = scan_contexts.add_data();
-
-            for (int rid = 0; rid < NUM_RINGS_; ++rid) {
-                for (int sid = 0; sid < NUM_SECTORS_; ++sid) {
-                    output_scan_context->add_data(
-                        input_scan_context(rid, sid)
-                    );
-                }
-            }
-        }
-
         std::string scan_contexts_output_path = output_path + "/scan_contexts.proto";
-        std::fstream scan_contexts_output(
-            scan_contexts_output_path, 
-            std::ios::out | std::ios::trunc | std::ios::binary
-        );
-        if (!scan_contexts.SerializeToOstream(&scan_contexts_output)) {
-            LOG(ERROR) << std::endl
-                    << "[Scan Context]: Failed to write scan contexts."
-                    << std::endl << std::endl;
+        if (
+            !SaveScanContexts(scan_contexts_output_path)
+        ) {
+            LOG(ERROR) << "[Scan Context]: Failed to write scan contexts." << std::endl;
             return false;
+        } else {
+            LOG(INFO) << "\tSave scan context of size " << state_.scan_context_.size()
+                      << " to: " << scan_contexts_output_path
+                      << std::endl;
         }
-
-        LOG(INFO) << "\tSave scan context of size " << scan_contexts.data_size()
-                  << " to: " << scan_contexts_output_path
-                  << std::endl;
 
         // 2. ring keys:
-        scan_context_io::RingKeys ring_keys;
-        for (size_t i = 0; i < state_.index_.data_.ring_key_.size(); ++i) {
-            const RingKey &input_ring_key = state_.index_.data_.ring_key_.at(i);
-            scan_context_io::RingKey *output_ring_key = ring_keys.add_data();
-
-            for (size_t j = 0; j < input_ring_key.size(); ++j) {
-                output_ring_key->add_data(input_ring_key.at(j));
-            }
-        }
-
         std::string ring_keys_output_path = output_path + "/ring_keys.proto";
-        std::fstream ring_keys_output(
-            ring_keys_output_path, 
-            std::ios::out | std::ios::trunc | std::ios::binary
-        );
-        if (!ring_keys.SerializeToOstream(&ring_keys_output)) {
-            LOG(ERROR) << std::endl
-                    << "[Scan Context]: Failed to write ring keys."
-                    << std::endl << std::endl;
+        if (
+            !SaveRingKeys(ring_keys_output_path)
+        ) {
+            LOG(ERROR) << "[Scan Context]: Failed to write ring keys." << std::endl;
             return false;
+        } else {
+            LOG(INFO) << "\tSave ring keys of size " << state_.index_.data_.ring_key_.size()
+                      << " to: " << ring_keys_output_path
+                      << std::endl;
         }
-
-        LOG(INFO) << "\tSave ring keys of size " << ring_keys.data_size()
-                  << " to: " << ring_keys_output_path
-                  << std::endl;
 
         // 3. key frames:
-        scan_context_io::KeyFrames key_frames;
-        for (size_t i = 0; i < state_.index_.data_.key_frame_.size(); ++i) {
-            const KeyFrame &input_key_frame = state_.index_.data_.key_frame_.at(i);
-            scan_context_io::KeyFrame *output_key_frame = key_frames.add_data();
-
-            // a. set orientation:
-            const Eigen::Quaternionf input_q = input_key_frame.GetQuaternion();
-            scan_context_io::Quat *output_q = new scan_context_io::Quat();
-
-            output_q->set_w(input_q.w());
-            output_q->set_x(input_q.x());
-            output_q->set_y(input_q.y());
-            output_q->set_z(input_q.z());
-
-            // b. set translation:
-            const Eigen::Vector3f input_t = input_key_frame.GetTranslation();
-            scan_context_io::Trans *output_t = new scan_context_io::Trans();
-
-            output_t->set_x(input_t.x());
-            output_t->set_y(input_t.y());
-            output_t->set_z(input_t.z());
-
-            output_key_frame->set_allocated_q(output_q);
-            output_key_frame->set_allocated_t(output_t);
-        }
-
         std::string key_frames_output_path = output_path + "/key_frames.proto";
-        std::fstream key_frames_output(
-            key_frames_output_path, 
-            std::ios::out | std::ios::trunc | std::ios::binary
-        );
-        if (!key_frames.SerializeToOstream(&key_frames_output)) {
-            LOG(ERROR) << std::endl
-                    << "[Scan Context]: Failed to write key frames."
-                    << std::endl << std::endl;
+        if (
+            !SaveKeyFrames(key_frames_output_path)
+        ) {
+            LOG(ERROR) << "[Scan Context]: Failed to write key frames." << std::endl;
             return false;
+        } else {
+            LOG(INFO) << "\tSave key frames of size " << state_.index_.data_.key_frame_.size()
+                      << " to: " << key_frames_output_path
+                      << std::endl;
         }
-
-        LOG(INFO) << "\tSave key frames of size " << key_frames.data_size()
-                  << " to: " << key_frames_output_path
-                  << std::endl;
 
         google::protobuf::ShutdownProtobufLibrary();
     } else {
@@ -309,120 +240,38 @@ bool ScanContextManager::Load(const std::string &input_path) {
               << std::endl;
 
     // 1. scan contexts:
-    scan_context_io::ScanContexts scan_contexts;
-
-    std::string scan_contexts_input_path = input_path + "/scan_contexts.proto";
-    std::fstream scan_contexts_input(
-        scan_contexts_input_path, 
-        std::ios::in | std::ios::binary
-    );
-    if (!scan_contexts.ParseFromIstream(&scan_contexts_input)) {
-        LOG(ERROR) << std::endl
-                << "[Scan Context]: Failed to load scan contexts."
-                << std::endl << std::endl;
+    std::string scan_contexts_input_path = input_path + "/scan_contexts.proto";;
+    if (
+        !LoadScanContexts(scan_contexts_input_path)
+    ) {
+        LOG(ERROR) << "[Scan Context]: Failed to load scan contexts." << std::endl;
         return false;
+    } else {
+        LOG(INFO) << "\tNum. Scan Contexts: " << state_.scan_context_.size() << std::endl;
     }
-
-    state_.scan_context_.clear();
-    state_.scan_context_.resize(scan_contexts.data_size());
-    for (int i = 0; i < scan_contexts.data_size(); ++i) {
-        const scan_context_io::ScanContext &input_scan_context = scan_contexts.data(i);
-        ScanContext output_scan_context = ScanContext::Zero(
-            scan_contexts.num_rings(), scan_contexts.num_sectors()
-        );
-
-        for (int rid = 0; rid < scan_contexts.num_rings(); ++rid) {
-            for (int sid = 0; sid < scan_contexts.num_sectors(); ++sid) {
-                // get data id:
-                int did = rid * scan_contexts.num_sectors() + sid;
-                output_scan_context(rid, sid) = input_scan_context.data(did);
-            }
-        }
-
-        state_.scan_context_.at(i) = output_scan_context;
-    }
-
-    LOG(INFO) << "\tNum. Scan Contexts: " << state_.scan_context_.size()
-              << std::endl;
 
     // 2. ring keys:
-    scan_context_io::RingKeys ring_keys;
-
     std::string ring_keys_input_path = input_path + "/ring_keys.proto";
-    std::fstream ring_keys_input(
-        ring_keys_input_path, 
-        std::ios::in | std::ios::binary
-    );
-    if (!ring_keys.ParseFromIstream(&ring_keys_input)) {
-        LOG(ERROR) << std::endl
-                << "[Scan Context]: Failed to load ring keys."
-                << std::endl << std::endl;
+    if (
+        !LoadRingKeys(ring_keys_input_path)
+    ) {
+        LOG(ERROR) << "[Scan Context]: Failed to load ring keys." << std::endl;
         return false;
+    } else {
+        LOG(INFO) << "\tNum. Ring Keys: " << state_.ring_key_.size() << std::endl;
     }
-
-    state_.ring_key_.clear();
-    state_.ring_key_.resize(ring_keys.data_size());
-    state_.index_.data_.ring_key_.clear();
-    state_.index_.data_.ring_key_.resize(ring_keys.data_size());
-    for (int i = 0; i < ring_keys.data_size(); ++i) {
-        const scan_context_io::RingKey &input_ring_key = ring_keys.data(i);
-        RingKey output_ring_key;
-
-        output_ring_key.clear();
-        output_ring_key.resize(input_ring_key.data_size());
-        for (int j = 0; j < input_ring_key.data_size(); ++j) {
-            output_ring_key.at(j) = input_ring_key.data(j);
-        }
-
-        state_.ring_key_.at(i) = output_ring_key;
-        state_.index_.data_.ring_key_.at(i) = output_ring_key;
-    }
-
-    LOG(INFO) << "\tNum. Ring Keys: " << state_.ring_key_.size()
-              << std::endl;
 
     // 3. key frames:
-    scan_context_io::KeyFrames key_frames;
-
     std::string key_frames_input_path = input_path + "/key_frames.proto";
-    std::fstream key_frames_input(
-        key_frames_input_path, 
-        std::ios::in | std::ios::binary
-    );
-    if (!key_frames.ParseFromIstream(&key_frames_input)) {
-        LOG(ERROR) << std::endl
-                << "[Scan Context]: Failed to load key frames."
-                << std::endl << std::endl;
+    if (
+        !LoadKeyFrames(key_frames_input_path)
+    ) {
+        LOG(ERROR) << "[Scan Context]: Failed to load key frames." << std::endl;
         return false;
+    } else {
+        LOG(INFO) << "\tNum. Key Frames: " << state_.index_.data_.key_frame_.size() << std::endl;
     }
     
-    state_.index_.data_.key_frame_.clear();
-    state_.index_.data_.key_frame_.resize(key_frames.data_size());
-    for (int i = 0; i < key_frames.data_size(); ++i) {
-        const scan_context_io::KeyFrame &input_key_frame = key_frames.data(i);
-        KeyFrame &output_key_frame = state_.index_.data_.key_frame_.at(i);
-
-        output_key_frame.index = i;
-
-        Eigen::Quaternionf input_q(
-            input_key_frame.q().w(),
-            input_key_frame.q().x(),
-            input_key_frame.q().y(),
-            input_key_frame.q().z()
-        );
-        Eigen::Vector3f input_t(
-            input_key_frame.t().x(),
-            input_key_frame.t().y(),
-            input_key_frame.t().z()
-        );
-
-        output_key_frame.pose.block<3, 3>(0, 0) = input_q.toRotationMatrix();
-        output_key_frame.pose.block<3, 1>(0, 3) = input_t;
-    }
-
-    LOG(INFO) << "\tNum. Key Frames: " << state_.index_.data_.key_frame_.size()
-              << std::endl;
-
     // b. load scan context index:
     state_.index_.kd_tree_.reset(); 
     state_.index_.kd_tree_ = std::make_shared<RingKeyIndex>(
@@ -878,6 +727,244 @@ std::pair<int, float> ScanContextManager::GetLoopClosureMatch(
     std::pair<int, float> result{match_id, yaw_change_in_rad};
 
     return result;
+}
+
+/**
+ * @brief  save scan context index
+ * @param  output_path, scan context index output path
+ * @return true for success otherwise false
+ */
+bool ScanContextManager::SaveIndex(const std::string &output_path) {
+    FILE *output_fptr = fopen(output_path.c_str(), "wb");
+    if (!output_fptr) {
+        return false;
+    };
+    state_.index_.kd_tree_->index->saveIndex(output_fptr);
+    fclose(output_fptr);
+
+    return true;
+}
+
+/**
+ * @brief  save scan contexts
+ * @param  output_path, scan contexts output path
+ * @return true for success otherwise false
+ */
+bool ScanContextManager::SaveScanContexts(const std::string &output_path) {
+    scan_context_io::ScanContexts scan_contexts;
+
+    scan_contexts.set_num_rings(NUM_RINGS_);
+    scan_contexts.set_num_sectors(NUM_SECTORS_);
+    for (size_t i = 0; i < state_.scan_context_.size(); ++i) {
+        const ScanContext &input_scan_context = state_.scan_context_.at(i);
+        scan_context_io::ScanContext *output_scan_context = scan_contexts.add_data();
+
+        for (int rid = 0; rid < NUM_RINGS_; ++rid) {
+            for (int sid = 0; sid < NUM_SECTORS_; ++sid) {
+                output_scan_context->add_data(
+                    input_scan_context(rid, sid)
+                );
+            }
+        }
+    }
+
+    std::fstream output(
+        output_path, 
+        std::ios::out | std::ios::trunc | std::ios::binary
+    );
+    if (!scan_contexts.SerializeToOstream(&output)) {
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * @brief  save ring keys
+ * @param  output_path, ring keys output path
+ * @return true for success otherwise false
+ */
+bool ScanContextManager::SaveRingKeys(const std::string &output_path) {
+    scan_context_io::RingKeys ring_keys;
+    for (size_t i = 0; i < state_.index_.data_.ring_key_.size(); ++i) {
+        const RingKey &input_ring_key = state_.index_.data_.ring_key_.at(i);
+        scan_context_io::RingKey *output_ring_key = ring_keys.add_data();
+
+        for (size_t j = 0; j < input_ring_key.size(); ++j) {
+            output_ring_key->add_data(input_ring_key.at(j));
+        }
+    }
+
+    std::fstream output(
+        output_path, 
+        std::ios::out | std::ios::trunc | std::ios::binary
+    );
+    if (!ring_keys.SerializeToOstream(&output)) {
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * @brief  save key frames
+ * @param  output_path, key frames output path
+ * @return true for success otherwise false
+ */
+bool ScanContextManager::SaveKeyFrames(const std::string &output_path) {
+    scan_context_io::KeyFrames key_frames;
+    for (size_t i = 0; i < state_.index_.data_.key_frame_.size(); ++i) {
+        const KeyFrame &input_key_frame = state_.index_.data_.key_frame_.at(i);
+        scan_context_io::KeyFrame *output_key_frame = key_frames.add_data();
+
+        // a. set orientation:
+        const Eigen::Quaternionf input_q = input_key_frame.GetQuaternion();
+        scan_context_io::Quat *output_q = new scan_context_io::Quat();
+
+        output_q->set_w(input_q.w());
+        output_q->set_x(input_q.x());
+        output_q->set_y(input_q.y());
+        output_q->set_z(input_q.z());
+
+        // b. set translation:
+        const Eigen::Vector3f input_t = input_key_frame.GetTranslation();
+        scan_context_io::Trans *output_t = new scan_context_io::Trans();
+
+        output_t->set_x(input_t.x());
+        output_t->set_y(input_t.y());
+        output_t->set_z(input_t.z());
+
+        output_key_frame->set_allocated_q(output_q);
+        output_key_frame->set_allocated_t(output_t);
+    }
+
+    std::fstream output(
+        output_path, 
+        std::ios::out | std::ios::trunc | std::ios::binary
+    );
+    if (!key_frames.SerializeToOstream(&output)) {
+        return false;
+    }
+
+    return true;
+}
+
+/**
+ * @brief  load scan contexts
+ * @param  input_path, scan contexts input path
+ * @return true for success otherwise false
+ */
+bool ScanContextManager::LoadScanContexts(const std::string &input_path) {
+    scan_context_io::ScanContexts scan_contexts;
+
+    std::fstream input(
+        input_path, 
+        std::ios::in | std::ios::binary
+    );
+    if (!scan_contexts.ParseFromIstream(&input)) {
+        return false;
+    }
+
+    state_.scan_context_.clear();
+    state_.scan_context_.resize(scan_contexts.data_size());
+    for (int i = 0; i < scan_contexts.data_size(); ++i) {
+        const scan_context_io::ScanContext &input_scan_context = scan_contexts.data(i);
+        ScanContext output_scan_context = ScanContext::Zero(
+            scan_contexts.num_rings(), scan_contexts.num_sectors()
+        );
+
+        for (int rid = 0; rid < scan_contexts.num_rings(); ++rid) {
+            for (int sid = 0; sid < scan_contexts.num_sectors(); ++sid) {
+                // get data id:
+                int did = rid * scan_contexts.num_sectors() + sid;
+                output_scan_context(rid, sid) = input_scan_context.data(did);
+            }
+        }
+
+        state_.scan_context_.at(i) = output_scan_context;
+    }
+
+    return true;
+}
+
+/**
+ * @brief  load ring keys
+ * @param  input_path, ring keys input path
+ * @return true for success otherwise false
+ */
+bool ScanContextManager::LoadRingKeys(const std::string &input_path) {
+    scan_context_io::RingKeys ring_keys;
+
+    std::fstream input(
+        input_path, 
+        std::ios::in | std::ios::binary
+    );
+    if (!ring_keys.ParseFromIstream(&input)) {
+        return false;
+    }
+
+    state_.ring_key_.clear();
+    state_.ring_key_.resize(ring_keys.data_size());
+    state_.index_.data_.ring_key_.clear();
+    state_.index_.data_.ring_key_.resize(ring_keys.data_size());
+    for (int i = 0; i < ring_keys.data_size(); ++i) {
+        const scan_context_io::RingKey &input_ring_key = ring_keys.data(i);
+        RingKey output_ring_key;
+
+        output_ring_key.clear();
+        output_ring_key.resize(input_ring_key.data_size());
+        for (int j = 0; j < input_ring_key.data_size(); ++j) {
+            output_ring_key.at(j) = input_ring_key.data(j);
+        }
+
+        state_.ring_key_.at(i) = output_ring_key;
+        state_.index_.data_.ring_key_.at(i) = output_ring_key;
+    }
+
+    return true;
+}
+
+/**
+ * @brief  load key frames
+ * @param  input_path, key frames input path
+ * @return true for success otherwise false
+ */
+bool ScanContextManager::LoadKeyFrames(const std::string &input_path) {
+    scan_context_io::KeyFrames key_frames;
+
+    std::fstream input(
+        input_path, 
+        std::ios::in | std::ios::binary
+    );
+    if (!key_frames.ParseFromIstream(&input)) {
+        return false;
+    }
+    
+    state_.index_.data_.key_frame_.clear();
+    state_.index_.data_.key_frame_.resize(key_frames.data_size());
+    for (int i = 0; i < key_frames.data_size(); ++i) {
+        const scan_context_io::KeyFrame &input_key_frame = key_frames.data(i);
+        KeyFrame &output_key_frame = state_.index_.data_.key_frame_.at(i);
+
+        output_key_frame.index = i;
+
+        Eigen::Quaternionf input_q(
+            input_key_frame.q().w(),
+            input_key_frame.q().x(),
+            input_key_frame.q().y(),
+            input_key_frame.q().z()
+        );
+        Eigen::Vector3f input_t(
+            input_key_frame.t().x(),
+            input_key_frame.t().y(),
+            input_key_frame.t().z()
+        );
+
+        output_key_frame.pose.block<3, 3>(0, 0) = input_q.toRotationMatrix();
+        output_key_frame.pose.block<3, 1>(0, 3) = input_t;
+    }
+
+    return true;
 }
 
 } // namespace lidar_localization

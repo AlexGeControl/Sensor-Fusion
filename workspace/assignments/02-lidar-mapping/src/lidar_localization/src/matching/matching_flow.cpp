@@ -105,6 +105,7 @@ bool MatchingFlow::ValidData() {
 
 bool MatchingFlow::UpdateMatching() {
     if (!matching_ptr_->HasInited()) {
+        // first try to init using scan context query:
         if (
             matching_ptr_->SetScanContextPose(current_cloud_data_)
         ) {
@@ -119,7 +120,9 @@ bool MatchingFlow::UpdateMatching() {
             LOG(INFO) << "Scan Context Localization Init Succeeded. Deviation between GNSS/IMU: " 
                       << deviation
                       << std::endl;
-        } else {
+        } 
+        // if failed, fall back to GNSS/IMU init:
+        else {
             matching_ptr_->SetGNSSPose(current_gnss_data_.pose);
 
             LOG(INFO) << "Scan Context Localization Init Failed. Fallback to GNSS/IMU." 

@@ -41,11 +41,12 @@ bool Matching::InitWithConfig() {
     InitScanContextManager(config_node);
     InitRegistration(registration_ptr_, config_node);
 
+    // a. global map filter -- downsample point cloud map for visualization:
     InitFilter("global_map", global_map_filter_ptr_, config_node);
-
+    // b. local map filter -- downsample & ROI filtering for scan-map matching:
     InitBoxFilter(config_node);
     InitFilter("local_map", local_map_filter_ptr_, config_node);
-
+    // c. scan filter -- 
     InitFilter("frame", frame_filter_ptr_, config_node);
 
     return true;
@@ -110,7 +111,8 @@ bool Matching::InitGlobalMap() {
     pcl::io::loadPCDFile(map_path_, *global_map_ptr_);
     LOG(INFO) << "Load global map, size:" << global_map_ptr_->points.size();
 
-    global_map_filter_ptr_->Filter(global_map_ptr_, global_map_ptr_);
+    // since scan-map matching is used, here apply the same filter to local map & scan:
+    local_map_filter_ptr_->Filter(global_map_ptr_, global_map_ptr_);
     LOG(INFO) << "Filtered global map, size:" << global_map_ptr_->points.size();
 
     has_new_global_map_ = true;
@@ -121,6 +123,7 @@ bool Matching::InitGlobalMap() {
 bool Matching::ResetLocalMap(float x, float y, float z) {
     std::vector<float> origin = {x, y, z};
 
+    // use ROI filtering for local map segmentation:
     box_filter_ptr_->SetOrigin(origin);
     box_filter_ptr_->Filter(global_map_ptr_, local_map_ptr_);
 
@@ -140,26 +143,28 @@ bool Matching::ResetLocalMap(float x, float y, float z) {
 }
 
 bool Matching::Update(const CloudData& cloud_data, Eigen::Matrix4f& cloud_pose) {
-    std::vector<int> indices;
-    pcl::removeNaNFromPointCloud(*cloud_data.cloud_ptr, *cloud_data.cloud_ptr, indices);
-
-    CloudData::CLOUD_PTR filtered_cloud_ptr(new CloudData::CLOUD());
-    frame_filter_ptr_->Filter(cloud_data.cloud_ptr, filtered_cloud_ptr);
-
     static Eigen::Matrix4f step_pose = Eigen::Matrix4f::Identity();
     static Eigen::Matrix4f last_pose = init_pose_;
     static Eigen::Matrix4f predict_pose = init_pose_;
+
+    // remove invalid measurements:
+    std::vector<int> indices;
+    pcl::removeNaNFromPointCloud(*cloud_data.cloud_ptr, *cloud_data.cloud_ptr, indices);
+
+    // downsample:
+    CloudData::CLOUD_PTR filtered_cloud_ptr(new CloudData::CLOUD());
+    frame_filter_ptr_->Filter(cloud_data.cloud_ptr, filtered_cloud_ptr);
 
     if (!has_inited_) {
         predict_pose = current_gnss_pose_;
     }
 
-    // 与地图匹配
+    // matching:
     CloudData::CLOUD_PTR result_cloud_ptr(new CloudData::CLOUD());
     registration_ptr_->ScanMatch(filtered_cloud_ptr, predict_pose, result_cloud_ptr, cloud_pose);
     pcl::transformPointCloud(*cloud_data.cloud_ptr, *current_scan_ptr_, cloud_pose);
 
-    // 更新相邻两帧的相对运动
+    // update predicted pose:
     step_pose = last_pose.inverse() * cloud_pose;
     predict_pose = cloud_pose * step_pose;
     last_pose = cloud_pose;
@@ -202,8 +207,6 @@ bool Matching::SetGNSSPose(const Eigen::Matrix4f& gnss_pose) {
  * @return true if success otherwise false
  */
 bool Matching::SetScanContextPose(const CloudData& init_scan) {
-    static int scan_context_cnt = 0;
-
     // get init pose proposal using scan context match:
     Eigen::Matrix4f init_pose =  Eigen::Matrix4f::Identity();
     if (
@@ -212,12 +215,9 @@ bool Matching::SetScanContextPose(const CloudData& init_scan) {
         return false;
     }
 
-    if (scan_context_cnt == 0) {
-        SetInitPose(init_pose);
-    } else if (scan_context_cnt > 3) {
-        has_inited_ = true;
-    }
-    scan_context_cnt++;
+    // set init pose:
+    SetInitPose(init_pose);
+    has_inited_ = true;
     
     return true;
 }
@@ -234,7 +234,9 @@ Eigen::Matrix4f Matching::GetInitPose(void) {
 }
 
 void Matching::GetGlobalMap(CloudData::CLOUD_PTR& global_map) {
+    // downsample global map for visualization:
     global_map_filter_ptr_->Filter(global_map_ptr_, global_map);
+
     has_new_global_map_ = false;
 }
 
