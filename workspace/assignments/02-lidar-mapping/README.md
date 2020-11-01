@@ -59,9 +59,9 @@ This is the solution of Assignment 02 of Sensor Fusion from [深蓝学院](https
 
 核心功能的实现, 请点击下述链接:
 
-* [Scan Context for Loop Closure Detection](src/lidar_localization/src/mapping/loop_closing/loop_closing.cpp)
+* [Scan Context for Loop Closure Detection](https://github.com/AlexGeControl/Sensor-Fusion/blob/e241add57755c6b229077cadfc23259f51982b63/workspace/assignments/02-lidar-mapping/src/lidar_localization/src/mapping/loop_closing/loop_closing.cpp#L139)
 
-* [Scan Context Manager Implementation](src/lidar_localization/src/models/scan_context_manager/scan_context_manager.cpp)
+* [Scan Context Manager Implementation](https://github.com/AlexGeControl/Sensor-Fusion/blob/e241add57755c6b229077cadfc23259f51982b63/workspace/assignments/02-lidar-mapping/src/lidar_localization/src/models/scan_context_manager/scan_context_manager.cpp#L656)
 
 `Scan Context Loop Closure`修正后的轨迹估计如下图所示:
 
