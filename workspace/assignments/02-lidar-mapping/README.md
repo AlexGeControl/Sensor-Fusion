@@ -95,8 +95,8 @@ GNSS/IMU Proposal          |Scan Context Proposal
 
 我选择`位置和姿态均未知的定位初始化`. 算法核心逻辑如下:
 
-1. 在`建图`阶段, 将`Scan Context`的索引以及数据(包括`Key Frame`及其`Scan Context` & `Ring Key`), 写入持久性存储. 代码实现参考[Scan Context IO Using Protobuf -- Save](src/lidar_localization/src/models/scan_context_manager/scan_context_manager.cpp).
-2. 在`定位`阶段, 首先将`建图`阶段构建的`Scan Context`从持久性存储加载回内存. 代码实现参考代码实现参考[Scan Context IO Using Protobuf -- Load](src/lidar_localization/src/models/scan_context_manager/scan_context_manager.cpp).
+1. 在`建图`阶段, 将`Scan Context`的索引以及数据(包括`Key Frame`及其`Scan Context` & `Ring Key`), 写入持久性存储. 代码实现参考[Scan Context IO Using Protobuf -- Save](https://github.com/AlexGeControl/Sensor-Fusion/blob/4d3da9b45b9c620035571cb7b752eaedb371a613/workspace/assignments/02-lidar-mapping/src/lidar_localization/src/models/scan_context_manager/scan_context_manager.cpp#L150).
+2. 在`定位`阶段, 首先将`建图`阶段构建的`Scan Context`从持久性存储加载回内存. 代码实现参考代码实现参考[Scan Context IO Using Protobuf -- Load](https://github.com/AlexGeControl/Sensor-Fusion/blob/4d3da9b45b9c620035571cb7b752eaedb371a613/workspace/assignments/02-lidar-mapping/src/lidar_localization/src/models/scan_context_manager/scan_context_manager.cpp#L231).
 3. 针对`无强对称性`的环境, 譬如`KITTI Test Drive Playback`, 可直接使用`初始Velodyne Scan`, 查询`Scan Context`索引, 完成定位初始化. 在参数合适的情况下, 该方案位置估计精度与`GNSS/IMU初始化`相近, 同时还可以提供`航向偏差估计`.
 4. 针对`强对称性`的环境, 譬如`大型室内场所`, 可将`Scan Context`查询得到的, 相似度足够高的`Init Pose Candidate`, 全部加入`Particle Filter`(如AMCL 3D), 通过后续观测, 筛选出真正的位姿.
 5. 在无高质量GNSS/IMU观测, 且单纯依赖激光无法解决初始化的情况下, 可以进一步加入`视觉特征`, 或者使用其他定位手段(譬如UWB室内定位), 解决初始化问题.
