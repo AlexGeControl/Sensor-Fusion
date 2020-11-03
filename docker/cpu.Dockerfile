@@ -176,6 +176,11 @@ RUN git clone https://github.com/google/protobuf.git -o protobuf && cd protobuf 
     # install:
     make install
 
+# install Aceinna GNSS/IMU sim for ROS Python integration:
+RUN git clone https://github.com/Aceinna/gnss-ins-sim.git -o gnss-ins-sim && cd gnss-ins-sim && \
+    # install:
+    python setup.py install
+
 # install tini:
 RUN chmod u+x ./download-tini.sh && ./download-tini.sh && dpkg -i tini.deb && \
     apt-get clean
