@@ -2,16 +2,25 @@
 #include <ros/ros.h>
 
 #include <ceres/ceres.h>
-#include "imu_calibration/AllanVarianceParams.h"
 
+#include <boost/property_tree/ptree.hpp>
+#include <boost/property_tree/json_parser.hpp>
+#include <iostream>
+#include <sstream>
+
+#include "CSVWriter.h"
 #include "allan_variance.h"
 
+namespace pt = boost::property_tree;
 
-namespace imu_calibration {
+namespace imu {
+
+namespace calibrator {
 
 namespace allan_variance {
 
-AllanVariance::AllanVariance(std::string name, int max_num_clusters) {
+AllanVariance::AllanVariance(bool debug_mode, std::string name, int max_num_clusters) {
+    config_.debug_mode = debug_mode;
     config_.name = name;
     config_.max_num_clusters = max_num_clusters;
 
@@ -51,52 +60,70 @@ void AllanVariance::Estimate(void) {
 }
 
 // get IMU noise message:
-void AllanVariance::GetAllanVarianceAnalysisResultMsg(
-    imu_calibration::AllanVarianceAnalysisResult &allan_variance_analysis_result
-) {
-    if (config_.debug_mode) {
-        ROS_ERROR("[Allan Variance Analysis]: GetAllanVarianceAnalysisResultMsg");
-    }
-
+void AllanVariance::WriteIMUCalibrationResult(const std::string &output_filename) {
     static std::string FIELD_NAME[NUM_FIELDS] = {
         "gyro_x", "gyro_y", "gyro_z",
         "acc_x", "acc_y", "acc_z",
     };
 
-    allan_variance_analysis_result.stamp = ros::Time::now();
-    allan_variance_analysis_result.device_name = config_.name;
-    allan_variance_analysis_result.num_observations = params_.num_observations;
-    allan_variance_analysis_result.num_clusters = params_.num_clusters;
-    allan_variance_analysis_result.noises.clear();
+    // write calibration results as JSON file:
+    pt::ptree root;
+
+    // a. summary info:
+    root.put("general.device_name", config_.name);
+    root.put("general.num_observations", params_.num_observations);
+    root.put("general.num_clusters", params_.num_clusters);
     
+    // b. measurement properties:
+    pt::ptree measurements;
     for (int field = WX; field < NUM_FIELDS; ++field) {
-        imu_calibration::AllanVarianceParams allan_variance_params;
+        pt::ptree measurement; 
 
-        allan_variance_params.field = FIELD_NAME[field];
-        
-        allan_variance_params.Q = params_.Q[field];
-        allan_variance_params.N = params_.N[field];
-        allan_variance_params.B = params_.B[field];
-        allan_variance_params.K = params_.K[field];
-        allan_variance_params.R = params_.R[field];
+        measurement.put("Q", params_.Q[field]);
+        measurement.put("N", params_.N[field]);
+        measurement.put("B", params_.B[field]);
+        measurement.put("K", params_.K[field]);
+        measurement.put("R", params_.R[field]);       
 
-        allan_variance_params.std_measurement_noise = params_.measurement_noise[field];
-        allan_variance_params.std_random_work = params_.random_walk[field];
-        allan_variance_params.std_bias_instability = params_.bias_instability[field];
+        measurement.put("measurement_noise", params_.measurement_noise[field]);
+        measurement.put("bias_random_walk", params_.random_walk[field]);
+        measurement.put("bias_instability", params_.bias_instability[field]);
 
-        allan_variance_analysis_result.noises.push_back(allan_variance_params);
+        measurements.push_back(std::make_pair(FIELD_NAME[field], measurement));
+    }
+    root.add_child("measurements", measurements);
+
+    pt::json_parser::write_json(output_filename+".json", root);
+
+    // write allan variance curve as CSV file:
+    CSVWriter csv(",");
+    csv.enableAutoNewRow(7);
+    // a. write header:
+    csv << "T" 
+        << "gyro_x" << "gyro_y" << "gyro_z" 
+        << "acc_x" << "acc_y" << "acc_z";
+    // b. write contents:
+    for (const Point &point: params_.curve_smoothed.point) {
+        csv << point.tau 
+            << point.covariance[WX] << point.covariance[WY] << point.covariance[WZ] 
+            << point.covariance[AX] << point.covariance[AY] << point.covariance[AZ];
+    }
+    csv.writeToFile(output_filename+".csv");
+
+    if (config_.debug_mode) {
+        ROS_ERROR("[IMU Calibration]: result is available at %s", output_filename.data());
     }
 }
 void AllanVariance::SetStateAveragingFactor(void) {
     if (config_.debug_mode) {
-        ROS_ERROR("[Allan Variance Analysis]: SetStateAveragingFactor");
+        ROS_ERROR("[IMU Calibration]: SetStateAveragingFactor");
     }
 
     // calculate averaging factors:
     // a. min averaging factor -- bins should only be created if at least nine measurements can be collected:
     double min_averaging_factor = 9.0;
     // b. max averaging factor:
-    double max_averaging_factor = (state_.data.size() - 1) >> 1;
+    double max_averaging_factor = (state_.data.size() >> 1) - min_averaging_factor;
     // c.step size in log space with double precision:
     double step = pow(max_averaging_factor / min_averaging_factor, 1.0 / (config_.max_num_clusters - 1));
 
@@ -124,7 +151,7 @@ void AllanVariance::SetStateAveragingFactor(void) {
 void AllanVariance::SetStateCurveObserved(void) {
     if (config_.debug_mode) {
         ROS_ERROR(
-            "[Allan Variance Analysis]: SetStateCurveObserved Num. Obs: %lu, Num. Clusters: %lu.", 
+            "[IMU Calibration]: SetStateCurveObserved Num. Obs: %lu, Num. Clusters: %lu.", 
             (state_.data.size()), (state_.averaging_factor.size())
         );
     }
@@ -175,7 +202,7 @@ void AllanVariance::SetStateCurveObserved(void) {
 
         if (config_.debug_mode) {
             ROS_WARN(
-                "[Allan Variance Analysis]: SetStateCurveObserved: %d--%f--%f--%d, %f %f %f %f %f %f",
+                "[IMU Calibration]: SetStateCurveObserved: %d--%f--%f--%d, %f %f %f %f %f %f",
                 factor, tau, normalizer, upper_bound,
                 covariance[WX], covariance[WY], covariance[WZ], covariance[AX], covariance[AY], covariance[AZ]
             );
@@ -185,7 +212,7 @@ void AllanVariance::SetStateCurveObserved(void) {
 
 void AllanVariance::SetState(void) {
     if (config_.debug_mode) {
-        ROS_ERROR("[Allan Variance Analysis]: SetState");
+        ROS_ERROR("[IMU Calibration]: SetState");
     }
 
     // calculate tau:
@@ -229,7 +256,7 @@ double AllanVariance::GetCovariance(Field field, const double &tau) {
 
 Eigen::VectorXd AllanVariance::GetInitialEstimation(Field field) {
     if (config_.debug_mode) {
-        ROS_ERROR("[Allan Variance Analysis]: GetInitialEstimation");
+        ROS_ERROR("[IMU Calibration]: GetInitialEstimation");
     }
 
     size_t N = state_.curve_observed.point.size();
@@ -262,7 +289,7 @@ Eigen::VectorXd AllanVariance::GetInitialEstimation(Field field) {
 
 Eigen::VectorXd AllanVariance::GetRefinedEstimation(Field field, const Eigen::VectorXd &init_params) {
     if (config_.debug_mode) {
-        ROS_ERROR("[Allan Variance Analysis]: GetRefinedEstimation");
+        ROS_ERROR("[IMU Calibration]: GetRefinedEstimation");
     }
 
     size_t N = state_.curve_observed.point.size();
@@ -298,7 +325,7 @@ Eigen::VectorXd AllanVariance::GetRefinedEstimation(Field field, const Eigen::Ve
     // solve:
     ceres::Solver::Summary summary;
     ceres::Solve(options, &problem, &summary );
-    std::cout << summary.FullReport( ) << std::endl;
+    std::cout << summary.FullReport() << std::endl;
 
     // format result:
     Eigen::VectorXd result(5);
@@ -311,7 +338,7 @@ Eigen::VectorXd AllanVariance::GetRefinedEstimation(Field field, const Eigen::Ve
 
 void AllanVariance::SetParamsCurveSmoothed(void) {
     if (config_.debug_mode) {
-        ROS_ERROR("[Allan Variance Analysis]: SetParamsCurveSmoothed");
+        ROS_ERROR("[IMU Calibration]: SetParamsCurveSmoothed");
     }
 
     // reset:
@@ -340,46 +367,29 @@ void AllanVariance::SetParamsCurveSmoothed(void) {
 
 void AllanVariance::SetParamsMeasurementNoise(void) {
     if (config_.debug_mode) {
-        ROS_ERROR("[Allan Variance Analysis]: SetParamsMeasurementNoise");
+        ROS_ERROR("[IMU Calibration]: SetParamsMeasurementNoise");
     }
 
-    size_t N = state_.data.size();
-
-    double u[NUM_FIELDS] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-    double cov[NUM_FIELDS] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0};
-
-    for (const Data &data: state_.data) {
-        for (int field = WX; field < NUM_FIELDS; ++field) {
-            u[field] += data.value[field];
-            cov[field] += (data.value[field] * data.value[field]);
-        }
-    }
-
+    // calculate measurement noise covariance, ready to be used by ROS message covariance:
     for (int field = WX; field < NUM_FIELDS; ++field) {
-        u[field] /= N;
-        cov[field] = (cov[field] - N*u[field]*u[field]) / (N - 1);
-
-        params_.measurement_noise[field] = sqrt(cov[field]);
+        params_.measurement_noise[field] = params_.N[field] * params_.N[field] / sqrt(state_.tau);
     }
 }
 
 void AllanVariance::SetParamsRandomWalk(void) {
     if (config_.debug_mode) {
-        ROS_ERROR("[Allan Variance Analysis]: SetParamsRandomWalk");
+        ROS_ERROR("[IMU Calibration]: SetParamsRandomWalk");
     }
 
-    // get measurement frequency:
-    double freq = 1.0 / state_.tau;
-
-    // measurement noise, standard deviation:
+    // calculate bias random walk covariance, ready to be used by ROS message covariance:
     for (int field = WX; field < NUM_FIELDS; ++field) {
-        params_.random_walk[field] = sqrt(GetCovariance(static_cast<Field>(field), 1.0)) * sqrt(freq);
+        params_.random_walk[field] = params_.K[field] * params_.K[field] * sqrt(state_.tau);
     }
 }
 
 void AllanVariance::SetParamsBiasInstability(void) {
     if (config_.debug_mode) {
-        ROS_ERROR("[Allan Variance Analysis]: SetParamsBiasInstability");
+        ROS_ERROR("[IMU Calibration]: SetParamsBiasInstability");
     }
 
     // find global minimum in simulated Allan variance curve:
@@ -401,13 +411,13 @@ void AllanVariance::SetParamsBiasInstability(void) {
 
     // random walk, standard deviation:
     for (int field = WX; field < NUM_FIELDS; ++field) {
-        params_.bias_instability[field] = sqrt(min_covariance[field]);
+        params_.bias_instability[field] = min_covariance[field];
     }
 }
 
 void AllanVariance::SetParams(void) {
     if (config_.debug_mode) {
-        ROS_ERROR("[Allan Variance Analysis]: SetParams");
+        ROS_ERROR("[IMU Calibration]: SetParams");
     }
 
     // number of observations:
@@ -423,10 +433,10 @@ void AllanVariance::SetParams(void) {
 
         // quantization noise:
         params_.Q[field] = sqrt(final_params(0) * final_params(0) / 3.0);
-        // angle random walk, constant -- 2*np.log(2) / np.pi
-        params_.N[field] = sqrt(final_params(1) * final_params(1) * 2.266180070913597);
-        // bias instability:
-        params_.B[field] = sqrt(final_params(2) * final_params(2));
+        // angle random walk:
+        params_.N[field] = sqrt(final_params(1) * final_params(1));
+        // bias instability, constant -- 2*np.log(2) / np.pi:
+        params_.B[field] = sqrt(final_params(2) * final_params(2) * 2.266180070913597);
         // rate random walk:
         params_.K[field] = sqrt(final_params(3) * final_params(3) * 3.0);
         // random ramp:
@@ -434,12 +444,12 @@ void AllanVariance::SetParams(void) {
 
         if (config_.debug_mode) {
             ROS_ERROR(
-                "[Allan Variance Analysis]: SetParams: field %d, init params %f %f %f", 
+                "[IMU Calibration]: SetParams: field %d, init params %f %f %f", 
                 field, 
                 init_params(0), init_params(1), init_params(2)
             );
             ROS_ERROR(
-                "[Allan Variance Analysis]: SetParams: field %d, refined params %f %f %f", 
+                "[IMU Calibration]: SetParams: field %d, refined params %f %f %f", 
                 field, 
                 final_params(0), final_params(1), final_params(2)
             );
@@ -457,4 +467,6 @@ void AllanVariance::SetParams(void) {
 
 }  // namespace allan_variance
 
-}  // namespace imu_calibration
+}  // namespace calibrator
+
+}  // namespace imu

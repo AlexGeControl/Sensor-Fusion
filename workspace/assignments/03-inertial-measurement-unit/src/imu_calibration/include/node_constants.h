@@ -1,11 +1,16 @@
-#ifndef IMU_CALIBRATION_NODE_CONSTANTS_H_
-#define IMU_CALIBRATION_NODE_CONSTANTS_H_
-namespace imu_calibration
-{
-    // actions:
-    constexpr char kCalibrateIMUAction[] = "/calibration/imu/action";
-    // services:
-    constexpr char kGetIMUCalibrationResults[] = "/calibration/imu/get_results";
-} // namespace imu_calibration
+#ifndef IMU_CALIBRATOR_CONSTANTS_H
+#define IMU_CALIBRATOR_CONSTANTS_H
 
-#endif // IMU_CALIBRATION_NODE_CONSTANTS_H_
+
+namespace imu {
+
+namespace calibrator {
+    // actions:
+    constexpr char kCalibrateIMUActionName[] = "/imu/calibrator/action";
+    // services:
+    constexpr char kGetIMUCalibrationResults[] = "/imu/calibrator/get_results";
+} // namespace calibrator
+
+} // namespace imu
+
+#endif // IMU_CALIBRATOR_CONSTANTS_H

@@ -13,6 +13,51 @@ This is the solution of Assignment 03 of Sensor Fusion from [深蓝学院](https
 ### 1. Simulate IMU Measurement and Perform Allan Variance Analysis on Simulated Data
 ### 1. 仿真IMU数据, 并进行Allan方差分析
 
+#### ANS
+
+首先, 使用`gnss-ins-sim ROS wrapper package`, 产生`Allan Variance analysis`所需的`ROS Bag`:
+
+```bash
+# build
+catkin config --install && catkin build gnss_ins_sim
+# run:
+source install/setup.bash
+roslaunch gnss_ins_sim gnss_ins_sim_recorder.launch
+```
+
+若使用默认配置, 可在Docker环境`/workspace/data/gnss_ins_sim`路径下发现生成的`ROS Bag`.
+
+接着, 使用`imu_calibration`包, 进行`Allan Variance analysis`:
+
+```bash
+# build
+catkin config --install && catkin build imu_calibration
+# run:
+source install/setup.bash
+roslaunch imu_calibration imu_calibration.launch
+```
+
+若使用默认配置, 可在Docker环境`/workspace/data/gnss_ins_sim`路径下发现生成的`imu_calibration_results`
+
+#### Results 
+
+对`gnss-ins-sim`中的`low-accuracy`模型, `Allan Variance analysis`得到的`ARW/VRW(参数N)`估计结果与真值的对比如下. 结果显示`标定算法能够有效估计IMU的噪声参数`:
+
+| ARW/VRW | Ground Truth | Allan Variance Estimation |
+|:-------:|:------------:|:-------------------------:|
+|  gyro_x | 2.181662e-04 |        2.174482e-04       |
+|  gyro_y | 2.181662e-04 |        2.190593e-04       |
+|  gyro_z | 2.181662e-04 |        2.209243e-04       |
+| accel_x | 8.333333e-04 |        8.226509e-04       |
+| accel_y | 8.333333e-04 |        8.454541e-04       |
+| accel_z | 8.333333e-04 |        8.345325e-04       |
+
+所获得的`Allan Variance curves`如下图所示:
+
+Allan Variance Curve, Gyro |Allan Variance Curve, Accel
+:-------------------------:|:-------------------------:
+![Allan Variance Curve, Gyro](doc/01-allan-variance-curve--gyro.png)  |  ![Allan Variance Curve, Accel](doc/01-allan-variance-curve--acc.png)
+
 --- 
 
 ### 2. 设计一种转台旋转方案, 并基于仿真数据, 进行内参求解的验证

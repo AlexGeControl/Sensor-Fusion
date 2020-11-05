@@ -1,5 +1,5 @@
-#ifndef IMU_CALIBRATION_ALLAN_VARIANCE_H
-#define IMU_CALIBRATION_ALLAN_VARIANCE_H
+#ifndef IMU_CALIBRATOR_ALLAN_VARIANCE_H
+#define IMU_CALIBRATOR_ALLAN_VARIANCE_H
 
 #include <math.h>
 #include <string>
@@ -11,9 +11,10 @@
 #include <Eigen/Dense>
 
 #include <geometry_msgs/Vector3.h>
-#include "imu_calibration/AllanVarianceAnalysisResult.h"
 
-namespace imu_calibration {
+namespace imu {
+
+namespace calibrator {
 
 namespace allan_variance {
 
@@ -185,7 +186,7 @@ struct Error
 
 class AllanVariance {
 public:
-    AllanVariance(std::string name, int max_num_clusters);
+    AllanVariance(bool debug_mode, std::string name, int max_num_clusters);
     ~AllanVariance(void);
 
     void Reset(void);
@@ -226,8 +227,8 @@ public:
     // get bias instability:
     double GetBiasInstability(Field field) { return params_.bias_instability[field]; }
 
-    // get IMU noise message:
-    void GetAllanVarianceAnalysisResultMsg(imu_calibration::AllanVarianceAnalysisResult &allan_variance_analysis_result);
+    // show IMU params:
+    void WriteIMUCalibrationResult(const std::string &output_filename);
 private:
     void SetStateAveragingFactor(void);
     void SetStateCurveObserved(void);
@@ -251,6 +252,8 @@ private:
 
 }  // namespace allan_variance
 
-}  // namespace imu_calibration
+}  // namespace calibrator
 
-#endif  // IMU_CALIBRATION_ALLAN_VARIANCE_H
+}  // namespace imu
+
+#endif  // IMU_CALIBRATOR_ALLAN_VARIANCE_H

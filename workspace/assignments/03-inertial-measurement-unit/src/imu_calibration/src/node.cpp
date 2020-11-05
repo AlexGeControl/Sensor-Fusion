@@ -1,22 +1,41 @@
 #include "activity.h"
 #include <ros/ros.h>
 
+#include <rosbag/bag.h>
+#include <rosbag/view.h>
+#include <sensor_msgs/Imu.h>
+
+#include <boost/foreach.hpp>
+#define foreach BOOST_FOREACH
+
 int main(int argc, char** argv) {
     std::string node_name{"imu_calibration_node"};
     ros::init(argc, argv, node_name);
     
-    imu_calibration::Activity activity;
+    imu::calibrator::Activity calibrator_activity;
 
-    activity.Init();
+    calibrator_activity.Init();
     
-    // 10 Hz:
-    ros::Rate loop_rate(10);
-    while (ros::ok())
+    const std::string bag_path = "/workspace/data/gnss_ins_sim/allan_variance_analysis.bag";
+    rosbag::Bag bag;
+    bag.open(bag_path, rosbag::bagmode::Read);
+
+    std::vector<std::string> topics;
+    topics.push_back(std::string("/sim/sensor/imu"));
+
+    rosbag::View view(bag, rosbag::TopicQuery(topics));
+
+    foreach(rosbag::MessageInstance const m, view)
     {
-        ros::spinOnce();
-        activity.CheckGoal();
-        loop_rate.sleep();
-    } 
+        sensor_msgs::Imu::ConstPtr i = m.instantiate<sensor_msgs::Imu>();
+        if (i != NULL) {
+            calibrator_activity.AddMeasurement(i);
+        }
+    }
+    calibrator_activity.DoEstimate();
+    calibrator_activity.WriteResults();
+    
+    bag.close();
     
     return 0;
 }

@@ -17,9 +17,9 @@ def get_gnss_ins_sim(motion_def_file, fs_imu, fs_gps):
     '''
     Generate simulated GNSS/IMU data using specified trajectory.
     '''
-    #### choose a built-in IMU model, typical for IMU381
-    imu_err = 'mid-accuracy'
-    # generate GPS and magnetometer data
+    # set IMU model:
+    imu_err = 'low-accuracy'
+    # generate GPS and magnetometer data:
     imu = imu_model.IMU(accuracy=imu_err, axis=9, gps=True)
 
     # init simulation:
@@ -114,12 +114,12 @@ def gnss_ins_sim_recorder():
             msg.orientation.z = 0.0
             msg.orientation.w = 1.0
             # c. gyro:
-            msg.linear_acceleration.x = measurement['data']['gyro_x']
-            msg.linear_acceleration.y = measurement['data']['gyro_y']
-            msg.linear_acceleration.z = measurement['data']['gyro_z']
-            msg.angular_velocity.x = measurement['data']['accel_x']
-            msg.angular_velocity.y = measurement['data']['accel_y']
-            msg.angular_velocity.z = measurement['data']['accel_z']
+            msg.angular_velocity.x = measurement['data']['gyro_x']
+            msg.angular_velocity.y = measurement['data']['gyro_y']
+            msg.angular_velocity.z = measurement['data']['gyro_z']
+            msg.linear_acceleration.x = measurement['data']['accel_x']
+            msg.linear_acceleration.y = measurement['data']['accel_y']
+            msg.linear_acceleration.z = measurement['data']['accel_z']
 
             # write:
             bag.write(topic_name_imu, msg, msg.header.stamp)

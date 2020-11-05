@@ -1,5 +1,0 @@
----
-# status:
-uint8 status
-# get Allan variance analysis result:
-imu_calibration/AllanVarianceAnalysisResult result
