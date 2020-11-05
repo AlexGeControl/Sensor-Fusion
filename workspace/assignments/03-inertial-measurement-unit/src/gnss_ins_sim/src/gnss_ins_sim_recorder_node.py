@@ -76,12 +76,12 @@ def gnss_ins_sim_recorder():
     rospy.init_node('gnss_ins_sim_recorder_node')
 
     # parse params:
-    motion_def_name = 'motion_def-3d.csv'               #rospy.get_param('motion_file')
-    sample_freq_imu = 100.0                             #rospy.get_param('sample_frequency/imu')
-    sample_freq_gps = 10.0                              #rospy.get_param('sample_frequency/gps')
-    topic_name_imu = '~sim/sensor/imu'                  #rospy.get_param('topic_name')
-    rosbag_output_path = '/workspace/data/gnss_ins_sim' #rospy.get_param('output_path')
-    rosbag_output_name = 'allan_variance_analysis.bag'  #rospy.get_param('output_name')
+    motion_def_name = rospy.get_param('/gnss_ins_sim_recorder_node/motion_file')
+    sample_freq_imu = rospy.get_param('/gnss_ins_sim_recorder_node/sample_frequency/imu')
+    sample_freq_gps = rospy.get_param('/gnss_ins_sim_recorder_node/sample_frequency/gps')
+    topic_name_imu = rospy.get_param('/gnss_ins_sim_recorder_node/topic_name')
+    rosbag_output_path = rospy.get_param('/gnss_ins_sim_recorder_node/output_path')
+    rosbag_output_name = rospy.get_param('/gnss_ins_sim_recorder_node/output_name')
 
     # generate simulated data:
     motion_def_path = os.path.join(
@@ -96,20 +96,18 @@ def gnss_ins_sim_recorder():
         sample_freq_gps
     )
 
-    # get timestamp base:
-    timestamp_start = rospy.Time.now()
-    
     with rosbag.Bag(
         os.path.join(rosbag_output_path, rosbag_output_name), 'w'
     ) as bag:
+        # get timestamp base:
+        timestamp_start = rospy.Time.now()
+
         for measurement in imu_simulator:
             # init:
             msg = Imu()
             # a. set header:
             msg.header.frame_id = 'NED'
-            msg.header.stamp = timestamp_start + rospy.Duration(
-                measurement['stamp']
-            )
+            msg.header.stamp = timestamp_start + rospy.Duration.from_sec(measurement['stamp'])
             # b. set orientation estimation:
             msg.orientation.x = 0.0
             msg.orientation.y = 0.0
@@ -124,7 +122,7 @@ def gnss_ins_sim_recorder():
             msg.angular_velocity.z = measurement['data']['accel_z']
 
             # write:
-            bag.write(topic_name_imu, msg)
+            bag.write(topic_name_imu, msg, msg.header.stamp)
 
 if __name__ == '__main__':
     try:
