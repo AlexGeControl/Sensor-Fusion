@@ -1,0 +1,28 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>imu_calibration</name>
+  <version>1.0.0</version>
+  <description>IMU calibration package</description>
+
+  <maintainer email="alexgecontrol@qq.com">Ge Yao</maintainer>
+
+  <license>TODO</license>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <exec_depend>message_runtime</exec_depend>
+  <depend>message_generation</depend>
+  <depend>roscpp</depend>
+  <depend>rospy</depend>
+  <depend>rosbag</depend>
+  <depend>roslib</depend>
+  <depend>message_filters</depend>
+  <depend>std_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>actionlib</depend>
+  <depend>actionlib_msgs</depend>
+  <export>
+
+  </export>
+</package>

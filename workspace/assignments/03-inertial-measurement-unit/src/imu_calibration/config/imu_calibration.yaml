@@ -1,0 +1,10 @@
+debug_mode: false
+max_playback_rate: 120
+
+imu:
+    device_name: GNSS_INS_SIM_IMU
+    topic_name: /sim/sensor/imu
+    allan_variance_curve:
+        output_path: "."
+        min_collection_time_in_mins: 240
+        max_num_clusters: 2000

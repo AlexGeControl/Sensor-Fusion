@@ -1,5 +1,5 @@
 # motion def:
-motion_file: motion_def-3d.csv
+motion_file: demo.csv
 # sample frequency of simulated GNSS/IMU data:
 sample_frequency:
     imu: 100.0

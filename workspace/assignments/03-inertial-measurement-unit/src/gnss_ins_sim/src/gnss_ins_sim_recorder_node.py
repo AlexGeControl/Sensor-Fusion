@@ -76,10 +76,12 @@ def gnss_ins_sim_recorder():
     rospy.init_node('gnss_ins_sim_recorder_node')
 
     # parse params:
-    motion_def_name = 'motion_def-3d.csv' #rospy.get_param('motion_file')
-    sample_freq_imu = 100.0               #rospy.get_param('sample_frequency/imu')
-    sample_freq_gps = 10.0                #rospy.get_param('sample_frequency/gps')
-    topic_name_imu = '~sim/sensor/imu'    #rospy.get_param('topic_name')
+    motion_def_name = 'motion_def-3d.csv'               #rospy.get_param('motion_file')
+    sample_freq_imu = 100.0                             #rospy.get_param('sample_frequency/imu')
+    sample_freq_gps = 10.0                              #rospy.get_param('sample_frequency/gps')
+    topic_name_imu = '~sim/sensor/imu'                  #rospy.get_param('topic_name')
+    rosbag_output_path = '/workspace/data/gnss_ins_sim' #rospy.get_param('output_path')
+    rosbag_output_name = 'allan_variance_analysis.bag'  #rospy.get_param('output_name')
 
     # generate simulated data:
     motion_def_path = os.path.join(
@@ -98,7 +100,7 @@ def gnss_ins_sim_recorder():
     timestamp_start = rospy.Time.now()
     
     with rosbag.Bag(
-        os.path.join(rospkg.RosPack().get_path('gnss_ins_sim'), 'gnss-ins-sim.bag'), 'w'
+        os.path.join(rosbag_output_path, rosbag_output_name), 'w'
     ) as bag:
         for measurement in imu_simulator:
             # init:

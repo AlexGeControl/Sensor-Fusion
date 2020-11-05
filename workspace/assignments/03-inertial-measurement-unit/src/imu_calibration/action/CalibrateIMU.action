@@ -1,0 +1,11 @@
+# goal definition
+uint32 min_collection_time_in_mins
+uint32 max_num_clusters
+---
+# result definition
+imu_calibration/AllanVarianceAnalysisResult result
+---
+# feedback definition
+uint32 collection_time_in_mins
+float64 allan_variance_building_progress
+bool is_result_available
