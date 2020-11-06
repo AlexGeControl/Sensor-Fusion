@@ -177,7 +177,7 @@ RUN git clone https://github.com/google/protobuf.git -o protobuf && cd protobuf 
     make install
 
 # install Aceinna GNSS/IMU sim for ROS Python integration:
-RUN git clone https://github.com/Aceinna/gnss-ins-sim.git -o gnss-ins-sim && cd gnss-ins-sim && \
+RUN git clone https://github.com/AlexGeControl/GNSS-INS-SIM-Extended.git && cd GNSS-INS-SIM-Extended && \
     # install:
     python setup.py install
 
