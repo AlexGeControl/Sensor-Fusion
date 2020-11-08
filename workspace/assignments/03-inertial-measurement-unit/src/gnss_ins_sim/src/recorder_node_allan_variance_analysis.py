@@ -6,6 +6,9 @@ import rospkg
 import rospy
 import rosbag
 
+import math
+import numpy as np
+
 from gnss_ins_sim.sim import imu_model
 from gnss_ins_sim.sim import ins_sim
 
@@ -18,7 +21,38 @@ def get_gnss_ins_sim(motion_def_file, fs_imu, fs_gps):
     Generate simulated GNSS/IMU data using specified trajectory.
     '''
     # set IMU model:
-    imu_err = 'low-accuracy'
+    D2R = math.pi/180.0
+    # imu_err = 'low-accuracy'
+    imu_err = {
+        # 1. gyro:
+        # a. random noise:
+        # gyro angle random walk, deg/rt-hr
+        'gyro_arw': np.array([0.75, 0.75, 0.75]),
+        # gyro bias instability, deg/hr
+        'gyro_b_stability': np.array([10.0, 10.0, 10.0]),
+        # gyro bias isntability correlation time, sec
+        'gyro_b_corr': np.array([100.0, 100.0, 100.0]),
+        # b. deterministic error:
+        'gyro_b': np.array([0.0, 0.0, 0.0]),
+        'gyro_k': np.array([1.0, 1.0, 1.0]),
+        'gyro_s': np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+        # 2. accel:
+        # a. random noise:
+        # accel velocity random walk, m/s/rt-hr
+        'accel_vrw': np.array([0.05, 0.05, 0.05]),
+        # accel bias instability, m/s2
+        'accel_b_stability': np.array([2.0e-4, 2.0e-4, 2.0e-4]),
+        # accel bias isntability correlation time, sec
+        'accel_b_corr': np.array([100.0, 100.0, 100.0]),
+        # b. deterministic error:
+        'accel_b': np.array([0.0e-3, 0.0e-3, 0.0e-3]),
+        'accel_k': np.array([1.0, 1.0, 1.0]),
+        'accel_s': np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0]),
+        # 3. mag:
+        'mag_si': np.eye(3) + np.random.randn(3, 3)*0.0, 
+        'mag_hi': np.array([10.0, 10.0, 10.0])*0.0,
+        'mag_std': np.array([0.1, 0.1, 0.1])
+    }
     # generate GPS and magnetometer data:
     imu = imu_model.IMU(accuracy=imu_err, axis=9, gps=True)
 

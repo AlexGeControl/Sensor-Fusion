@@ -16,7 +16,7 @@ int main(int argc, char** argv) {
 
     calibrator_activity.Init();
     
-    const std::string bag_path = "/workspace/data/gnss_ins_sim/allan_variance_analysis.bag";
+    const std::string bag_path = "/workspace/data/gnss_ins_sim/allan_variance_analysis/allan_variance_analysis.bag";
     rosbag::Bag bag;
     bag.open(bag_path, rosbag::bagmode::Read);
 

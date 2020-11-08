@@ -5,4 +5,4 @@ sample_frequency:
     imu: 100.0
     gps: 10.0
 # topic name:
-topic_name: ~sim/sensor/imu
+topic_name: /sim/sensor/imu

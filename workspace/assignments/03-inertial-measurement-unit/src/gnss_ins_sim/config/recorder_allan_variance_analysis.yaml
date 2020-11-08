@@ -9,6 +9,6 @@ sample_frequency:
 # topic name:
 topic_name: /sim/sensor/imu
 # output rosbag path:
-output_path: /workspace/data/gnss_ins_sim
+output_path: /workspace/data/gnss_ins_sim/allan_variance_analysis
 # output name:
-output_name: allan_variance_analysis.bag
+output_name: data.bag
