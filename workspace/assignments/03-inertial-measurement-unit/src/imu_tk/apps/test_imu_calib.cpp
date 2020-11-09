@@ -24,8 +24,12 @@ int main(int argc, char** argv)
   
   
   CalibratedTriad init_acc_calib, init_gyro_calib;
-  init_acc_calib.setBias( Vector3d(32768, 32768, 32768) );
-  init_gyro_calib.setScale( Vector3d(1.0/6258.0, 1.0/6258.0, 1.0/6258.0) );
+  init_acc_calib.setBias( 
+    Vector3d(32768, 32768, 32768) 
+  );
+  init_gyro_calib.setScale( 
+    Vector3d(1.0/6258.0, 1.0/6258.0, 1.0/6258.0) 
+  );
   
   MultiPosCalibration mp_calib;
     

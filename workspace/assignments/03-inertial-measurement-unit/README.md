@@ -185,8 +185,58 @@ Allan Variance Curve, Gyro |Allan Variance Curve, Accel
 
 使用课程中讲述的模型, 需要将代码修改如下:
 
-```c++
+1. 修改`Ceres Params` [here](src/imu_tk/src/calibration.cpp#L215)
+
+    ```c++
+    acc_calib_params[0] = init_acc_calib_.misXZ();
+    acc_calib_params[1] = init_acc_calib_.misXY();
+    acc_calib_params[2] = init_acc_calib_.misYX();
+    ```
+
+2. 修改`Ceres Accel Residual` [here](src/imu_tk/src/calibration.cpp#L83)
+
+    ```c++
+    CalibratedTriad_<_T2> calib_triad( 
+      // mis_yz, mis_zy, mis_zx:
+      _T2(0), _T2(0), _T2(0),
+      // mis_xz, mis_xy, mis_yx:
+      params[0], params[1], params[2],
+      //    s_x,    s_y,    s_z:
+      params[3], params[4], params[5], 
+      //    b_x,    b_y,    b_z: 
+      params[6], params[7], params[8] 
+    );
+    ```
+
+3. 修改`Optimal Params Loader` [here](src/imu_tk/src/calibration.cpp#L284)
+
+    ```c++
+    acc_calib_ = CalibratedTriad_<_T>( 
+        0,0,0,
+        min_cost_calib_params[0],
+        min_cost_calib_params[1],
+        min_cost_calib_params[2],
+        min_cost_calib_params[3],
+        min_cost_calib_params[4],
+        min_cost_calib_params[5],
+        min_cost_calib_params[6],
+        min_cost_calib_params[7],
+        min_cost_calib_params[8] 
+    );
+    ```
+
+标定完成后, `Accel Misalignment Matrix`如下:
+
+```bash
+          1          -0           0
+-0.00354989           1          -0
+-0.00890444  -0.0213032           1
 ```
+
+测量值时间序列可视化结果如下:
+
+<img src="doc/03-imu-tk-static-detector.png" alt="IMU-TK Measurements Visualization" width="%100">
+
 ---
 
 ### 4. 对一组数据进行惯性导航解算验证, 要求:

@@ -82,9 +82,9 @@ template <typename _T1> struct MultiPosAccResidual
      * so bottom left params in the misalignment matris are set to zero */
     CalibratedTriad_<_T2> calib_triad( 
       // mis_yz, mis_zy, mis_zx:
-      params[0], params[1], params[2], 
-      // mis_xz, mis_xy, mis_yx:
       _T2(0), _T2(0), _T2(0),
+      // mis_xz, mis_xy, mis_yx:
+      params[0], params[1], params[2],
       //    s_x,    s_y,    s_z:
       params[3], params[4], params[5], 
       //    b_x,    b_y,    b_z: 
@@ -212,9 +212,9 @@ bool MultiPosCalibration_<_T>::calibrateAcc(
     std::vector< imu_tk::TriadData_<_T> > static_samples;
     std::vector< double > acc_calib_params(9);
     
-    acc_calib_params[0] = init_acc_calib_.misYZ();
-    acc_calib_params[1] = init_acc_calib_.misZY();
-    acc_calib_params[2] = init_acc_calib_.misZX();
+    acc_calib_params[0] = init_acc_calib_.misXZ();
+    acc_calib_params[1] = init_acc_calib_.misXY();
+    acc_calib_params[2] = init_acc_calib_.misYX();
     
     acc_calib_params[3] = init_acc_calib_.scaleX();
     acc_calib_params[4] = init_acc_calib_.scaleY();
@@ -270,27 +270,29 @@ bool MultiPosCalibration_<_T>::calibrateAcc(
       min_cost_th = th_mult;
       min_cost_static_intervals_ = static_intervals;
       min_cost_calib_params = acc_calib_params;
-    }
-    cout<<"residual "<<summary.final_cost<<endl;
+    } 
+    cout << "residual " << summary.final_cost << endl;
   }
   
   if( min_cost_th < 0 )
   {
     if(verbose_output_) 
-      cout<<"Accelerometers calibration: Can't obtain any calibratin with the current dataset"<<endl;
+      cout << "Accelerometers calibration: Can't obtain any calibratin with the current dataset" << endl;
     return false;
   }
 
-  acc_calib_ = CalibratedTriad_<_T>( min_cost_calib_params[0],
-                                     min_cost_calib_params[1],
-                                     min_cost_calib_params[2],
-                                     0,0,0,
-                                     min_cost_calib_params[3],
-                                     min_cost_calib_params[4],
-                                     min_cost_calib_params[5],
-                                     min_cost_calib_params[6],
-                                     min_cost_calib_params[7],
-                                     min_cost_calib_params[8] );
+  acc_calib_ = CalibratedTriad_<_T>( 
+    0,0,0,
+    min_cost_calib_params[0],
+    min_cost_calib_params[1],
+    min_cost_calib_params[2],
+    min_cost_calib_params[3],
+    min_cost_calib_params[4],
+    min_cost_calib_params[5],
+    min_cost_calib_params[6],
+    min_cost_calib_params[7],
+    min_cost_calib_params[8] 
+  );
   
   calib_acc_samples_.reserve(n_samps);
   
@@ -303,13 +305,13 @@ bool MultiPosCalibration_<_T>::calibrateAcc(
     Plot plot;
     plot.plotIntervals( calib_acc_samples_, min_cost_static_intervals_);
     
-    cout<<"Accelerometers calibration: Better calibration obtained using threshold multiplier "<<min_cost_th
-        <<" with residual "<<min_cost<<endl
-        <<acc_calib_<<endl
-        <<"Accelerometers calibration: inverse scale factors:"<<endl
-        <<1.0/acc_calib_.scaleX()<<endl
-        <<1.0/acc_calib_.scaleY()<<endl
-        <<1.0/acc_calib_.scaleZ()<<endl;
+    cout << "Accelerometers calibration: Better calibration obtained using threshold multiplier " << min_cost_th
+         << " with residual " << min_cost << endl
+         << acc_calib_ << endl
+         << "Accelerometers calibration: inverse scale factors:" << endl
+         << 1.0/acc_calib_.scaleX() << endl
+         << 1.0/acc_calib_.scaleY() << endl
+         << 1.0/acc_calib_.scaleZ() << endl;
         
     waitForKey();
   }
