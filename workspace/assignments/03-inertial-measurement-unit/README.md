@@ -177,6 +177,16 @@ Allan Variance Curve, Gyro |Allan Variance Curve, Accel
 
 ### 3. 推导基于Levenberg-Marquardt方法, 进行加速度计和陀螺仪内参估计的优化过程. 按照课程中讲述的模型, 修改参考代码, 使用仿真数据, 验证标定算法的正确性
 
+#### ANS
+
+针对`加速度计标定`的`Levenberg-Marquardt`方法推导的Overview如下. 详细过程参考[here](doc/03-imu-tk-lm-derivation.pdf):
+
+<img src="doc/03-imu-tk-lm-overview.png" alt="IMU-TK LM for Accel Calibration" width="%100">
+
+使用课程中讲述的模型, 需要将代码修改如下:
+
+```c++
+```
 ---
 
 ### 4. 对一组数据进行惯性导航解算验证, 要求:
