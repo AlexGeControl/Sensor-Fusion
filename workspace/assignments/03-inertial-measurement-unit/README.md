@@ -64,12 +64,12 @@ Allan Variance Curve, Gyro |Allan Variance Curve, Accel
 
 #### ANS
 
-针对`陀螺仪标定`的`转台旋转方案`设计如下. 方案包含`两个阶段`:
+`转台旋转方案`设计如下. 方案包含`两个阶段`:
 
 * `第一阶段--陀螺仪刻度系数K与安装误差S求解` 
     * 使转台分别沿`IMU`系`+-X`, `+-Y`, `+-Z`三个轴正反方向做角速度幅值, 时间相同的定轴旋转, 标定`陀螺仪`的`刻度系数`与`安装误差`.
-* `第二阶段--陀螺仪零偏误差Epsilon求解`
-    * 使转台分别绕`IMU`系`Yaw`, `Pitch`, `Roll`三个轴旋转`+-90`度, 然后静止一段时间, 标定`陀螺仪`的`零偏误差`.
+* `第二阶段--陀螺仪零偏误差Epsilon求解, 以及加速度计刻度系数K, 安装误差S以及零偏误差Epsilon的求解`
+    * 使转台分别绕`IMU`系`Yaw`, `Pitch`, `Roll`三个轴旋转`+-90`度, 然后静止一段时间, 标定`陀螺仪`的`零偏误差`, 以及`加速度计`的`刻度系数`， `安装误差`以及`零偏误差`.
 
 上述方案对应的`gnss-ins-sim`定义参见[here](src/gnss_ins_sim/config/motion_def/deterministic_error_calib_gyro.csv)
 
@@ -78,6 +78,40 @@ Allan Variance Curve, Gyro |Allan Variance Curve, Accel
 标定结果的真值与估计值对比如下. 结果显示`标定算法能够有效估计IMU的确定性误差参数`:
 
 * Ground Truth:
+
+    ```python
+    # GNSS/INS sim config:
+    imu_err = {
+        # 1. gyro:
+        # a. random noise:
+        # gyro angle random walk, deg/rt-hr
+        'gyro_arw': np.array([0.00, 0.00, 0.00]),
+        # gyro bias instability, deg/hr
+        'gyro_b_stability': np.array([0.0, 0.0, 0.0]),
+        # gyro bias isntability correlation time, sec
+        # 'gyro_b_corr': np.array([100.0, 100.0, 100.0]),
+        # b. deterministic error:
+        'gyro_b': np.array([36.00, 36.00, 36.00]),
+        'gyro_k': np.array([0.98, 0.98, 0.98]),
+        'gyro_s': np.array([0.01, 0.01, 0.01, 0.01, 0.01, 0.01]),
+        # 2. accel:
+        # a. random noise:
+        # accel velocity random walk, m/s/rt-hr
+        'accel_vrw': np.array([0.05, 0.05, 0.05]),
+        # accel bias instability, m/s2
+        'accel_b_stability': np.array([2.0e-4, 2.0e-4, 2.0e-4]),
+        # accel bias isntability correlation time, sec
+        'accel_b_corr': np.array([100.0, 100.0, 100.0]),
+        # b. deterministic error:
+        'accel_b': np.array([0.01, 0.01, 0.01]),
+        'accel_k': np.array([0.98, 0.98, 0.98]),
+        'accel_s': np.array([0.01, 0.01, 0.01, 0.01, 0.01, 0.01]),
+        # 3. mag:
+        'mag_si': np.eye(3) + np.random.randn(3, 3)*0.0, 
+        'mag_hi': np.array([10.0, 10.0, 10.0])*0.0,
+        'mag_std': np.array([0.1, 0.1, 0.1])
+    }
+    ```
 
     ```json
     {
@@ -92,11 +126,23 @@ Allan Variance Curve, Gyro |Allan Variance Curve, Accel
                 "y": 36.000, 
                 "z": 36.000
             }
+        },
+        "accel": {
+            "scale": [
+                0.980, 0.010, 0.010, 
+                0.010, 0.980, 0.010, 
+                0.010, 0.010, 0.980
+            ], 
+            "bias": {
+                "x": 0.010,
+                "y": 0.010, 
+                "z": 0.010
+            }
         }
     }
     ```
 
-* Estimated Result:
+* Estimated Result(For raw output click [here](doc/02-separated-calibration-results.json)):
 
     ```json
     {
@@ -107,9 +153,21 @@ Allan Variance Curve, Gyro |Allan Variance Curve, Accel
                 0.010, 0.010, 0.980
             ], 
             "bias": {
-                "x": 35.999,
                 "y": 35.999, 
+                "x": 35.999, 
                 "z": 35.999
+            }
+        }, 
+        "accel": {
+            "scale": [
+                0.980, 0.010, 0.010, 
+                0.010, 0.980, 0.010, 
+                0.010, 0.010, 0.980
+            ], 
+            "bias": {
+                "y": 0.010, 
+                "x": 0.010, 
+                "z": 0.010
             }
         }
     }

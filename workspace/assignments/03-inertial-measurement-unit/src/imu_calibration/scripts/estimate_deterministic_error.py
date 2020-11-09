@@ -112,18 +112,112 @@ def estimate_gyro_bias(data, axis):
     }
 
 
+def get_accel_control(accel, axis):
+    accel_x, accel_y, accel_z = accel
+
+    if axis == 'x':
+        return np.array([0.0, accel_y, 0.0])
+    elif axis == 'y':
+        return np.array([accel_x, 0.0, 0.0])
+
+    return np.array([0.0, 0.0, accel_z])
+
+
+def get_sub_A(accel):
+    """
+    Build A sub-matrix from accel control input
+    """
+    accel_x, accel_y, accel_z = accel
+
+    return np.hstack(
+        (
+            np.array(
+                [
+                    [accel_x,     0.0,     0.0, accel_y, accel_z,     0.0,     0.0,     0.0,     0.0],
+                    [    0.0, accel_y,     0.0,     0.0,     0.0, accel_x, accel_z,     0.0,     0.0],
+                    [    0.0,     0.0, accel_z,     0.0,     0.0,     0.0,     0.0, accel_x, accel_y]
+                ]
+            ),
+            np.identity(3)
+        )
+    )
+
+
+def estimate_accel_params(data):
+    """
+    Estimate deterministic error params of accel measurement
+    """
+    # init problem:
+    b = []
+    A = []
+    
+    # generate labels:
+    measurements_id = [
+            'accel_x',     'accel_y',     'accel_z', 
+        'ref_accel_x', 'ref_accel_y', 'ref_accel_z', 
+    ]
+    for axis in 'xyz':
+        for stage_id in ['static_{}_{}'.format(axis, direction) for direction in ['neg', 'pos']]:
+            measurement = data.loc[
+                stage_id == data['stage'], 
+                measurements_id
+            ].values
+            
+            observation = measurement[:, :3]
+            control = measurement[:, 3:].mean(axis=0)
+
+            M, _ = measurement.shape
+            sub_b = observation.reshape((-1,))
+            sub_A = np.repeat(
+                get_sub_A(
+                    get_accel_control(control, axis) 
+                ).reshape((1, 3, 12)),
+                M,
+                axis = 0
+            ).reshape((-1, 12))
+            
+            b.append(sub_b)
+            A.append(sub_A)
+    
+    # build problem:
+    b = np.hstack(tuple(b))
+    A = np.vstack(tuple(A))
+
+    # get params
+    params = np.dot(
+        np.linalg.pinv(A), b
+    )
+
+    kx, ky, kz, sxy, sxz, syx, syz, szx, szy, epsilon_x, epsilon_y, epsilon_z = params
+
+    return {
+        'kx': kx,
+        'ky': ky,
+        'kz': kz,
+        'sxy': sxy,
+        'sxz': sxz,
+        'syx': syx,
+        'syz': syz,
+        'szx': szx,
+        'szy': szy,
+        'epsilon_x': epsilon_x,
+        'epsilon_y': epsilon_y,
+        'epsilon_z': epsilon_z
+    }
+
+
 def main(config):
     """
     Estimate IMU deterministic error using separated calibration.
     
     """
     # read measurements:
-    data_gyro_filename = os.path.join(config.input, 'data_gyro.csv')
-    data_gyro = pd.read_csv(data_gyro_filename)
+    data_filename = os.path.join(config.input, 'data.csv')
+    data = pd.read_csv(data_filename)
 
     # get gyro scale:
     gyro_scale = np.hstack(
-        tuple(estimate_gyro_scale(data_gyro, axis) for axis in 'xyz')
+        tuple(estimate_gyro_scale(data, axis) for axis in 'xyz')
     )
 
     # get gyro bias:
@@ -133,14 +227,29 @@ def main(config):
         'gyro_z': []
     }
     for axis in 'xyz':
-        bias_ = estimate_gyro_bias(data_gyro, axis)
+        bias_ = estimate_gyro_bias(data, axis)
         for k in bias_:
             gyro_bias[k].append(bias_[k])
     for k in gyro_bias:
         gyro_bias[k] = np.asarray(gyro_bias[k]).mean()
 
+    # get accel params:
+    accel_params = estimate_accel_params(data)
+
     # write result as json:
     results = {
+        'accel': {
+            'scale': [
+                accel_params[ 'kx'], accel_params['sxy'], accel_params['sxz'],
+                accel_params['syx'], accel_params[ 'ky'], accel_params['syz'],
+                accel_params['szx'], accel_params['szy'], accel_params[ 'kz'] 
+            ],
+            'bias': {
+                'x': accel_params['epsilon_x'],
+                'y': accel_params['epsilon_y'],
+                'z': accel_params['epsilon_z']
+            }
+        },
         'gyro': {
             'scale': list(gyro_scale.reshape((-1, ))),
             'bias': {
