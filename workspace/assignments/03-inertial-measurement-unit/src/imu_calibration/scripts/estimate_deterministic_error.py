@@ -121,14 +121,13 @@ def main(config):
     data_gyro_filename = os.path.join(config.input, 'data_gyro.csv')
     data_gyro = pd.read_csv(data_gyro_filename)
 
-    # get scale:
-    scale = np.hstack(
+    # get gyro scale:
+    gyro_scale = np.hstack(
         tuple(estimate_gyro_scale(data_gyro, axis) for axis in 'xyz')
     )
-    print scale
 
-    # get bias:
-    bias = {
+    # get gyro bias:
+    gyro_bias = {
         'gyro_x': [],
         'gyro_y': [],
         'gyro_z': []
@@ -136,9 +135,27 @@ def main(config):
     for axis in 'xyz':
         bias_ = estimate_gyro_bias(data_gyro, axis)
         for k in bias_:
-            bias[k].append(bias_[k])
-    print bias
-    
+            gyro_bias[k].append(bias_[k])
+    for k in gyro_bias:
+        gyro_bias[k] = np.asarray(gyro_bias[k]).mean()
+
+    # write result as json:
+    results = {
+        'gyro': {
+            'scale': list(gyro_scale.reshape((-1, ))),
+            'bias': {
+                'x': gyro_bias['gyro_x'],
+                'y': gyro_bias['gyro_y'],
+                'z': gyro_bias['gyro_z']
+            }
+        }
+    }
+    with open(
+        os.path.join(config.input, "separated-calibration-results.json"), 
+        'w'
+    ) as json_file:
+        json.dump(results, json_file)
+
     sys.exit(os.EX_OK) 
 
 if __name__ == '__main__':
