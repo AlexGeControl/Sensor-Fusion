@@ -104,7 +104,8 @@ RUN apt-fast update --fix-missing && \
         libmetis-dev \
         # graph optimization -- https://github.com/RainerKuemmerle/g2o
         # a. visualization:
-        qt5-qmake qtdeclarative5-dev libqglviewer-dev-qt5 \
+        libqt4-dev libqt4-opengl-dev \
+        qt5-default qt5-qmake qtdeclarative5-dev libqglviewer-dev-qt5 \
         # b. numerical optimization:
         libcholmod3 libcxsparse3 \
         # imu:
@@ -113,6 +114,8 @@ RUN apt-fast update --fix-missing && \
         ros-melodic-laser-pipeline \
         ros-melodic-perception-pcl \
         # GUI tools:
+        freeglut3-dev \
+        gnuplot \
         gnome-themes-standard \
         terminator \
         firefox && \
