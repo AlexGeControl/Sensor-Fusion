@@ -246,3 +246,56 @@ Allan Variance Curve, Gyro |Allan Variance Curve, Accel
 * 由于MEMS惯导误差发散快, 导航时间不用太长, 几分钟即可. 如果想验证高精度惯导随时间发散的现象, 可用仿真数据生成.
 
 * 解算时尽量对比验证`角增量方法`和`旋转矢量方法`的区别. 由于定轴转动下, 二者没有区别, 因此若要验证该现象, 数据要运动剧烈些.
+
+#### ANS
+
+为了方便自定义运动, 以实现更加剧烈的运动, 本问使用`C++ IMU Simulator`. 编译`imu_integration` [here](src/imu_integration/README.md)
+
+```bash
+# build:
+catkin clean -y && catkin config --install && catkin build imu_integration
+# set up session:
+source install/setup.bash
+# launch:
+roslaunch imu_integration imu_integration.launch
+```
+
+`角增量方法`的实现如下 [here](src/imu_integration/src/estimator/activity.cpp#L130):
+
+```c++
+    IMUData &imu_data = imu_data_buff_.front();
+
+    // get time delta:
+    double time_curr = imu_data.time;
+    double delta_t = time_curr - time_prev;
+
+    // update orientation:
+    Eigen::Matrix3d R = pose_.block<3, 3>(0, 0);
+    Eigen::Vector3d angular_vel_curr = imu_data.angular_velocity - angular_vel_bias_;
+    Eigen::Vector3d angular_vel_mid_value = 0.5*(angular_vel_prev + angular_vel_curr);
+
+    Eigen::Vector3d da = 0.5*delta_t*angular_vel_mid_value;
+    Eigen::Quaterniond dq(1.0, da.x(), da.y(), da.z());
+    Eigen::Quaterniond q(R);
+    q = q*dq;
+    pose_.block<3, 3>(0, 0) = R = q.normalized().toRotationMatrix();
+
+    // update position:
+    Eigen::Vector3d t = pose_.block<3, 1>(0, 3);
+    Eigen::Vector3d linear_acc_curr = R*(imu_data.linear_acceleration - linear_acc_bias_) - G_;
+    Eigen::Vector3d linear_acc_mid_value = 0.5*(linear_acc_prev + linear_acc_curr);
+
+    pose_.block<3, 1>(0, 3) = t + delta_t*vel_ + 0.5*delta_t*delta_t*linear_acc_mid_value;
+    vel_ = vel_ + delta_t*linear_acc_mid_value;
+
+    // move forward:
+    time_prev = time_curr;
+    angular_vel_prev = angular_vel_curr;
+    linear_acc_prev = linear_acc_curr;
+
+    imu_data_buff_.pop_front();
+```
+
+在无噪声的情况下, 使用`角增量方法`, 运行`3分钟`后估计航迹与真实航迹的对比如下图. 其中红色为`Ground Truth`, 蓝色为`Estimation`. 从图中可以看出, `角增量方法`估计的航迹, 已有明显的发散.
+
+<img src="doc/04-imu-integration--0-order.png" alt="IMU Integration, Zero Order" width="%100">

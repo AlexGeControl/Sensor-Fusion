@@ -14,7 +14,7 @@ namespace imu_integration {
 
 namespace generator {
 
-Activity::Activity() 
+Activity::Activity(void) 
     : private_nh_("~"), 
     // standard normal distribution:
     normal_distribution_(0.0, 1.0),
@@ -29,22 +29,48 @@ Activity::Activity()
 void Activity::Init(void) {
     // parse IMU config:
     private_nh_.param("imu/device_name", imu_config_.device_name, std::string("GNSS_INS_SIM_IMU"));
-    private_nh_.param("imu/frame_id", imu_config_.frame_id, std::string("ENU"));
     private_nh_.param("imu/topic_name", imu_config_.topic_name, std::string("/sim/sensor/imu"));
+    private_nh_.param("imu/frame_id", imu_config_.frame_id, std::string("ENU"));
 
+    // a. gravity constant:
+    private_nh_.param("imu/gravity/x", imu_config_.gravity.x,  0.0);
+    private_nh_.param("imu/gravity/y", imu_config_.gravity.y,  0.0);
+    private_nh_.param("imu/gravity/z", imu_config_.gravity.z, -9.81);
+    G_.x() = imu_config_.gravity.x;
+    G_.y() = imu_config_.gravity.y;
+    G_.z() = imu_config_.gravity.z;
+
+    // b. angular velocity bias:
+    private_nh_.param("imu/bias/angular_velocity/x", imu_config_.bias.angular_velocity.x,  0.0);
+    private_nh_.param("imu/bias/angular_velocity/y", imu_config_.bias.angular_velocity.y,  0.0);
+    private_nh_.param("imu/bias/angular_velocity/z", imu_config_.bias.angular_velocity.z,  0.0);
+    angular_vel_bias_.x() = imu_config_.bias.angular_velocity.x;
+    angular_vel_bias_.y() = imu_config_.bias.angular_velocity.y;
+    angular_vel_bias_.z() = imu_config_.bias.angular_velocity.z;
+
+    // c. linear acceleration bias:
+    private_nh_.param("imu/bias/linear_acceleration/x", imu_config_.bias.linear_acceleration.x,  0.0);
+    private_nh_.param("imu/bias/linear_acceleration/y", imu_config_.bias.linear_acceleration.y,  0.0);
+    private_nh_.param("imu/bias/linear_acceleration/z", imu_config_.bias.linear_acceleration.z,  0.0);
+    linear_acc_bias_.x() = imu_config_.bias.linear_acceleration.x;
+    linear_acc_bias_.y() = imu_config_.bias.linear_acceleration.y;
+    linear_acc_bias_.z() = imu_config_.bias.linear_acceleration.z;
+
+    // d. angular velocity random noise:
     private_nh_.param("imu/gyro/sigma_bias", imu_config_.gyro_bias_stddev, 5e-5);
     private_nh_.param("imu/gyro/sigma_noise", imu_config_.gyro_noise_stddev, 0.015);
 
+    // e. linear acceleration random noise:
     private_nh_.param("imu/acc/sigma_bias", imu_config_.acc_bias_stddev, 5e-4);
     private_nh_.param("imu/acc/sigma_noise", imu_config_.acc_noise_stddev, 0.019);
 
     // parse odom config:
     private_nh_.param("pose/frame_id", odom_config_.frame_id, std::string("inertial"));
-    private_nh_.param("pose/topic_name", odom_config_.topic_name, std::string("/pose/ground_truth"));
+    private_nh_.param("pose/topic_name", odom_config_.topic_name.ground_truth, std::string("/pose/ground_truth"));
 
     // init publishers:
     pub_imu_ = private_nh_.advertise<sensor_msgs::Imu>(imu_config_.topic_name, 500);
-    pub_odom_ = private_nh_.advertise<nav_msgs::Odometry>(odom_config_.topic_name, 500);
+    pub_odom_ = private_nh_.advertise<nav_msgs::Odometry>(odom_config_.topic_name.ground_truth, 500);
 
     // init timestamp:
     timestamp_ = ros::Time::now();
@@ -164,7 +190,7 @@ void Activity::SetOdometryMessage(void) {
     message_odom_.header.frame_id = odom_config_.frame_id;
     
     // b. set child frame id:
-    message_odom_.child_frame_id = imu_config_.frame_id;
+    message_odom_.child_frame_id = odom_config_.frame_id;
 
     // b. set orientation:
     Eigen::Quaterniond q(R_gt_);
@@ -177,6 +203,11 @@ void Activity::SetOdometryMessage(void) {
     message_odom_.pose.pose.position.x = t_gt_.x();
     message_odom_.pose.pose.position.y = t_gt_.y();
     message_odom_.pose.pose.position.z = t_gt_.z();  
+
+    // d. set velocity:
+    message_odom_.twist.twist.linear.x = v_gt_.x();
+    message_odom_.twist.twist.linear.y = v_gt_.y();
+    message_odom_.twist.twist.linear.z = v_gt_.z(); 
 }
 
 void Activity::PublishMessages(void) {

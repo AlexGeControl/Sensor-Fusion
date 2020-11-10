@@ -18,39 +18,11 @@
 #include <geometry_msgs/PoseStamped.h>
 #include <nav_msgs/Odometry.h>
 
+#include "imu_integration/config/config.hpp"
 
 namespace imu_integration {
 
 namespace generator {
-
-struct IMUConfig {
-    // general info:
-    std::string device_name;
-    std::string frame_id;
-    std::string topic_name;
-
-    // mode:
-    bool calibration_mode;
-
-    // angular velocity noises:
-    double gyro_bias_stddev;
-    double gyro_noise_stddev;
-
-    // linear acceleration noises:
-    double acc_bias_stddev;
-    double acc_noise_stddev;
-};
-
-struct OdomConfig {
-    OdomConfig() : initialized(false) {}
-
-    // general info:
-    std::string frame_id;
-    std::string topic_name;
-
-    // set the initial pose of integrated odometry using ground truth:
-    bool initialized;
-};
 
 class Activity {
 public:
@@ -72,7 +44,8 @@ private:
     Eigen::Vector3d GetGaussianNoise(double stddev);
     static Eigen::Matrix3d EulerAnglesToRotation(const Eigen::Vector3d &euler_angles);
     static Eigen::Vector3d EulerAngleRatesToBodyAngleRates(const Eigen::Vector3d &euler_angles, const Eigen::Vector3d &euler_angle_rates);
-
+    
+    // node handler:
     ros::NodeHandle private_nh_;
 
     ros::Publisher pub_imu_;

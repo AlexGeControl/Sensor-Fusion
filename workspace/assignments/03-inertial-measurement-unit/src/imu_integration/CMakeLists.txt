@@ -7,6 +7,9 @@ SET(CMAKE_CXX_FLAGS_RELEASE "$ENV{CXXFLAGS} -O3 -Wall")
 add_compile_options(-std=c++11)
 add_definitions(-std=c++11)
 
+## System dependencies are found with CMake's conventions
+find_package(Eigen3 REQUIRED)
+
 ## Find catkin macros and libraries
 ## if COMPONENTS list like find_package(catkin REQUIRED COMPONENTS xyz)
 ## is used, also find other catkin packages
@@ -129,7 +132,36 @@ include(cmake/glog.cmake)
 
 include_directories(
   include
+  ${EIGEN3_INCLUDE_DIRS}
   ${catkin_INCLUDE_DIRS}
+)
+
+## Utils
+file(GLOB_RECURSE UTILS_SRCS "src/subscriber/*.cpp")
+add_library(utils
+  ${UTILS_SRCS}
+)
+
+## Estimator
+file(GLOB_RECURSE ESTIMATOR_ACTIVITY_SRCS "src/estimator/*.cpp")
+file(GLOB_RECURSE ESTIMATOR_NODE_SRCS "src/estimator/node.cpp")
+list(REMOVE_ITEM ESTIMATOR_ACTIVITY_SRCS ${ESTIMATOR_NODE_SRCS})
+
+add_library(estimator_activity
+  ${ESTIMATOR_ACTIVITY_SRCS}
+)
+target_link_libraries(estimator_activity
+  utils
+  ${catkin_LIBRARIES}
+  ${ALL_TARGET_LIBRARIES}
+)
+
+add_executable(estimator_node 
+  ${ESTIMATOR_NODE_SRCS}
+)
+target_link_libraries(estimator_node
+  estimator_activity
+  ${catkin_LIBRARIES}
 )
 
 ## Generator
@@ -140,11 +172,15 @@ list(REMOVE_ITEM GENERATOR_ACTIVITY_SRCS ${GENERATOR_NODE_SRCS})
 add_library(generator_activity
   ${GENERATOR_ACTIVITY_SRCS}
 )
+target_link_libraries(generator_activity
+  utils
+  ${catkin_LIBRARIES}
+  ${ALL_TARGET_LIBRARIES}
+)
 
 add_executable(generator_node 
   ${GENERATOR_NODE_SRCS}
 )
-
 target_link_libraries(generator_node
   generator_activity
   ${catkin_LIBRARIES}
@@ -177,13 +213,16 @@ target_link_libraries(generator_node
 ## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_executables.html
 install(TARGETS 
       generator_node
+      estimator_node
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
 ## Mark libraries for installation
 ## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_libraries.html
 install(TARGETS 
+      utils
       generator_activity
+      estimator_activity
     ARCHIVE DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}
     RUNTIME DESTINATION ${CATKIN_GLOBAL_BIN_DESTINATION}

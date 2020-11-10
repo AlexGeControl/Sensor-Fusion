@@ -35,7 +35,7 @@ void IMUSubscriber::msg_callback(
       imu_msg_ptr->angular_velocity.x,
       imu_msg_ptr->angular_velocity.y,
       imu_msg_ptr->angular_velocity.z
-    )
+    );
 
     // add new message to buffer:
     imu_data_.push_back(imu_data);
