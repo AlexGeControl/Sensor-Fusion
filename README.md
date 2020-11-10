@@ -49,7 +49,7 @@
 在安装完成`Docker`以及`Docker-Compose`之后，需要从`阿里云`源上获得所需镜像.
 
 ```bash
-# login to Sensor Fusion registry -- default password sensorfusion:
+# login to Sensor Fusion registry -- default password TIC,123456:
 docker login --username=937570601@qq.com registry.cn-shanghai.aliyuncs.com
 # download images:
 docker pull registry.cn-shanghai.aliyuncs.com/shenlanxueyuan/sensor-fusion-workspace:bionic-cpu-vnc
