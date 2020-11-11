@@ -3,6 +3,8 @@
  * @Author: Ge Yao
  * @Date: 2020-11-10 14:25:03
  */
+#include <cmath>
+
 #include "imu_integration/estimator/activity.hpp"
 #include "glog/logging.h"
 
@@ -90,7 +92,7 @@ bool Activity::ReadData(void) {
 }
 
 bool Activity::HasData(void) {
-    if (static_cast<size_t>(0) == imu_data_buff_.size())
+    if (imu_data_buff_.size() < static_cast<size_t>(3))
         return false;
 
     if (
@@ -104,60 +106,68 @@ bool Activity::HasData(void) {
 }
 
 bool Activity::UpdatePose(void) {
-    static double time_prev;
-    static Eigen::Vector3d angular_vel_prev;
-    static Eigen::Vector3d linear_acc_prev;
-
     if (!initialized_) {
+        // use the latest measurement for initialization:
         OdomData &odom_data = odom_data_buff_.back();
-        IMUData &imu_data = imu_data_buff_.back();
+        IMUData imu_data = imu_data_buff_.back();
 
         pose_ = odom_data.pose;
         vel_ = odom_data.vel;
-
-        time_prev = imu_data.time;
-        // angular velocity should be in body frame:
-        angular_vel_prev = imu_data.angular_velocity - angular_vel_bias_;
-        // linear acceleration should be in ENU frame:
-        Eigen::Matrix3d R = pose_.block<3, 3>(0, 0);
-        linear_acc_prev = R*(imu_data.linear_acceleration - linear_acc_bias_) - G_;
 
         initialized_ = true;
 
         odom_data_buff_.clear();
         imu_data_buff_.clear();
-    } else {
-        IMUData &imu_data = imu_data_buff_.front();
 
-        // get time delta:
-        double time_curr = imu_data.time;
-        double delta_t = time_curr - time_prev;
+        // keep the latest IMU measurement for mid-value integration:
+        imu_data_buff_.push_back(imu_data);
+    } else {
+        #ifndef FIRST_ORDER
+        // get deltas:
+        Eigen::Vector3d angular_delta; 
+
+        GetAngularDelta(1, 0, angular_delta);
 
         // update orientation:
-        Eigen::Matrix3d R = pose_.block<3, 3>(0, 0);
-        Eigen::Vector3d angular_vel_curr = imu_data.angular_velocity - angular_vel_bias_;
-        Eigen::Vector3d angular_vel_mid_value = 0.5*(angular_vel_prev + angular_vel_curr);
+        Eigen::Matrix3d R_curr, R_prev;
+        UpdateOrientation(angular_delta, R_curr, R_prev);
 
-        Eigen::Vector3d da = 0.5*delta_t*angular_vel_mid_value;
-        Eigen::Quaterniond dq(1.0, da.x(), da.y(), da.z());
-        Eigen::Quaterniond q(R);
-        q = q*dq;
-        pose_.block<3, 3>(0, 0) = R = q.normalized().toRotationMatrix();
+        // get velocity delta:
+        double delta_t;
+        Eigen::Vector3d velocity_delta;
+        GetVelocityDelta(1, 0, R_curr, R_prev, delta_t, velocity_delta);
 
         // update position:
-        Eigen::Vector3d t = pose_.block<3, 1>(0, 3);
-        Eigen::Vector3d linear_acc_curr = R*(imu_data.linear_acceleration - linear_acc_bias_) - G_;
-        Eigen::Vector3d linear_acc_mid_value = 0.5*(linear_acc_prev + linear_acc_curr);
-
-        pose_.block<3, 1>(0, 3) = t + delta_t*vel_ + 0.5*delta_t*delta_t*linear_acc_mid_value;
-        vel_ = vel_ + delta_t*linear_acc_mid_value;
+        UpdatePosition(delta_t, velocity_delta);
 
         // move forward:
-        time_prev = time_curr;
-        angular_vel_prev = angular_vel_curr;
-        linear_acc_prev = linear_acc_curr;
-
         imu_data_buff_.pop_front();
+        #else
+        // get angular deltas:
+        Eigen::Vector3d angular_delta_1, angular_delta_2;
+        GetAngularDelta(1, 0, angular_delta_1);
+        GetAngularDelta(2, 1, angular_delta_2);
+
+        // get effective rotation:
+        Eigen::Vector3d angular_delta = angular_delta_1 + angular_delta_2 + 2.0/3.0*angular_delta_1.cross(angular_delta_2);
+
+        // update orientation:
+        Eigen::Matrix3d R_curr, R_prev
+        UpdateOrientation(angular_delta, R_curr, R_prev);
+
+        // get velocity delta:
+        double delta_t;
+        Eigen::Vector3d velocity_delta;
+        GetVelocityDelta(2, 0, R_curr, R_prev, delta_t, velocity_delta);
+
+        // update position:
+        UpdatePosition(delta_t, velocity_delta);
+
+        // move forward:
+        imu_data_buff_.pop_front();
+        imu_data_buff_.pop_front();
+
+        #endif
     }
     
     return true;
@@ -193,6 +203,141 @@ bool Activity::PublishPose() {
 
     return true;
 }
+
+/**
+ * @brief  get unbiased angular velocity in body frame
+ * @param  angular_vel, angular velocity measurement
+ * @return unbiased angular velocity in body frame
+ */
+inline Eigen::Vector3d Activity::GetUnbiasedAngularVel(const Eigen::Vector3d &angular_vel) {
+    return angular_vel - angular_vel_bias_;
+}
+
+/**
+ * @brief  get unbiased linear acceleration in navigation frame
+ * @param  linear_acc, linear acceleration measurement
+ * @param  R, corresponding orientation of measurement
+ * @return unbiased linear acceleration in navigation frame
+ */
+inline Eigen::Vector3d Activity::GetUnbiasedLinearAcc(
+    const Eigen::Vector3d &linear_acc,
+    const Eigen::Matrix3d &R
+) {
+    return R*(linear_acc - linear_acc_bias_) - G_;
+}
+
+/**
+ * @brief  get angular delta
+ * @param  index_curr, current imu measurement buffer index
+ * @param  index_prev, previous imu measurement buffer index
+ * @param  angular_delta, angular delta output
+ * @return true if success false otherwise
+ */
+bool Activity::GetAngularDelta(
+    const size_t index_curr, const size_t index_prev,
+    Eigen::Vector3d &angular_delta
+) {
+    if (
+        index_curr <= index_prev ||
+        imu_data_buff_.size() <= index_curr
+    ) {
+        return false;
+    }
+
+    const IMUData &imu_data_curr = imu_data_buff_.at(index_curr);
+    const IMUData &imu_data_prev = imu_data_buff_.at(index_prev);
+
+    double delta_t = imu_data_curr.time - imu_data_prev.time;
+
+    Eigen::Vector3d angular_vel_curr = GetUnbiasedAngularVel(imu_data_curr.angular_velocity);
+    Eigen::Vector3d angular_vel_prev = GetUnbiasedAngularVel(imu_data_prev.angular_velocity);
+
+    angular_delta = 0.5*delta_t*(angular_vel_curr + angular_vel_prev);
+
+    return true;
+}
+
+/**
+ * @brief  get velocity delta
+ * @param  index_curr, current imu measurement buffer index
+ * @param  index_prev, previous imu measurement buffer index
+ * @param  R_curr, corresponding orientation of current imu measurement
+ * @param  R_prev, corresponding orientation of previous imu measurement
+ * @param  velocity_delta, velocity delta output
+ * @return true if success false otherwise
+ */
+bool Activity::GetVelocityDelta(
+    const size_t index_curr, const size_t index_prev,
+    const Eigen::Matrix3d &R_curr, const Eigen::Matrix3d &R_prev, 
+    double &delta_t, Eigen::Vector3d &velocity_delta
+) {
+    if (
+        index_curr <= index_prev ||
+        imu_data_buff_.size() <= index_curr
+    ) {
+        return false;
+    }
+
+    const IMUData &imu_data_curr = imu_data_buff_.at(index_curr);
+    const IMUData &imu_data_prev = imu_data_buff_.at(index_prev);
+
+    delta_t = imu_data_curr.time - imu_data_prev.time;
+
+    Eigen::Vector3d linear_acc_curr = GetUnbiasedLinearAcc(imu_data_curr.linear_acceleration, R_curr);
+    Eigen::Vector3d linear_acc_prev = GetUnbiasedLinearAcc(imu_data_prev.linear_acceleration, R_prev);
+    
+    velocity_delta = 0.5*delta_t*(linear_acc_curr + linear_acc_prev);
+
+    return true;
+}
+
+/**
+ * @brief  update orientation with effective rotation angular_delta
+ * @param  angular_delta, effective rotation
+ * @param  R_curr, current orientation
+ * @param  R_prev, previous orientation
+ * @return void
+ */
+void Activity::UpdateOrientation(
+    const Eigen::Vector3d &angular_delta,
+    Eigen::Matrix3d &R_curr, Eigen::Matrix3d &R_prev
+) {
+    // magnitude:
+    double angular_delta_mag = angular_delta.norm();
+    // direction:
+    Eigen::Vector3d angular_delta_dir = angular_delta.normalized();
+
+    // build delta q:
+    double angular_delta_cos = cos(angular_delta_mag/2.0);
+    double angular_delta_sin = sin(angular_delta_mag/2.0);
+    Eigen::Quaterniond dq(
+        angular_delta_cos, 
+        angular_delta_sin*angular_delta_dir.x(), 
+        angular_delta_sin*angular_delta_dir.y(), 
+        angular_delta_sin*angular_delta_dir.z()
+    );
+    Eigen::Quaterniond q(pose_.block<3, 3>(0, 0));
+    
+    // update:
+    q = q*dq;
+    
+    // write back:
+    R_prev = pose_.block<3, 3>(0, 0);
+    pose_.block<3, 3>(0, 0) = q.normalized().toRotationMatrix();
+    R_curr = pose_.block<3, 3>(0, 0);
+}
+
+/**
+ * @brief  update orientation with effective velocity change velocity_delta
+ * @param  delta_t, timestamp delta 
+ * @param  velocity_delta, effective velocity change
+ * @return void
+ */
+void Activity::UpdatePosition(const double &delta_t, const Eigen::Vector3d &velocity_delta) {
+    pose_.block<3, 1>(0, 3) += delta_t*vel_ + 0.5*delta_t*velocity_delta;
+    vel_ += velocity_delta;
+}
+
 
 } // namespace estimator
 

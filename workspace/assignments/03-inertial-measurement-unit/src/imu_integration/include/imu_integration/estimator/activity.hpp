@@ -9,6 +9,9 @@
 // common:
 #include <ros/ros.h>
 
+#include <Eigen/Dense>
+#include <Eigen/Core>
+
 // config:
 #include "imu_integration/config/config.hpp"
 
@@ -28,10 +31,71 @@ class Activity {
     void Init(void);
     bool Run(void);
   private:
+    // workflow:
     bool ReadData(void);
     bool HasData(void);
     bool UpdatePose(void);
     bool PublishPose(void);
+
+    // utils:
+    /**
+     * @brief  get unbiased angular velocity in body frame
+     * @param  angular_vel, angular velocity measurement
+     * @return unbiased angular velocity in body frame
+     */
+    Eigen::Vector3d GetUnbiasedAngularVel(const Eigen::Vector3d &angular_vel);
+    /**
+     * @brief  get unbiased linear acceleration in navigation frame
+     * @param  linear_acc, linear acceleration measurement
+     * @param  R, corresponding orientation of measurement
+     * @return unbiased linear acceleration in navigation frame
+     */
+    Eigen::Vector3d GetUnbiasedLinearAcc(
+        const Eigen::Vector3d &linear_acc,
+        const Eigen::Matrix3d &R
+    );
+    /**
+     * @brief  get angular delta
+     * @param  index_curr, current imu measurement buffer index
+     * @param  index_prev, previous imu measurement buffer index
+     * @param  angular_delta, angular delta output
+     * @return true if success false otherwise
+     */
+    bool GetAngularDelta(
+        const size_t index_curr, const size_t index_prev,
+        Eigen::Vector3d &angular_delta
+    );
+    /**
+     * @brief  get velocity delta
+     * @param  index_curr, current imu measurement buffer index
+     * @param  index_prev, previous imu measurement buffer index
+     * @param  R_curr, corresponding orientation of current imu measurement
+     * @param  R_prev, corresponding orientation of previous imu measurement
+     * @param  velocity_delta, velocity delta output
+     * @return true if success false otherwise
+     */
+    bool GetVelocityDelta(
+        const size_t index_curr, const size_t index_prev,
+        const Eigen::Matrix3d &R_curr, const Eigen::Matrix3d &R_prev, 
+        double &delta_t, Eigen::Vector3d &velocity_delta
+    );
+    /**
+     * @brief  update orientation with effective rotation angular_delta
+     * @param  angular_delta, effective rotation
+     * @param  R_curr, current orientation
+     * @param  R_prev, previous orientation
+     * @return void
+     */
+    void UpdateOrientation(
+        const Eigen::Vector3d &angular_delta,
+        Eigen::Matrix3d &R_curr, Eigen::Matrix3d &R_prev
+    );
+    /**
+     * @brief  update orientation with effective velocity change velocity_delta
+     * @param  velocity_delta, effective velocity change
+     * @return void
+     */
+    void UpdatePosition(const double &delta_t, const Eigen::Vector3d &velocity_delta);
 
   private:
     // node handler:
