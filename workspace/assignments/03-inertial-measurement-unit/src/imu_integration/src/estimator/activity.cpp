@@ -122,7 +122,7 @@ bool Activity::UpdatePose(void) {
         // keep the latest IMU measurement for mid-value integration:
         imu_data_buff_.push_back(imu_data);
     } else {
-        #ifndef FIRST_ORDER
+        #ifdef FIRST_ORDER
         // get deltas:
         Eigen::Vector3d angular_delta; 
 
@@ -152,7 +152,7 @@ bool Activity::UpdatePose(void) {
         Eigen::Vector3d angular_delta = angular_delta_1 + angular_delta_2 + 2.0/3.0*angular_delta_1.cross(angular_delta_2);
 
         // update orientation:
-        Eigen::Matrix3d R_curr, R_prev
+        Eigen::Matrix3d R_curr, R_prev;
         UpdateOrientation(angular_delta, R_curr, R_prev);
 
         // get velocity delta:

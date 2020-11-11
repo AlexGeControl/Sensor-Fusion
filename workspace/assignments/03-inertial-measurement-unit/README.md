@@ -260,42 +260,70 @@ source install/setup.bash
 roslaunch imu_integration imu_integration.launch
 ```
 
-`角增量方法`的实现如下 [here](src/imu_integration/src/estimator/activity.cpp#L130):
+`角增量方法`的实现如下 [here](src/imu_integration/src/estimator/activity.cpp#L126):
 
 ```c++
-    IMUData &imu_data = imu_data_buff_.front();
+    // get deltas:
+    Eigen::Vector3d angular_delta; 
 
-    // get time delta:
-    double time_curr = imu_data.time;
-    double delta_t = time_curr - time_prev;
+    GetAngularDelta(1, 0, angular_delta);
 
     // update orientation:
-    Eigen::Matrix3d R = pose_.block<3, 3>(0, 0);
-    Eigen::Vector3d angular_vel_curr = imu_data.angular_velocity - angular_vel_bias_;
-    Eigen::Vector3d angular_vel_mid_value = 0.5*(angular_vel_prev + angular_vel_curr);
+    Eigen::Matrix3d R_curr, R_prev;
+    UpdateOrientation(angular_delta, R_curr, R_prev);
 
-    Eigen::Vector3d da = 0.5*delta_t*angular_vel_mid_value;
-    Eigen::Quaterniond dq(1.0, da.x(), da.y(), da.z());
-    Eigen::Quaterniond q(R);
-    q = q*dq;
-    pose_.block<3, 3>(0, 0) = R = q.normalized().toRotationMatrix();
+    // get velocity delta:
+    double delta_t;
+    Eigen::Vector3d velocity_delta;
+    GetVelocityDelta(1, 0, R_curr, R_prev, delta_t, velocity_delta);
 
     // update position:
-    Eigen::Vector3d t = pose_.block<3, 1>(0, 3);
-    Eigen::Vector3d linear_acc_curr = R*(imu_data.linear_acceleration - linear_acc_bias_) - G_;
-    Eigen::Vector3d linear_acc_mid_value = 0.5*(linear_acc_prev + linear_acc_curr);
-
-    pose_.block<3, 1>(0, 3) = t + delta_t*vel_ + 0.5*delta_t*delta_t*linear_acc_mid_value;
-    vel_ = vel_ + delta_t*linear_acc_mid_value;
+    UpdatePosition(delta_t, velocity_delta);
 
     // move forward:
-    time_prev = time_curr;
-    angular_vel_prev = angular_vel_curr;
-    linear_acc_prev = linear_acc_curr;
-
     imu_data_buff_.pop_front();
 ```
 
-在无噪声的情况下, 使用`角增量方法`, 运行`3分钟`后估计航迹与真实航迹的对比如下图. 其中红色为`Ground Truth`, 蓝色为`Estimation`. 从图中可以看出, `角增量方法`估计的航迹, 已有明显的发散.
+`等效旋转矢量方法(对角速度变化做1阶假设)`的实现如下 [here](src/imu_integration/src/estimator/activity.cpp#L146):
 
-<img src="doc/04-imu-integration--0-order.png" alt="IMU Integration, Zero Order" width="%100">
+```c++
+        // get angular deltas:
+    Eigen::Vector3d angular_delta_1, angular_delta_2;
+    GetAngularDelta(1, 0, angular_delta_1);
+    GetAngularDelta(2, 1, angular_delta_2);
+
+    // get effective rotation:
+    Eigen::Vector3d angular_delta = angular_delta_1 + angular_delta_2 + 2.0/3.0*angular_delta_1.cross(angular_delta_2);
+
+    // update orientation:
+    Eigen::Matrix3d R_curr, R_prev;
+    UpdateOrientation(angular_delta, R_curr, R_prev);
+
+    // get velocity delta:
+    double delta_t;
+    Eigen::Vector3d velocity_delta;
+    GetVelocityDelta(2, 0, R_curr, R_prev, delta_t, velocity_delta);
+
+    // update position:
+    UpdatePosition(delta_t, velocity_delta);
+
+    // move forward:
+    imu_data_buff_.pop_front();
+    imu_data_buff_.pop_front();
+```
+
+在无噪声的情况下, 使用`角增量方法`与`等效旋转矢量方法`, 运行`3分钟`后估计航迹与真实航迹的对比如下图. 其中红色为`Ground Truth`, 蓝色为`Estimation`.
+
+Zero Order                 |First Order
+:-------------------------:|:-------------------------:
+![Zero Order](doc/04-imu-integration--0-order.png)  |  ![First Order](doc/04-imu-integration--1-order.png)
+
+上述对比显示, `等效旋转矢量方法`, 在位置估计上, 精度较差, 原因在于其对位置/速度进行更新时, 步长过大.
+
+仅考虑航向跟踪时, 两种方法的对比如下图.
+
+Zero Order                 |First Order
+:-------------------------:|:-------------------------:
+![Zero Order](doc/04-imu-integration--0-order-orientation.png)  |  ![First Order](doc/04-imu-integration--1-order-orientation.png)
+
+上述对比显示, `角增量方法`与`等效旋转矢量方法`, 针对选择的运动, 在航向估计上, 性能接近.
