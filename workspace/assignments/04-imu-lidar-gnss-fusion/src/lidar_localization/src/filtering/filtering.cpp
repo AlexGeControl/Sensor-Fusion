@@ -163,7 +163,9 @@ bool Filtering::InitWithConfig(void) {
     InitScanContextManager(config_node);
     // d. init frontend:
     InitRegistration(registration_ptr_, config_node);
-    
+    // e. init fusion:
+    InitFusion(config_node);
+
     // init local map for frontend matching:
     ResetLocalMap(0.0, 0.0, 0.0);
 
@@ -247,6 +249,21 @@ bool Filtering::InitRegistration(
         registration_ptr = std::make_shared<NDTRegistration>(config_node[registration_method]);
     } else {
         LOG(ERROR) << "Registration method " << registration_method << " NOT FOUND!";
+        return false;
+    }
+
+    return true;
+}
+
+bool Filtering::InitFusion(const YAML::Node& config_node) {
+    std::string fusion_method = config_node["fusion_method"].as<std::string>();
+
+    std::cout << "\tIMU-Lidar-GNSS Fusion Method: " << fusion_method << std::endl;
+
+    if (fusion_method == "kalman_filter") {
+        kalman_filter_ptr_ = std::make_shared<KalmanFilter>(config_node[fusion_method]);
+    } else {
+        LOG(ERROR) << "Fusion method " << fusion_method << " NOT FOUND!";
         return false;
     }
 

@@ -20,6 +20,7 @@
 
 #include "lidar_localization/models/registration/registration_interface.hpp"
 
+#include "lidar_localization/models/kalman_filter/kalman_filter.hpp"
 
 namespace lidar_localization {
 
@@ -67,6 +68,8 @@ class Filtering {
       std::shared_ptr<RegistrationInterface>& registration_ptr, 
       const YAML::Node& config_node
     );
+    // e. IMU-lidar fusion initializer:
+    bool InitFusion(const YAML::Node& config_node);
 
     bool SetInitPose(const Eigen::Matrix4f& init_pose);
     bool ResetLocalMap(float x, float y, float z);
@@ -89,6 +92,8 @@ class Filtering {
     std::shared_ptr<ScanContextManager> scan_context_manager_ptr_;
     // frontend:
     std::shared_ptr<RegistrationInterface> registration_ptr_; 
+    // IMU-lidar Kalman filter:
+    std::shared_ptr<KalmanFilter> kalman_filter_ptr_;
     
     CloudData::CLOUD_PTR global_map_ptr_;
     CloudData::CLOUD_PTR local_map_ptr_;

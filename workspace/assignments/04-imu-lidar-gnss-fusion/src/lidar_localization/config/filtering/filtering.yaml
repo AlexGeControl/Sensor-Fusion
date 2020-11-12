@@ -20,8 +20,11 @@ scan_context_path: /workspace/assignments/04-imu-lidar-gnss-fusion/src/lidar_loc
 # 匹配
 registration_method: NDT   # 选择点云匹配方法，目前支持：NDT 
 
+# 融合:
+fusion_method: kalman_filter # 选择融合定位方法, 目前支持: kalman_filter
+
 # 各配置选项对应参数
-## 滤波相关参数
+## a. point cloud filtering:
 voxel_filter:
     global_map:
         leaf_size: [0.9, 0.9, 0.9]
@@ -29,7 +32,7 @@ voxel_filter:
         leaf_size: [0.5, 0.5, 0.5]
     current_scan:
         leaf_size: [1.5, 1.5, 1.5]
-## ScanContext params:
+## b. scan context:
 scan_context:
     # a. ROI definition:
     max_radius: 80.0
@@ -50,9 +53,31 @@ scan_context:
     #   0.4-0.6 is good choice for using with robust kernel (e.g., Cauchy, DCS) + icp fitness threshold 
     #   if not, recommend 0.1-0.15
     scan_context_distance_thresh: 0.15
-## 匹配相关参数
+## c. frontend matching
 NDT:
     res : 1.0
     step_size : 0.1
     trans_eps : 0.01
     max_iter : 30
+## d. Kalman filter for IMU-lidar-GNSS fusion:
+kalman_filter:
+    earth:
+        # gravity can be calculated from https://www.sensorsone.com/local-gravity-calculator/ using latitude and height:
+        gravity_magnitude: 9.80943
+        # rotation speed, rad/s:
+        rotation_speed: 7.292115e-5
+        # latitude:
+        latitude: 48.9827703173
+    covariance:
+        prior:
+            pos: 0.04
+            vel: 0.04
+            orientation: 0.04
+            epsilon: 0.04
+            delta: 0.04
+        process:
+            gyro: 2.5e-3
+            accel: 2.5e-3
+        measurement:
+            pos: 0.04
+            orientation: 0.04
