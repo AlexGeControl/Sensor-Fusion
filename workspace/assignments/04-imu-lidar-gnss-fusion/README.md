@@ -22,6 +22,48 @@ This is the solution of Assignment 04 of Sensor Fusion from [深蓝学院](https
 
 算法的`理论推导`以及`针对KITTI Road Test Data`的`伪代码实现`参考 [here](doc/derivations)
 
+为了产生`未降频的IMU测量值`:
+
+1. 下载`extract.zip`
+2. 解压后, 将其中的`oxts`替换`sync`中的`oxts`
+3. 然后运行`kitti2bag`, 产生用于`Filtering/Graph Optimization`的ROS Bag
+
+在`kitti_2011_10_03_drive_0027_sync`上得到的ROS Bag Info如下:
+
+```bash
+$ rosbag info kitti_2011_10_03_drive_0027_synced.bag
+
+path:        kitti_2011_10_03_drive_0027_synced.bag
+version:     2.0
+duration:    7:51s (471s)
+start:       Oct 03 2011 20:55:34.48 (1317646534.48)
+end:         Oct 03 2011 21:03:25.83 (1317647005.83)
+size:        24.1 GB
+messages:    269396
+compression: none [18259/18259 chunks]
+types:       geometry_msgs/TwistStamped [98d34b0043a2093cf9d9345ab6eef12e]
+             sensor_msgs/CameraInfo     [c9a58c1b0b154e0e6da7578cb991d214]
+             sensor_msgs/Image          [060021388200f6f0f447d0fcd9c64743]
+             sensor_msgs/Imu            [6a62c6daae103f4ff57a132d6f95cec2]
+             sensor_msgs/NavSatFix      [2d3a8cd499b9b4a0249fb98fd05cfa48]
+             sensor_msgs/PointCloud2    [1158d486dd51d683ce2f1be655c3c181]
+             tf2_msgs/TFMessage         [94810edda583a504dfda3829e70d7eec]
+topics:      /kitti/camera_color_left/camera_info     4544 msgs    : sensor_msgs/CameraInfo    
+             /kitti/camera_color_left/image_raw       4544 msgs    : sensor_msgs/Image         
+             /kitti/camera_color_right/camera_info    4544 msgs    : sensor_msgs/CameraInfo    
+             /kitti/camera_color_right/image_raw      4544 msgs    : sensor_msgs/Image         
+             /kitti/camera_gray_left/camera_info      4544 msgs    : sensor_msgs/CameraInfo    
+             /kitti/camera_gray_left/image_raw        4544 msgs    : sensor_msgs/Image         
+             /kitti/camera_gray_right/camera_info     4544 msgs    : sensor_msgs/CameraInfo    
+             /kitti/camera_gray_right/image_raw       4544 msgs    : sensor_msgs/Image         
+             /kitti/oxts/gps/fix                     45700 msgs    : sensor_msgs/NavSatFix     
+             /kitti/oxts/gps/vel                     45700 msgs    : geometry_msgs/TwistStamped
+             /kitti/oxts/imu                         45700 msgs    : sensor_msgs/Imu           
+             /kitti/velo/pointcloud                   4544 msgs    : sensor_msgs/PointCloud2   
+             /tf                                     45700 msgs    : tf2_msgs/TFMessage        
+             /tf_static                              45700 msgs    : tf2_msgs/TFMessage
+```
+
 ---
 
 ### 2. GNSS/IMU融合分析
