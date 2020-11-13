@@ -31,14 +31,12 @@ class Filtering {
 
     bool Init(
       const CloudData& init_scan,
-      const Eigen::Matrix4f &lidar_to_imu,
       const Eigen::Vector3f &init_vel,
       const IMUData &init_imu_data
     );
 
     bool Init(
       const Eigen::Matrix4f& init_pose,
-      const Eigen::Matrix4f &lidar_to_imu,
       const Eigen::Vector3f &init_vel,
       const IMUData &init_imu_data
     );
@@ -121,7 +119,7 @@ class Filtering {
     CloudData::CLOUD_PTR current_scan_ptr_;
 
     Eigen::Matrix4f current_gnss_pose_ = Eigen::Matrix4f::Identity();
-
+    Eigen::Matrix4f init_pose_ = Eigen::Matrix4f::Identity(); 
     Eigen::Matrix4f current_pose_ = Eigen::Matrix4f::Identity();
     Eigen::Vector3f current_vel_ = Eigen::Vector3f::Zero();
 

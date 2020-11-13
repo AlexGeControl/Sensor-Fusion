@@ -104,17 +104,18 @@ KalmanFilter::KalmanFilter(const YAML::Node& node) {
  * @return true if success false otherwise
  */
 void KalmanFilter::Init(
-    const Eigen::Matrix4d &pose,
     const Eigen::Vector3d &vel,
     const IMUData &imu_data
 ) {
     // init odometry:
-    Eigen::Matrix3f C_nb = imu_data.GetOrientationMatrix();
+    Eigen::Matrix3d C_nb = imu_data.GetOrientationMatrix().cast<double>();
+    // a. init C_nb using IMU estimation: 
+    pose_.block<3, 3>(0, 0) = C_nb;
+    // b. convert flu velocity into navigation frame:
+    vel_ = C_nb*vel;
 
-    pose_.block<3, 3>(0, 0) = C_nb.cast<double>();
-    pose_.block<3, 1>(0, 3) = pose.block<3, 1>(0, 3);
-    
-    vel_ = vel;
+    // save init pose:
+    init_pose_ = pose_;
 
     // init IMU data buffer:
     imu_data_buff_.clear();
@@ -153,7 +154,7 @@ bool KalmanFilter::Update(const IMUData &imu_data) {
         imu_data_buff_.pop_front();
 
         // update error estimation:
-        // UpdateErrorEstimation(imu_data);
+        UpdateErrorEstimation(imu_data);
 
         // update filter time:
         time_ = imu_data.time;
@@ -175,21 +176,22 @@ bool KalmanFilter::Correct(
     const Eigen::Matrix4f &T_nb_lidar
 ) {
     // get discretized process equations:
-    if (time_ < time) {
+    double time_deviation = fabs(time - time_);
+    if ( time_deviation < 0.05 ) {
+        // perform Kalman prediction:
+        /*
         double T = time - time_;
         MatrixF F = MatrixF::Identity() + T*F_;
         MatrixB B = T*B_;
-
-        // perform Kalman prediction:
         X_ = F*X_;
         P_ = F*P_*F.transpose() + B*Q_*B.transpose();
-
-        // get observation:
-        Eigen::Matrix4d T_nb_lidar_double = T_nb_lidar.cast<double>();
+        */
+       
+        // get observation in navigation frame:
+        Eigen::Matrix4d T_nb_lidar_double = init_pose_ * T_nb_lidar.cast<double>();
 
         Eigen::Vector3d P_nn_obs = pose_.block<3, 1>(0,3) - T_nb_lidar_double.block<3, 1>(0,3);
-
-        Eigen::Matrix3d C_nn_obs = pose_.block<3, 3>(0,0) * T_nb_lidar_double.block<3, 3>(0,0).transpose();
+        Eigen::Matrix3d C_nn_obs = pose_.block<3, 3>(0,0) * T_nb_lidar_double.block<3, 3>(0,0).transpose();;
 
         Y_.block<3, 1>(0, 0) = P_nn_obs;
         Y_.block<3, 1>(3, 0) = Sophus::SO3d::vee(Eigen::Matrix3d::Identity() - C_nn_obs);
@@ -207,9 +209,7 @@ bool KalmanFilter::Correct(
         // b. velocity:
         vel_ = vel_ - X_.block<3, 1>(INDEX_ERROR_VEL, 0);
         // c. orientation:
-        Eigen::Matrix3d C_nn = Eigen::Matrix3d::Identity() - Sophus::SO3d::hat(
-            X_.block<3, 1>(INDEX_ERROR_ORI, 0)
-        );
+        Eigen::Matrix3d C_nn = Sophus::SO3d::exp(-X_.block<3, 1>(INDEX_ERROR_ORI, 0)).matrix();
         pose_.block<3, 3>(0, 0) = C_nn.transpose()*pose_.block<3, 3>(0, 0);
 
         // reset error state:
@@ -218,6 +218,10 @@ bool KalmanFilter::Correct(
         return true;
     }
 
+    LOG(INFO) << "Kalman Correct: Observation is older than filter time. Skip, " 
+              << (int)time << " <-- " << (int)time_ << " @ " << time_deviation
+              << std::endl; 
+    
     return false;
 }
  
@@ -240,12 +244,13 @@ void KalmanFilter::GetOdometry(
     // b. velocity:
     vel_double = vel_double - X_.block<3, 1>(INDEX_ERROR_VEL, 0);
     // c. orientation:
-    Eigen::Matrix3d C_nn = Eigen::Matrix3d::Identity() - Sophus::SO3d::hat(
-        X_.block<3, 1>(INDEX_ERROR_ORI, 0)
-    );
-    pose_.block<3, 3>(0, 0) = C_nn.transpose()*pose_.block<3, 3>(0, 0);
+    Eigen::Matrix3d C_nn = Sophus::SO3d::exp(-X_.block<3, 1>(INDEX_ERROR_ORI, 0)).matrix();
+    pose_double.block<3, 3>(0, 0) = C_nn.transpose()*pose_double.block<3, 3>(0, 0);
 
     // finally:
+    pose_double = init_pose_.inverse() * pose_double;
+    vel_double = init_pose_.block<3, 3>(0, 0).transpose() * vel_double;
+
     pose = pose_double.cast<float>();
     vel = vel_double.cast<float>();
 }

@@ -87,6 +87,12 @@ topics:      /kitti/camera_color_left/camera_info     4544 msgs    : sensor_msgs
              /tf_static                              45700 msgs    : tf2_msgs/TFMessage
 ```
 
+基于`Eigen`与`Sophus`的`Error-State Kalman Fusion`实现参考[here](src/lidar_localization/src/models/kalman_filter/kalman_filter.cpp)
+
+`IMU-Lidar Error-State Kalman Fusion Odometry`与`GNSS Groud Truth`的对比如下图所示. 其中`黄色`为`GNSS Groud Truth`, `红色`为`Lidar Odometry`, `蓝色`为`IMU-Lidar Fusion Odometry`:
+
+<img src="doc/images/01-IMU-lidar-fusion.png" alt="IMU-Lidar Fusion v.s. GNSS" width="100%">
+
 ---
 
 ### 2. GNSS/IMU融合分析

@@ -64,14 +64,27 @@ bool FilteringFlow::Run() {
                 InitLocalization();
             }
         } else {
-            if ( !HasLidarData() && ValidIMUData() ) {
+            if (  HasLidarData() && ValidLidarData() ) {
+                if ( HasIMUData() ) {
+                    while (
+                        HasIMUData() && ValidIMUData() && 
+                        current_imu_raw_data_.time < current_cloud_data_.time
+                    ) {
+                        UpdateLocalization();
+                    }
+
+                    if (
+                        current_imu_raw_data_.time >= current_cloud_data_.time
+                    ) {
+                        imu_raw_data_buff_.push_back(current_imu_raw_data_);
+                    }
+                }
+
+                CorrectLocalization();
+            }
+            
+            if ( HasIMUData() && ValidIMUData() ) {
                 UpdateLocalization();
-            } else if ( !HasIMUData() && ValidLidarData() ) {
-                ;// CorrectLocalization();
-            } else if ( HasIMUComesFirst() && ValidIMUData() ) {
-                UpdateLocalization();
-            } else if ( !HasIMUComesFirst() && ValidLidarData() ) {
-                ;// CorrectLocalization();
             }
 
             PublishData();
@@ -179,14 +192,12 @@ bool FilteringFlow::InitCalibration() {
 
 bool FilteringFlow::InitLocalization(void) {
     // geo ego vehicle velocity in navigation frame:
-    Eigen::Matrix3f C_nl = current_gnss_data_.pose.block<3, 3>(0, 0);
-    Eigen::Vector3f init_vel = C_nl*current_gnss_data_.vel;
+    Eigen::Vector3f init_vel = current_gnss_data_.vel;
 
     // first try to init using scan context query:
     if (
         filtering_ptr_->Init(
-            current_cloud_data_, 
-            lidar_to_imu_,
+            current_cloud_data_,
             init_vel,
             current_imu_synced_data_
         )
@@ -207,7 +218,6 @@ bool FilteringFlow::InitLocalization(void) {
     else {
         filtering_ptr_->Init(
             current_gnss_data_.pose,
-            lidar_to_imu_,
             init_vel,
             current_imu_synced_data_
         );

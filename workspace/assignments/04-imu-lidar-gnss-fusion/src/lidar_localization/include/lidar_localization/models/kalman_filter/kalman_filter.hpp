@@ -57,7 +57,6 @@ public:
      * @return true if success false otherwise
      */
     void Init(
-        const Eigen::Matrix4d &pose,
         const Eigen::Vector3d &vel,
         const IMUData &imu_data
     );
@@ -201,6 +200,7 @@ private:
     double time_;
 
     // odometry estimation from IMU integration:
+    Eigen::Matrix4d init_pose_ = Eigen::Matrix4d::Identity();
     Eigen::Matrix4d pose_ = Eigen::Matrix4d::Identity();
     Eigen::Vector3d vel_ = Eigen::Vector3d::Zero();
 

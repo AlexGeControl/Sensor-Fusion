@@ -30,7 +30,6 @@ Filtering::Filtering() :
 
 bool Filtering::Init(
     const CloudData& init_scan,
-    const Eigen::Matrix4f &lidar_to_imu,
     const Eigen::Vector3f &init_vel,
     const IMUData &init_imu_data
 ) {
@@ -38,7 +37,6 @@ bool Filtering::Init(
         current_vel_ = init_vel;
 
         kalman_filter_ptr_->Init(
-            current_pose_.cast<double>(),
             current_vel_.cast<double>(),
             init_imu_data
         );
@@ -51,7 +49,6 @@ bool Filtering::Init(
 
 bool Filtering::Init(
     const Eigen::Matrix4f& init_pose,
-    const Eigen::Matrix4f &lidar_to_imu,
     const Eigen::Vector3f &init_vel,
     const IMUData &init_imu_data
 ) {
@@ -59,7 +56,6 @@ bool Filtering::Init(
         current_vel_ = init_vel;
 
         kalman_filter_ptr_->Init(
-            current_pose_.cast<double>(),
             current_vel_.cast<double>(),
             init_imu_data
         );
@@ -89,8 +85,8 @@ bool Filtering::Correct(
     Eigen::Matrix4f& cloud_pose
 ) {
     static Eigen::Matrix4f step_pose = Eigen::Matrix4f::Identity();
-    static Eigen::Matrix4f last_pose = current_pose_;
-    static Eigen::Matrix4f predict_pose = current_pose_;
+    static Eigen::Matrix4f last_pose = init_pose_;
+    static Eigen::Matrix4f predict_pose = init_pose_;
 
     // remove invalid measurements:
     std::vector<int> indices;
@@ -114,11 +110,6 @@ bool Filtering::Correct(
     predict_pose = cloud_pose * step_pose;
     last_pose = cloud_pose;
 
-    kalman_filter_ptr_->Correct(
-        imu_data,
-        cloud_data.time, cloud_pose
-    );
-
     // shall the local map be updated:
     std::vector<float> edge = local_map_segmenter_ptr_->GetEdge();
     for (int i = 0; i < 3; i++) {
@@ -137,7 +128,19 @@ bool Filtering::Correct(
         break;
     }
 
-    return true;
+    if (
+        kalman_filter_ptr_->Correct(
+            imu_data,
+            cloud_data.time, init_pose_.inverse() * cloud_pose
+        )
+    ) {
+        kalman_filter_ptr_->GetOdometry(
+            current_pose_, current_vel_
+        );
+        return true;
+    }
+
+    return false;
 }
 
 void Filtering::GetGlobalMap(CloudData::CLOUD_PTR& global_map) {
@@ -147,8 +150,8 @@ void Filtering::GetGlobalMap(CloudData::CLOUD_PTR& global_map) {
 }
 
 void Filtering::GetOdometry(Eigen::Matrix4f &pose, Eigen::Vector3f &vel) {
-    pose = current_pose_;
-    vel = current_vel_;
+    pose = init_pose_ * current_pose_;
+    vel = init_pose_.block<3, 3>(0, 0) * current_vel_;
 }
 
 bool Filtering::InitWithConfig(void) {
@@ -211,6 +214,8 @@ bool Filtering::InitFilters(const YAML::Node& config_node) {
     InitFilter("local_map", local_map_filter_ptr_, config_node);
     // c. scan filter -- 
     InitFilter("current_scan", current_scan_filter_ptr_, config_node);
+
+    return true;
 }
 
 bool Filtering::InitGlobalMap(const YAML::Node& config_node) {
@@ -312,7 +317,7 @@ bool Filtering::SetInitGNSS(const Eigen::Matrix4f& gnss_pose) {
 }
 
 bool Filtering::SetInitPose(const Eigen::Matrix4f& init_pose) {
-    current_pose_ = init_pose;
+    init_pose_ = init_pose;
 
     ResetLocalMap(
         init_pose(0,3), 
