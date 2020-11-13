@@ -17,11 +17,12 @@ void OdometrySubscriber::msg_callback(const nav_msgs::OdometryConstPtr& odom_msg
     PoseData pose_data;
     pose_data.time = odom_msg_ptr->header.stamp.toSec();
 
-    //set the position
+    // set the position:
     pose_data.pose(0,3) = odom_msg_ptr->pose.pose.position.x;
     pose_data.pose(1,3) = odom_msg_ptr->pose.pose.position.y;
     pose_data.pose(2,3) = odom_msg_ptr->pose.pose.position.z;
 
+    // set the orientation:
     Eigen::Quaternionf q;
     q.x() = odom_msg_ptr->pose.pose.orientation.x;
     q.y() = odom_msg_ptr->pose.pose.orientation.y;
@@ -29,7 +30,13 @@ void OdometrySubscriber::msg_callback(const nav_msgs::OdometryConstPtr& odom_msg
     q.w() = odom_msg_ptr->pose.pose.orientation.w;
     pose_data.pose.block<3,3>(0,0) = q.matrix();
 
+    // set the linear velocity:
+    pose_data.vel.x() = odom_msg_ptr->twist.twist.linear.x;
+    pose_data.vel.y() = odom_msg_ptr->twist.twist.linear.y;
+    pose_data.vel.z() = odom_msg_ptr->twist.twist.linear.z;
+
     new_pose_data_.push_back(pose_data);
+    
     buff_mutex_.unlock();
 }
 

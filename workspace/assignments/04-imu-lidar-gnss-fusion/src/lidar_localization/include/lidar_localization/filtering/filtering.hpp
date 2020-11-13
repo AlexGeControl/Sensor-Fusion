@@ -31,12 +31,14 @@ class Filtering {
 
     bool Init(
       const CloudData& init_scan,
+      const Eigen::Matrix4f &lidar_to_imu,
       const Eigen::Vector3f &init_vel,
       const IMUData &init_imu_data
     );
 
     bool Init(
       const Eigen::Matrix4f& init_pose,
+      const Eigen::Matrix4f &lidar_to_imu,
       const Eigen::Vector3f &init_vel,
       const IMUData &init_imu_data
     );

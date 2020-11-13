@@ -15,6 +15,8 @@
 #include "lidar_localization/subscriber/cloud_subscriber.hpp"
 // c. GNSS:
 #include "lidar_localization/subscriber/odometry_subscriber.hpp"
+// d. lidar to imu:
+#include "lidar_localization/tf_listener/tf_listener.hpp"
 
 // publisher:
 #include "lidar_localization/publisher/cloud_publisher.hpp"
@@ -38,12 +40,19 @@ class FilteringFlow {
     bool HasData();
 
     bool HasIMUData(void) const { return !imu_raw_data_buff_.empty(); }
-    bool HasLidarData(void) const { return !cloud_data_buff_.empty(); }
+    bool HasLidarData(void) const { 
+      return (
+        !cloud_data_buff_.empty() && 
+        !gnss_data_buff_.empty() && 
+        !imu_synced_data_buff_.empty()
+       );
+    }
     bool HasIMUComesFirst(void) const { return imu_raw_data_buff_.front().time < cloud_data_buff_.front().time; }
 
     bool ValidIMUData();
     bool ValidLidarData();
 
+    bool InitCalibration();
     bool InitLocalization();
     
     bool UpdateLocalization();
@@ -67,6 +76,9 @@ class FilteringFlow {
     // d. IMU synced:
     std::shared_ptr<IMUSubscriber> imu_synced_sub_ptr_;
     std::deque<IMUData> imu_synced_data_buff_;
+    // e. lidar to imu tf:
+    std::shared_ptr<TFListener> lidar_to_imu_ptr_;
+    Eigen::Matrix4f lidar_to_imu_ = Eigen::Matrix4f::Identity();
 
     // publisher:
     // a. global-local map and current scan:

@@ -109,7 +109,11 @@ void KalmanFilter::Init(
     const IMUData &imu_data
 ) {
     // init odometry:
-    pose_ = pose;
+    Eigen::Matrix3f C_nb = imu_data.GetOrientationMatrix();
+
+    pose_.block<3, 3>(0, 0) = C_nb.cast<double>();
+    pose_.block<3, 1>(0, 3) = pose.block<3, 1>(0, 3);
+    
     vel_ = vel;
 
     // init IMU data buffer:
@@ -149,21 +153,10 @@ bool KalmanFilter::Update(const IMUData &imu_data) {
         imu_data_buff_.pop_front();
 
         // update error estimation:
-        UpdateErrorEstimation(imu_data);
+        // UpdateErrorEstimation(imu_data);
 
         // update filter time:
         time_ = imu_data.time;
-
-        LOG(INFO) << std::endl 
-                << "Kalman Filter Updated at " << static_cast<int>(time_) << std::endl
-                << "Curr Position: " 
-                << pose_(0, 3) << ", "
-                << pose_(1, 3) << ", "
-                << pose_(2, 3) << std::endl
-                << "Curr Velocity: "
-                << vel_.x() << ", "
-                << vel_.y() << ", "
-                << vel_.z() << std::endl;
 
         return true;
     }
@@ -324,6 +317,42 @@ bool KalmanFilter::GetAngularDelta(
 }
 
 /**
+ * @brief  update orientation with effective rotation angular_delta
+ * @param  angular_delta, effective rotation
+ * @param  R_curr, current orientation
+ * @param  R_prev, previous orientation
+ * @return void
+ */
+void KalmanFilter::UpdateOrientation(
+    const Eigen::Vector3d &angular_delta,
+    Eigen::Matrix3d &R_curr, Eigen::Matrix3d &R_prev
+) {
+    // magnitude:
+    double angular_delta_mag = angular_delta.norm();
+    // direction:
+    Eigen::Vector3d angular_delta_dir = angular_delta.normalized();
+
+    // build delta q:
+    double angular_delta_cos = cos(angular_delta_mag/2.0);
+    double angular_delta_sin = sin(angular_delta_mag/2.0);
+    Eigen::Quaterniond dq(
+        angular_delta_cos, 
+        angular_delta_sin*angular_delta_dir.x(), 
+        angular_delta_sin*angular_delta_dir.y(), 
+        angular_delta_sin*angular_delta_dir.z()
+    );
+    Eigen::Quaterniond q(pose_.block<3, 3>(0, 0));
+    
+    // update:
+    q = q*dq;
+    
+    // write back:
+    R_prev = pose_.block<3, 3>(0, 0);
+    pose_.block<3, 3>(0, 0) = q.normalized().toRotationMatrix();
+    R_curr = pose_.block<3, 3>(0, 0);
+}
+
+/**
  * @brief  get velocity delta
  * @param  index_curr, current imu measurement buffer index
  * @param  index_prev, previous imu measurement buffer index
@@ -365,42 +394,6 @@ bool KalmanFilter::GetVelocityDelta(
     velocity_delta = 0.5*T*(linear_acc_curr + linear_acc_prev);
 
     return true;
-}
-
-/**
- * @brief  update orientation with effective rotation angular_delta
- * @param  angular_delta, effective rotation
- * @param  R_curr, current orientation
- * @param  R_prev, previous orientation
- * @return void
- */
-void KalmanFilter::UpdateOrientation(
-    const Eigen::Vector3d &angular_delta,
-    Eigen::Matrix3d &R_curr, Eigen::Matrix3d &R_prev
-) {
-    // magnitude:
-    double angular_delta_mag = angular_delta.norm();
-    // direction:
-    Eigen::Vector3d angular_delta_dir = angular_delta.normalized();
-
-    // build delta q:
-    double angular_delta_cos = cos(angular_delta_mag/2.0);
-    double angular_delta_sin = sin(angular_delta_mag/2.0);
-    Eigen::Quaterniond dq(
-        angular_delta_cos, 
-        angular_delta_sin*angular_delta_dir.x(), 
-        angular_delta_sin*angular_delta_dir.y(), 
-        angular_delta_sin*angular_delta_dir.z()
-    );
-    Eigen::Quaterniond q(pose_.block<3, 3>(0, 0));
-    
-    // update:
-    q = q*dq;
-    
-    // write back:
-    R_prev = pose_.block<3, 3>(0, 0);
-    pose_.block<3, 3>(0, 0) = q.normalized().toRotationMatrix();
-    R_curr = pose_.block<3, 3>(0, 0);
 }
 
 /**

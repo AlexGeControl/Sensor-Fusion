@@ -26,7 +26,30 @@ This is the solution of Assignment 04 of Sensor Fusion from [深蓝学院](https
 
 1. 下载`extract.zip`
 2. 解压后, 将其中的`oxts`替换`sync`中的`oxts`
-3. 然后运行`kitti2bag`, 产生用于`Filtering/Graph Optimization`的ROS Bag
+3. 修改`kitti2bag`源代码, 将`IMU` `Linear Acceleration / Angular Velocity`测量值的坐标系改为`Body Frame(xyz)` [here](src/lidar_localization/scripts/kitti2bag.py#L39)
+    
+    ```python
+    def save_imu_data(bag, kitti, imu_frame_id, topic):
+    print("Exporting IMU")
+    for timestamp, oxts in zip(kitti.timestamps, kitti.oxts):
+        q = tf.transformations.quaternion_from_euler(oxts.packet.roll, oxts.packet.pitch, oxts.packet.yaw)
+        imu = Imu()
+        imu.header.frame_id = imu_frame_id
+        imu.header.stamp = rospy.Time.from_sec(float(timestamp.strftime("%s.%f")))
+        imu.orientation.x = q[0]
+        imu.orientation.y = q[1]
+        imu.orientation.z = q[2]
+        imu.orientation.w = q[3]
+        # change here:
+        imu.linear_acceleration.x = oxts.packet.ax
+        imu.linear_acceleration.y = oxts.packet.ay
+        imu.linear_acceleration.z = oxts.packet.az
+        imu.angular_velocity.x = oxts.packet.wx
+        imu.angular_velocity.y = oxts.packet.wy
+        imu.angular_velocity.z = oxts.packet.wz
+        bag.write(topic, imu, t=imu.header.stamp)
+    ```
+4. 然后运行`kitti2bag`, 产生用于`Filtering/Graph Optimization`的ROS Bag
 
 在`kitti_2011_10_03_drive_0027_sync`上得到的ROS Bag Info如下:
 

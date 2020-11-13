@@ -9,7 +9,7 @@
 #include "glog/logging.h"
 
 namespace lidar_localization {
-Eigen::Matrix3f IMUData::GetOrientationMatrix() {
+Eigen::Matrix3f IMUData::GetOrientationMatrix() const {
     Eigen::Quaterniond q(orientation.w, orientation.x, orientation.y, orientation.z);
     Eigen::Matrix3f matrix = q.matrix().cast<float>();
 

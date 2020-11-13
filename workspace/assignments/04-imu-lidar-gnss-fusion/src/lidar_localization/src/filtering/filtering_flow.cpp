@@ -26,7 +26,9 @@ FilteringFlow::FilteringFlow(
     gnss_sub_ptr_ = std::make_shared<OdometrySubscriber>(nh, "/synced_gnss", 100000);
     // d. IMU synced measurement:
     imu_synced_sub_ptr_ = std::make_shared<IMUSubscriber>(nh, "/synced_imu", 100000); 
-
+    // e. lidar to imu tf:
+    lidar_to_imu_ptr_ = std::make_shared<TFListener>(nh, "/imu_link", "/velo_link");
+    
     // publisher:
     // a. global point cloud map:
     global_map_pub_ptr_ = std::make_shared<CloudPublisher>(nh, "/global_map", "/map", 100);
@@ -45,6 +47,10 @@ FilteringFlow::FilteringFlow(
 }
 
 bool FilteringFlow::Run() {
+    if ( !InitCalibration() ) {
+        return false;
+    }
+
     // if new global map is available, publish it:
     PublishGlobalMap();
     // if new local map is available, publish it:
@@ -61,11 +67,11 @@ bool FilteringFlow::Run() {
             if ( !HasLidarData() && ValidIMUData() ) {
                 UpdateLocalization();
             } else if ( !HasIMUData() && ValidLidarData() ) {
-                CorrectLocalization();
+                ;// CorrectLocalization();
             } else if ( HasIMUComesFirst() && ValidIMUData() ) {
                 UpdateLocalization();
-            } else if ( ValidLidarData() ) {
-                CorrectLocalization();
+            } else if ( !HasIMUComesFirst() && ValidLidarData() ) {
+                ;// CorrectLocalization();
             }
 
             PublishData();
@@ -158,14 +164,29 @@ bool FilteringFlow::ValidLidarData() {
     return true;
 }
 
+bool FilteringFlow::InitCalibration() {
+    // lookup imu pose in lidar frame:
+    static bool calibration_received = false;
+
+    if (!calibration_received) {
+        if (lidar_to_imu_ptr_->LookupData(lidar_to_imu_)) {
+            calibration_received = true;
+        }
+    }
+
+    return calibration_received;
+}
+
 bool FilteringFlow::InitLocalization(void) {
     // geo ego vehicle velocity in navigation frame:
-    Eigen::Vector3f init_vel = Eigen::Vector3f::Zero();
+    Eigen::Matrix3f C_nl = current_gnss_data_.pose.block<3, 3>(0, 0);
+    Eigen::Vector3f init_vel = C_nl*current_gnss_data_.vel;
 
     // first try to init using scan context query:
     if (
         filtering_ptr_->Init(
             current_cloud_data_, 
+            lidar_to_imu_,
             init_vel,
             current_imu_synced_data_
         )
@@ -186,6 +207,7 @@ bool FilteringFlow::InitLocalization(void) {
     else {
         filtering_ptr_->Init(
             current_gnss_data_.pose,
+            lidar_to_imu_,
             init_vel,
             current_imu_synced_data_
         );
@@ -255,8 +277,7 @@ bool FilteringFlow::PublishLocalMap() {
 bool FilteringFlow::PublishData() {
     // publish fused odometry:
     if ( has_new_fused_odom_ ) {
-        // fused_odom_pub_ptr_->Publish(fused_pose_, fused_vel_, current_imu_raw_data_.time);
-
+        fused_odom_pub_ptr_->Publish(fused_pose_, fused_vel_, current_imu_raw_data_.time);
         has_new_fused_odom_ = false;
     }
     

@@ -49,7 +49,7 @@ class IMUData {
   
   public:
     // 把四元数转换成旋转矩阵送出去
-    Eigen::Matrix3f GetOrientationMatrix();
+    Eigen::Matrix3f GetOrientationMatrix() const;
     static bool SyncData(std::deque<IMUData>& UnsyncedData, std::deque<IMUData>& SyncedData, double sync_time);
 };
 }
