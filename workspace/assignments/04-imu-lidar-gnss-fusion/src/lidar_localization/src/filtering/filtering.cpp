@@ -28,13 +28,67 @@ Filtering::Filtering() :
     InitWithConfig();
 }
 
+bool Filtering::Init(
+    const CloudData& init_scan,
+    const Eigen::Vector3f &init_vel,
+    const IMUData &init_imu_data
+) {
+    if ( SetInitScan(init_scan) ) {
+        current_vel_ = init_vel;
+
+        kalman_filter_ptr_->Init(
+            current_pose_.cast<double>(),
+            current_vel_.cast<double>(),
+            init_imu_data
+        );
+        
+        return true;
+    }
+
+    return false;
+}
+
+bool Filtering::Init(
+    const Eigen::Matrix4f& init_pose,
+    const Eigen::Vector3f &init_vel,
+    const IMUData &init_imu_data
+) {
+    if ( SetInitGNSS(init_pose) ) {
+        current_vel_ = init_vel;
+
+        kalman_filter_ptr_->Init(
+            current_pose_.cast<double>(),
+            current_vel_.cast<double>(),
+            init_imu_data
+        );
+        
+        return true;
+    }
+
+    return false;
+}
+
 bool Filtering::Update(
+    const IMUData &imu_data
+) {
+    if ( kalman_filter_ptr_->Update(imu_data) ) {
+        kalman_filter_ptr_->GetOdometry(
+            current_pose_, current_vel_
+        );
+        return true;
+    }
+
+    return false;
+}
+
+bool Filtering::Correct(
+    const IMUData &imu_data,
     const CloudData& cloud_data, 
     Eigen::Matrix4f& cloud_pose
 ) {
     static Eigen::Matrix4f step_pose = Eigen::Matrix4f::Identity();
-    static Eigen::Matrix4f last_pose = init_pose_;
-    static Eigen::Matrix4f predict_pose = init_pose_;
+    static Eigen::Matrix4f last_pose = current_pose_;
+    static Eigen::Matrix4f predict_pose = current_pose_;
 
     // remove invalid measurements:
     std::vector<int> indices;
@@ -58,6 +112,11 @@ bool Filtering::Update(
     predict_pose = cloud_pose * step_pose;
     last_pose = cloud_pose;
 
+    kalman_filter_ptr_->Correct(
+        imu_data,
+        cloud_data.time, cloud_pose
+    );
+
     // shall the local map be updated:
     std::vector<float> edge = local_map_segmenter_ptr_->GetEdge();
     for (int i = 0; i < 3; i++) {
@@ -79,71 +138,15 @@ bool Filtering::Update(
     return true;
 }
 
-/**
- * @brief  get init pose using scan context matching
- * @param  init_scan, init key scan
- * @return true if success otherwise false
- */
-bool Filtering::SetScanContextPose(const CloudData& init_scan) {
-    // get init pose proposal using scan context match:
-    Eigen::Matrix4f init_pose =  Eigen::Matrix4f::Identity();
-    if (
-        !scan_context_manager_ptr_->DetectLoopClosure(init_scan, init_pose)
-    ) {
-        return false;
-    }
-
-    // set init pose:
-    SetInitPose(init_pose);
-    has_inited_ = true;
-    
-    return true;
-}
-
-bool Filtering::SetGNSSPose(const Eigen::Matrix4f& gnss_pose) {
-    static int gnss_cnt = 0;
-
-    current_gnss_pose_ = gnss_pose;
-
-    if (gnss_cnt == 0) {
-        SetInitPose(gnss_pose);
-    } else if (gnss_cnt > 3) {
-        has_inited_ = true;
-    }
-    gnss_cnt++;
-
-    return true;
-}
-
-bool Filtering::HasInited() {
-    return has_inited_;
-}
-
-bool Filtering::HasNewGlobalMap() {
-    return has_new_global_map_;
-}
-
-bool Filtering::HasNewLocalMap() {
-    return has_new_local_map_;
-}
-
 void Filtering::GetGlobalMap(CloudData::CLOUD_PTR& global_map) {
     // downsample global map for visualization:
     global_map_filter_ptr_->Filter(global_map_ptr_, global_map);
-
     has_new_global_map_ = false;
 }
 
-CloudData::CLOUD_PTR& Filtering::GetLocalMap() {
-    return local_map_ptr_;
-}
-
-CloudData::CLOUD_PTR& Filtering::GetCurrentScan() {
-    return current_scan_ptr_;
-}
-
-Eigen::Matrix4f Filtering::GetInitPose(void) {
-    return init_pose_;
+void Filtering::GetOdometry(Eigen::Matrix4f &pose, Eigen::Vector3f &vel) {
+    pose = current_pose_;
+    vel = current_vel_;
 }
 
 bool Filtering::InitWithConfig(void) {
@@ -270,8 +273,44 @@ bool Filtering::InitFusion(const YAML::Node& config_node) {
     return true;
 }
 
+/**
+ * @brief  get init pose using scan context matching
+ * @param  init_scan, init key scan
+ * @return true if success otherwise false
+ */
+bool Filtering::SetInitScan(const CloudData& init_scan) {
+    // get init pose proposal using scan context match:
+    Eigen::Matrix4f init_pose =  Eigen::Matrix4f::Identity();
+    if (
+        !scan_context_manager_ptr_->DetectLoopClosure(init_scan, init_pose)
+    ) {
+        return false;
+    }
+
+    // set init pose:
+    SetInitPose(init_pose);
+    has_inited_ = true;
+    
+    return true;
+}
+
+bool Filtering::SetInitGNSS(const Eigen::Matrix4f& gnss_pose) {
+    static int gnss_cnt = 0;
+
+    current_gnss_pose_ = gnss_pose;
+
+    if (gnss_cnt == 0) {
+        SetInitPose(gnss_pose);
+    } else if (gnss_cnt > 3) {
+        has_inited_ = true;
+    }
+    gnss_cnt++;
+
+    return true;
+}
+
 bool Filtering::SetInitPose(const Eigen::Matrix4f& init_pose) {
-    init_pose_ = init_pose;
+    current_pose_ = init_pose;
 
     ResetLocalMap(
         init_pose(0,3), 

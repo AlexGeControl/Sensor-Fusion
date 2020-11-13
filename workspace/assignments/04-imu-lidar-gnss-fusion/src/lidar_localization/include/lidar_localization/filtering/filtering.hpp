@@ -10,6 +10,7 @@
 #include <Eigen/Dense>
 #include <yaml-cpp/yaml.h>
 
+#include "lidar_localization/sensor_data/imu_data.hpp"
 #include "lidar_localization/sensor_data/cloud_data.hpp"
 #include "lidar_localization/sensor_data/pose_data.hpp"
 
@@ -28,29 +29,42 @@ class Filtering {
   public:
     Filtering();
 
+    bool Init(
+      const CloudData& init_scan,
+      const Eigen::Vector3f &init_vel,
+      const IMUData &init_imu_data
+    );
+
+    bool Init(
+      const Eigen::Matrix4f& init_pose,
+      const Eigen::Vector3f &init_vel,
+      const IMUData &init_imu_data
+    );
+
     bool Update(
+      const IMUData &imu_data
+    );
+    bool Correct(
+      const IMUData &imu_data,
       const CloudData& cloud_data, 
       Eigen::Matrix4f& cloud_pose
     );
 
-    // setters:
-    bool SetScanContextPose(const CloudData& init_scan);
-    bool SetGNSSPose(const Eigen::Matrix4f& init_pose);
-
     // getters:
-    bool HasInited();
-    bool HasNewGlobalMap();
-    bool HasNewLocalMap();
+    bool HasInited() const { return has_inited_; }
+    bool HasNewGlobalMap() const { return has_new_global_map_; }
+    bool HasNewLocalMap() const { return has_new_local_map_; }
 
     void GetGlobalMap(CloudData::CLOUD_PTR& global_map);
-    CloudData::CLOUD_PTR& GetLocalMap();
-    CloudData::CLOUD_PTR& GetCurrentScan();
+    CloudData::CLOUD_PTR& GetLocalMap() { return local_map_ptr_; }
+    CloudData::CLOUD_PTR& GetCurrentScan() { return current_scan_ptr_; }
 
-    Eigen::Matrix4f GetInitPose(void);
+    Eigen::Matrix4f GetPose(void) { return current_pose_; }
+    Eigen::Vector3f GetVel(void) { return current_vel_; }
+    void GetOdometry(Eigen::Matrix4f &pose, Eigen::Vector3f &vel);
 
   private:
     bool InitWithConfig(void);
-
     // a. filter initializer:
     bool InitFilter(
       std::string filter_user, 
@@ -71,8 +85,13 @@ class Filtering {
     // e. IMU-lidar fusion initializer:
     bool InitFusion(const YAML::Node& config_node);
 
-    bool SetInitPose(const Eigen::Matrix4f& init_pose);
+    // local map setter:
     bool ResetLocalMap(float x, float y, float z);
+
+    // init pose setter:
+    bool SetInitScan(const CloudData& init_scan);
+    bool SetInitGNSS(const Eigen::Matrix4f& init_pose);
+    bool SetInitPose(const Eigen::Matrix4f& init_pose);
 
   private:
     std::string map_path_ = "";
@@ -99,10 +118,10 @@ class Filtering {
     CloudData::CLOUD_PTR local_map_ptr_;
     CloudData::CLOUD_PTR current_scan_ptr_;
 
-    Eigen::Matrix4f current_pose_ = Eigen::Matrix4f::Identity();
-
-    Eigen::Matrix4f init_pose_ = Eigen::Matrix4f::Identity();
     Eigen::Matrix4f current_gnss_pose_ = Eigen::Matrix4f::Identity();
+
+    Eigen::Matrix4f current_pose_ = Eigen::Matrix4f::Identity();
+    Eigen::Vector3f current_vel_ = Eigen::Vector3f::Zero();
 
     bool has_inited_ = false;
     bool has_new_global_map_ = false;

@@ -33,22 +33,40 @@ class FilteringFlow {
 
   private:
     bool ReadData();
+    bool HasInited();
+    
     bool HasData();
-    bool ValidData();
+
+    bool HasIMUData(void) const { return !imu_raw_data_buff_.empty(); }
+    bool HasLidarData(void) const { return !cloud_data_buff_.empty(); }
+    bool HasIMUComesFirst(void) const { return imu_raw_data_buff_.front().time < cloud_data_buff_.front().time; }
+
+    bool ValidIMUData();
+    bool ValidLidarData();
+
+    bool InitLocalization();
+    
     bool UpdateLocalization();
+    bool CorrectLocalization();
+
+    bool PublishGlobalMap();
+    bool PublishLocalMap();
     bool PublishData();
 
   private:
     // subscriber:
-    // a. IMU:
-    std::shared_ptr<IMUSubscriber> imu_sub_ptr_;
-    std::deque<IMUData> imu_data_buff_;
+    // a. IMU raw:
+    std::shared_ptr<IMUSubscriber> imu_raw_sub_ptr_;
+    std::deque<IMUData> imu_raw_data_buff_;
     // b. lidar:
     std::shared_ptr<CloudSubscriber> cloud_sub_ptr_;
     std::deque<CloudData> cloud_data_buff_;
     // c. GNSS:
     std::shared_ptr<OdometrySubscriber> gnss_sub_ptr_;
     std::deque<PoseData> gnss_data_buff_;
+    // d. IMU synced:
+    std::shared_ptr<IMUSubscriber> imu_synced_sub_ptr_;
+    std::deque<IMUData> imu_synced_data_buff_;
 
     // publisher:
     // a. global-local map and current scan:
@@ -56,6 +74,8 @@ class FilteringFlow {
     std::shared_ptr<CloudPublisher> local_map_pub_ptr_;
     std::shared_ptr<CloudPublisher> current_scan_pub_ptr_;
     // b. odometry:
+    bool has_new_fused_odom_ = false, has_new_lidar_odom_ = false;
+    std::shared_ptr<OdometryPublisher> fused_odom_pub_ptr_;
     std::shared_ptr<OdometryPublisher> laser_odom_pub_ptr_;
     // c. tf:
     std::shared_ptr<TFBroadCaster> laser_tf_pub_ptr_;
@@ -63,10 +83,15 @@ class FilteringFlow {
     // filtering instance:
     std::shared_ptr<Filtering> filtering_ptr_;
 
+    IMUData current_imu_raw_data_;
+
     CloudData current_cloud_data_;
     PoseData current_gnss_data_;
+    IMUData current_imu_synced_data_;
 
-    Eigen::Matrix4f laser_odometry_ = Eigen::Matrix4f::Identity();
+    Eigen::Matrix4f fused_pose_ = Eigen::Matrix4f::Identity();
+    Eigen::Vector3f fused_vel_ = Eigen::Vector3f::Zero();
+    Eigen::Matrix4f laser_pose_ = Eigen::Matrix4f::Identity();
 };
 
 } // namespace lidar_localization

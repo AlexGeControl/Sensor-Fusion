@@ -26,7 +26,7 @@ void KeyFramesPublisher::Publish(const std::deque<KeyFrame>& key_frames) {
         KeyFrame key_frame = key_frames.at(i);
 
         geometry_msgs::PoseStamped pose_stamped;
-        ros::Time ros_time((float)key_frame.time);
+        ros::Time ros_time(key_frame.time);
         pose_stamped.header.stamp = ros_time;
         pose_stamped.header.frame_id = frame_id_;
 

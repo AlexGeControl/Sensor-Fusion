@@ -37,6 +37,7 @@ include(cmake/YAML.cmake)
 include(cmake/geographic.cmake)
 include(cmake/protobuf.cmake)
 include(cmake/PCL.cmake)
+include(cmake/sophus.cmake)
 include(cmake/g2o.cmake)
 
 include_directories(include ${catkin_INCLUDE_DIRS})
@@ -70,10 +71,6 @@ add_executable(viewer_node src/apps/viewer_node.cpp ${ALL_SRCS})
 add_dependencies(viewer_node ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)
 target_link_libraries(viewer_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
 
-add_executable(matching_node src/apps/matching_node.cpp ${ALL_SRCS})
-add_dependencies(matching_node ${catkin_EXPORTED_TARGETS})
-target_link_libraries(matching_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
-
 add_executable(filtering_node src/apps/filtering_node.cpp ${ALL_SRCS})
 add_dependencies(filtering_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(filtering_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
@@ -101,7 +98,6 @@ install(TARGETS
         back_end_node
         loop_closing_node
         viewer_node
-        matching_node
         filtering_node
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

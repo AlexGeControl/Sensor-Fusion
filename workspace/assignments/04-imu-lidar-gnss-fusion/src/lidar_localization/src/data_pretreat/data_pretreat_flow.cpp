@@ -10,7 +10,7 @@
 
 namespace lidar_localization {
 DataPretreatFlow::DataPretreatFlow(ros::NodeHandle& nh, std::string cloud_topic) {
-    // subscriber
+    // subscribers:
     // a. velodyne measurement:
     cloud_sub_ptr_ = std::make_shared<CloudSubscriber>(nh, "/kitti/velo/pointcloud", 100000);
     // b. OXTS IMU:
@@ -21,9 +21,10 @@ DataPretreatFlow::DataPretreatFlow(ros::NodeHandle& nh, std::string cloud_topic)
     gnss_sub_ptr_ = std::make_shared<GNSSSubscriber>(nh, "/kitti/oxts/gps/fix", 1000000);
     lidar_to_imu_ptr_ = std::make_shared<TFListener>(nh, "/imu_link", "/velo_link");
 
-    // publisher
+    // publishers:
     cloud_pub_ptr_ = std::make_shared<CloudPublisher>(nh, cloud_topic, "/velo_link", 100);
     gnss_pub_ptr_ = std::make_shared<OdometryPublisher>(nh, "/synced_gnss", "/map", "/velo_link", 100);
+    imu_pub_ptr_ = std::make_shared<IMUPublisher>(nh, "/synced_imu", "/imu_link", 100);
 
     // motion compensation for lidar measurement:
     distortion_adjust_ptr_ = std::make_shared<DistortionAdjust>();
@@ -131,6 +132,9 @@ bool DataPretreatFlow::ValidData() {
     double diff_imu_time = current_cloud_data_.time - current_imu_data_.time;
     double diff_velocity_time = current_cloud_data_.time - current_velocity_data_.time;
     double diff_gnss_time = current_cloud_data_.time - current_gnss_data_.time;
+    //
+    // this check assumes the frequency of OXTS is 100Hz:
+    //
     if (diff_imu_time < -0.05 || diff_velocity_time < -0.05 || diff_gnss_time < -0.05) {
         cloud_data_buff_.pop_front();
         return false;
@@ -183,7 +187,13 @@ bool DataPretreatFlow::TransformData() {
 
 bool DataPretreatFlow::PublishData() {
     cloud_pub_ptr_->Publish(current_cloud_data_.cloud_ptr, current_cloud_data_.time);
-    gnss_pub_ptr_->Publish(gnss_pose_, current_gnss_data_.time);
+    //
+    // this synced odometry has the following info:
+    //
+    // a. lidar frame's pose in map
+    // b. lidar frame's velocity 
+    gnss_pub_ptr_->Publish(gnss_pose_, current_velocity_data_, current_gnss_data_.time);
+    imu_pub_ptr_->Publish(current_imu_data_, current_imu_data_.time);
 
     return true;
 }

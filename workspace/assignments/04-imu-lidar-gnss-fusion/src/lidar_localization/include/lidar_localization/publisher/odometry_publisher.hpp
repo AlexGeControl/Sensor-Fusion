@@ -12,6 +12,8 @@
 #include <ros/ros.h>
 #include <nav_msgs/Odometry.h>
 
+#include "lidar_localization/sensor_data/velocity_data.hpp"
+
 namespace lidar_localization {
 class OdometryPublisher {
   public:
@@ -24,15 +26,25 @@ class OdometryPublisher {
 
     void Publish(const Eigen::Matrix4f& transform_matrix, double time);
     void Publish(const Eigen::Matrix4f& transform_matrix);
+    void Publish(const Eigen::Matrix4f& transform_matrix, const VelocityData &velocity_data, double time);
+    void Publish(const Eigen::Matrix4f& transform_matrix, const VelocityData &velocity_data);
+    void Publish(const Eigen::Matrix4f& transform_matrix, const Eigen::Vector3f& vel, double time);
+    void Publish(const Eigen::Matrix4f& transform_matrix, const Eigen::Vector3f& vel);
 
     bool HasSubscribers();
 
   private:
-    void PublishData(const Eigen::Matrix4f& transform_matrix, ros::Time time);
+    void PublishData(
+      const Eigen::Matrix4f& transform_matrix, 
+      const VelocityData &velocity_data, 
+      ros::Time time
+    );
 
   private:
     ros::NodeHandle nh_;
     ros::Publisher publisher_;
+
+    VelocityData velocity_data_;
     nav_msgs::Odometry odometry_;
 };
 }
