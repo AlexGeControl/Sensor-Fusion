@@ -32,6 +32,8 @@ class FilteringFlow {
   public:
     FilteringFlow(ros::NodeHandle& nh);
     bool Run();
+    // save odometry for evo evaluation:
+    bool SaveOdometry(void);
 
   private:
     bool ReadData();
@@ -63,6 +65,18 @@ class FilteringFlow {
     bool PublishLidarOdom();
     bool PublishFusionOdom();
 
+    bool UpdateOdometry();
+    /**
+     * @brief  save pose in KITTI format for evo evaluation
+     * @param  pose, input pose
+     * @param  ofs, output file stream
+     * @return true if success otherwise false
+     */
+    bool SavePose(
+        const Eigen::Matrix4f& pose, 
+        std::ofstream& ofs
+    );
+
   private:
     // subscriber:
     // a. IMU raw:
@@ -89,6 +103,7 @@ class FilteringFlow {
     // b. odometry:
     std::shared_ptr<OdometryPublisher> fused_odom_pub_ptr_;
     std::shared_ptr<OdometryPublisher> laser_odom_pub_ptr_;
+    std::shared_ptr<OdometryPublisher> ref_odom_pub_ptr_;
     // c. tf:
     std::shared_ptr<TFBroadCaster> laser_tf_pub_ptr_;
 
@@ -100,10 +115,21 @@ class FilteringFlow {
     CloudData current_cloud_data_;
     PoseData current_gnss_data_;
     IMUData current_imu_synced_data_;
-
+    
+    // lidar odometry frame in map frame:
     Eigen::Matrix4f fused_pose_ = Eigen::Matrix4f::Identity();
     Eigen::Vector3f fused_vel_ = Eigen::Vector3f::Zero();
+
     Eigen::Matrix4f laser_pose_ = Eigen::Matrix4f::Identity();
+
+    // trajectory for evo evaluation:
+    struct {
+      size_t N = 0;
+
+      std::deque<Eigen::Matrix4f> fused_;
+      std::deque<Eigen::Matrix4f> lidar_;
+      std::deque<Eigen::Matrix4f> ref_;
+    } trajectory;
 };
 
 } // namespace lidar_localization

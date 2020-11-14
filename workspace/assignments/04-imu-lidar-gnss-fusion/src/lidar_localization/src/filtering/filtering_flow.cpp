@@ -8,6 +8,8 @@
 
 #include "lidar_localization/filtering/filtering_flow.hpp"
 
+#include "lidar_localization/tools/file_manager.hpp"
+
 #include "glog/logging.h"
 #include <ostream>
 
@@ -36,10 +38,13 @@ FilteringFlow::FilteringFlow(
     local_map_pub_ptr_ = std::make_shared<CloudPublisher>(nh, "/local_map", "/map", 100);
     // c. current scan:
     current_scan_pub_ptr_ = std::make_shared<CloudPublisher>(nh, "/current_scan", "/map", 100);
-    // d. fused pose in map frame:
-    fused_odom_pub_ptr_ = std::make_shared<OdometryPublisher>(nh, "/fused_localization", "/map", "/lidar", 100);
-    // e. estimated lidar pose in map frame:
+    // d. estimated lidar pose in map frame:
     laser_odom_pub_ptr_ = std::make_shared<OdometryPublisher>(nh, "/laser_localization", "/map", "/lidar", 100);
+    // e. fused pose in map frame:
+    fused_odom_pub_ptr_ = std::make_shared<OdometryPublisher>(nh, "/fused_localization", "/map", "/lidar", 100);
+    // f. ground truth:
+    ref_odom_pub_ptr_ = std::make_shared<OdometryPublisher>(nh, "/ref_localization", "/map", "/lidar", 100);
+
     // f. tf:
     laser_tf_pub_ptr_ = std::make_shared<TFBroadCaster>("/map", "/vehicle_link");
 
@@ -88,6 +93,33 @@ bool FilteringFlow::Run() {
                 UpdateLocalization();
             }
         }
+    }
+
+    return true;
+}
+
+bool FilteringFlow::SaveOdometry(void) {
+    if ( 0 == trajectory.N ) {
+        return false;
+    }
+
+    // init output files:
+    std::ofstream fused_odom_ofs;
+    std::ofstream laser_odom_ofs;
+    std::ofstream ref_odom_ofs;
+    if (
+        !FileManager::CreateFile(fused_odom_ofs, WORK_SPACE_PATH + "/slam_data/trajectory/fused.txt") ||
+        !FileManager::CreateFile(laser_odom_ofs, WORK_SPACE_PATH + "/slam_data/trajectory/laser.txt") ||
+        !FileManager::CreateFile(ref_odom_ofs, WORK_SPACE_PATH + "/slam_data/trajectory/ground_truth.txt")
+    ) {
+        return false;
+    }
+
+    // write outputs:
+    for (size_t i = 0; i < trajectory.N; ++i) {
+        SavePose(trajectory.fused_.at(i), fused_odom_ofs);
+        SavePose(trajectory.lidar_.at(i), laser_odom_ofs);
+        SavePose(trajectory.ref_.at(i), ref_odom_ofs);
     }
 
     return true;
@@ -255,6 +287,8 @@ bool FilteringFlow::CorrectLocalization() {
 
     if ( is_fusion_succeeded ) {
         PublishFusionOdom();
+        // add to odometry output for evo evaluation:
+        UpdateOdometry();
         return true;
     }
 
@@ -288,6 +322,8 @@ bool FilteringFlow::PublishLidarOdom() {
     laser_odom_pub_ptr_->Publish(laser_pose_, current_cloud_data_.time);
     // b. publish current scan:
     current_scan_pub_ptr_->Publish(filtering_ptr_->GetCurrentScan());
+    // c. publish ref odometry:
+    ref_odom_pub_ptr_->Publish(current_gnss_data_.pose, current_gnss_data_.vel, current_gnss_data_.time);
 
     return true;
 }
@@ -299,6 +335,39 @@ bool FilteringFlow::PublishFusionOdom() {
     laser_tf_pub_ptr_->SendTransform(fused_pose_, current_imu_raw_data_.time);
     // b. publish fusion odometry:
     fused_odom_pub_ptr_->Publish(fused_pose_, fused_vel_, current_imu_raw_data_.time);
+
+    return true;
+}
+
+bool FilteringFlow::UpdateOdometry(void) {
+    trajectory.fused_.push_back(fused_pose_);
+    trajectory.lidar_.push_back(laser_pose_);
+    trajectory.ref_.push_back(current_gnss_data_.pose);
+
+    ++trajectory.N;
+}
+
+/**
+ * @brief  save pose in KITTI format for evo evaluation
+ * @param  pose, input pose
+ * @param  ofs, output file stream
+ * @return true if success otherwise false
+ */
+bool FilteringFlow::SavePose(
+    const Eigen::Matrix4f& pose, 
+    std::ofstream& ofs
+) {
+    for (int i = 0; i < 3; ++i) {
+        for (int j = 0; j < 4; ++j) {
+            ofs << pose(i, j);
+            
+            if (i == 2 && j == 3) {
+                ofs << std::endl;
+            } else {
+                ofs << " ";
+            }
+        }
+    }
 
     return true;
 }

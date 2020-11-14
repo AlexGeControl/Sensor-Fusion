@@ -9,9 +9,20 @@
 
 #include "lidar_localization/filtering/filtering_flow.hpp"
 
+#include <lidar_localization/saveOdometry.h>
+
 #include "glog/logging.h"
 
 using namespace lidar_localization;
+
+bool _need_save_odometry = false;
+
+bool SaveOdometryCB(saveOdometry::Request &request, saveOdometry::Response &response) {
+    _need_save_odometry = true;
+    response.succeed = true;
+    return response.succeed;
+}
+
 
 int main(int argc, char *argv[]) {
     google::InitGoogleLogging(argv[0]);
@@ -22,12 +33,18 @@ int main(int argc, char *argv[]) {
     ros::NodeHandle nh;
 
     std::shared_ptr<FilteringFlow> filtering_flow_ptr = std::make_shared<FilteringFlow>(nh);
+    ros::ServiceServer service = nh.advertiseService("save_odometry", SaveOdometryCB);
 
     ros::Rate rate(100);
     while (ros::ok()) {
         ros::spinOnce();
 
         filtering_flow_ptr->Run();
+
+        // save odometry estimations for evo evaluation:
+        if ( _need_save_odometry && filtering_flow_ptr->SaveOdometry()) {
+            _need_save_odometry = false;
+        }
 
         rate.sleep();
     }

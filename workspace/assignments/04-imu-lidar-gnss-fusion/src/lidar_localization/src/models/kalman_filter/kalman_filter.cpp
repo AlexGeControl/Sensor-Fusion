@@ -244,8 +244,8 @@ void KalmanFilter::GetOdometry(
     // b. velocity:
     vel_double = vel_double - X_.block<3, 1>(INDEX_ERROR_VEL, 0);
     // c. orientation:
-    Eigen::Matrix3d C_nn = Sophus::SO3d::exp(-X_.block<3, 1>(INDEX_ERROR_ORI, 0)).matrix();
-    pose_double.block<3, 3>(0, 0) = C_nn.transpose()*pose_double.block<3, 3>(0, 0);
+    Eigen::Matrix3d C_nn = Sophus::SO3d::exp(X_.block<3, 1>(INDEX_ERROR_ORI, 0)).matrix();
+    pose_double.block<3, 3>(0, 0) = C_nn*pose_double.block<3, 3>(0, 0);
 
     // finally:
     pose_double = init_pose_.inverse() * pose_double;
@@ -466,8 +466,8 @@ void KalmanFilter::GetProcessInput(
 
     // get rotation matrix, body frame -> navigation frame:
     C_nb = pose_.block<3, 3>(0, 0);
-    Eigen::Matrix3d C_nn = Sophus::SO3d::exp(-X_.block<3, 1>(INDEX_ERROR_ORI, 0)).matrix();
-    C_nb = C_nn.transpose()*C_nb;
+    Eigen::Matrix3d C_nn = Sophus::SO3d::exp(X_.block<3, 1>(INDEX_ERROR_ORI, 0)).matrix();
+    C_nb = C_nn*C_nb;
 
     // get accel measurement in navigation frame:
     Eigen::Vector3d f_b(

@@ -80,4 +80,4 @@ kalman_filter:
             accel: 2.5e-3
         measurement:
             pos: 2.5e-3
-            orientation: 2.5e-3
+            orientation: 1.0e-2

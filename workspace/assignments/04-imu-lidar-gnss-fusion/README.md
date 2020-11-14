@@ -136,6 +136,38 @@ topics:      /kitti/camera_color_left/camera_info     4544 msgs    : sensor_msgs
 
 <img src="doc/images/01-IMU-lidar-fusion.png" alt="IMU-Lidar Fusion v.s. GNSS" width="100%">
 
+可通过如下`ROS Service Call`, 比较融合前后的Odometry: 
+
+```bash
+# set up session:
+source install/setup.bash
+# save odometry:
+rosservice call /save_odometry "{}"
+# run evo evaluation:
+# a. laser:
+evo_ape kitti ground_truth.txt laser.txt -r full --plot --plot_mode xy
+# b. fused:
+evo_ape kitti ground_truth.txt fused.txt -r full --plot --plot_mode xy
+```
+
+两者的KPI比较参照下表. 
+
+在`2011_10_03_drive_0027_extract`上, 两者的估计性能相近, `IMU-Lidar Fusion`结果略优. 此处仅对比前35秒的轨迹, 因为`extract oxts`从36秒开始, GPS信号会出现跳变, 原因未知.
+
+Lidar Only                 |IMU-Lidar Fusion
+:-------------------------:|:-------------------------:
+![EVO Lidar Only](doc/images/01-evo--lidar-only-extract.png)  |  ![EVO IMU-Lidar Fusion](doc/images/01-evo--imu-lidar-fusion-extract.png)
+
+|  Algo. |  Lidar Only   |  IMU-Lidar    |
+|:------:|:-------------:|:-------------:|
+|   max  |   0.984610    |    0.973354   |
+|  mean  |   0.823947    |    0.819428   |
+| median |   0.835531    |    0.829191   |
+|   min  |   0.595141    |    0.594396   |
+|  rmse  |   0.827453    |    0.822921   |
+|   sse  |  205.403366   |   203.159754  |
+|   std  |   0.076082    |    0.075745   |
+
 ---
 
 ### 2. GNSS/IMU融合分析

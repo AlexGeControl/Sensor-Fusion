@@ -23,6 +23,7 @@ add_service_files(
    saveScanContext.srv
    saveMap.srv
    optimizeMap.srv
+   saveOdometry.srv
 )
 
 generate_messages(
