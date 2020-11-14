@@ -26,7 +26,50 @@ This is the solution of Assignment 04 of Sensor Fusion from [深蓝学院](https
 
 1. 下载`extract.zip`
 2. 解压后, 将其中的`oxts`替换`sync`中的`oxts`
-3. 修改`kitti2bag`源代码, 将`IMU` `Linear Acceleration / Angular Velocity`测量值的坐标系改为`Body Frame(xyz)` [here](src/lidar_localization/scripts/kitti2bag.py#L39)
+3. 修复`extract oxts`测量值的`timestamp`异常. 原始`timestamp`差分的统计描述如下:
+
+    ```bash
+    count                       45699
+    mean       0 days 00:00:00.010318
+    std        0 days 00:00:00.022812
+    min      -1 days +23:59:59.949989
+    25%        0 days 00:00:00.009967
+    50%        0 days 00:00:00.009996
+    75%        0 days 00:00:00.010025
+    max        0 days 00:00:01.919595
+    ```
+
+    使用如下脚本进行修复
+
+    ```python
+    import pandas as pd
+    
+    #
+    # read:
+    #
+    df_timestamps = pd.read_csv('timestamps.with.disorder.txt', header=None)
+    
+    #
+    # modify:
+    #
+    # get first timestamp from velodyne since scan context is used for localization init:
+    df_timestamps = df_timestamps.loc[df_timestamps[0] >= '2011-10-03 12:55:34.934675232', :]
+    
+    # parse timestamp
+    df_timestamps[0] = df_timestamps[0].apply(lambda x: pd.to_datetime(x))
+    # create time deltas:
+    ss_timedelta = pd.Series(df_timestamps.index.values).apply(lambda x: pd.Timedelta(0.01*x, unit='sec'))
+
+    # sync timestamps:
+    df_timestamps[0] = df_timestamps.iloc[0, 0] + ss_timedelta
+
+    #
+    # write back:
+    #
+    df_timestamps.to_csv('timestamps.txt', header=None, index=False)
+    ```
+
+4. 修改`kitti2bag`源代码, 将`IMU` `Linear Acceleration / Angular Velocity`测量值的坐标系改为`Body Frame(xyz)` [here](src/lidar_localization/scripts/kitti2bag.py#L39)
     
     ```python
     def save_imu_data(bag, kitti, imu_frame_id, topic):
@@ -49,7 +92,7 @@ This is the solution of Assignment 04 of Sensor Fusion from [深蓝学院](https
         imu.angular_velocity.z = oxts.packet.wz
         bag.write(topic, imu, t=imu.header.stamp)
     ```
-4. 然后运行`kitti2bag`, 产生用于`Filtering/Graph Optimization`的ROS Bag
+5. 然后运行`kitti2bag`, 产生用于`Filtering/Graph Optimization`的ROS Bag
 
 在`kitti_2011_10_03_drive_0027_sync`上得到的ROS Bag Info如下:
 

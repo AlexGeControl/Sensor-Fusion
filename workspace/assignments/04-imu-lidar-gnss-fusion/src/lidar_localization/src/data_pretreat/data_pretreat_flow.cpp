@@ -133,7 +133,7 @@ bool DataPretreatFlow::ValidData() {
     double diff_velocity_time = current_cloud_data_.time - current_velocity_data_.time;
     double diff_gnss_time = current_cloud_data_.time - current_gnss_data_.time;
     //
-    // this check assumes the frequency of OXTS is 100Hz:
+    // this check assumes the frequency of lidar is 10Hz:
     //
     if (diff_imu_time < -0.05 || diff_velocity_time < -0.05 || diff_gnss_time < -0.05) {
         cloud_data_buff_.pop_front();

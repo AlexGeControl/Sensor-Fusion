@@ -60,7 +60,8 @@ class FilteringFlow {
 
     bool PublishGlobalMap();
     bool PublishLocalMap();
-    bool PublishData();
+    bool PublishLidarOdom();
+    bool PublishFusionOdom();
 
   private:
     // subscriber:
@@ -86,7 +87,6 @@ class FilteringFlow {
     std::shared_ptr<CloudPublisher> local_map_pub_ptr_;
     std::shared_ptr<CloudPublisher> current_scan_pub_ptr_;
     // b. odometry:
-    bool has_new_fused_odom_ = false, has_new_lidar_odom_ = false;
     std::shared_ptr<OdometryPublisher> fused_odom_pub_ptr_;
     std::shared_ptr<OdometryPublisher> laser_odom_pub_ptr_;
     // c. tf:

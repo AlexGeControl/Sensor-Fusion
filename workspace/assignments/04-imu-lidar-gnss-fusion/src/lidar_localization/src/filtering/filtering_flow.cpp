@@ -64,6 +64,7 @@ bool FilteringFlow::Run() {
                 InitLocalization();
             }
         } else {
+            // TODO: handle timestamp chaos in an more elegant way
             if (  HasLidarData() && ValidLidarData() ) {
                 if ( HasIMUData() ) {
                     while (
@@ -82,12 +83,10 @@ bool FilteringFlow::Run() {
 
                 CorrectLocalization();
             }
-            
+
             if ( HasIMUData() && ValidIMUData() ) {
                 UpdateLocalization();
             }
-
-            PublishData();
         }
     }
 
@@ -149,11 +148,12 @@ bool FilteringFlow::ValidLidarData() {
     current_gnss_data_ = gnss_data_buff_.front();
     current_imu_synced_data_ = imu_synced_data_buff_.front();
 
+    double diff_filter_time = current_cloud_data_.time - filtering_ptr_->GetTime();
     double diff_gnss_time = current_cloud_data_.time - current_gnss_data_.time;
     double diff_imu_time = current_cloud_data_.time - current_imu_synced_data_.time;
 
     //
-    // this check assumes the frequency of OXTS is 100Hz:
+    // this check assumes the frequency of lidar is 10Hz:
     //
     if (diff_gnss_time < -0.05 || diff_imu_time < -0.05) {
         cloud_data_buff_.pop_front();
@@ -238,8 +238,7 @@ bool FilteringFlow::InitLocalization(void) {
 
 bool FilteringFlow::UpdateLocalization() {
     if ( filtering_ptr_->Update(current_imu_raw_data_) ) {
-        filtering_ptr_->GetOdometry(fused_pose_, fused_vel_);
-        has_new_fused_odom_ = true;
+        PublishFusionOdom();
         return true;
     }
 
@@ -247,15 +246,15 @@ bool FilteringFlow::UpdateLocalization() {
 }
 
 bool FilteringFlow::CorrectLocalization() {
-    if ( 
-        filtering_ptr_->Correct(
-            current_imu_synced_data_, 
-            current_cloud_data_, 
-            laser_pose_
-        ) 
-    ) {
-        filtering_ptr_->GetOdometry(fused_pose_, fused_vel_);
-        has_new_fused_odom_ = has_new_lidar_odom_ = true;
+    bool is_fusion_succeeded = filtering_ptr_->Correct(
+        current_imu_synced_data_, 
+        current_cloud_data_, 
+        laser_pose_
+    );
+    PublishLidarOdom();
+
+    if ( is_fusion_succeeded ) {
+        PublishFusionOdom();
         return true;
     }
 
@@ -284,28 +283,23 @@ bool FilteringFlow::PublishLocalMap() {
     return false;
 }
 
-bool FilteringFlow::PublishData() {
-    // publish fused odometry:
-    if ( has_new_fused_odom_ ) {
-        fused_odom_pub_ptr_->Publish(fused_pose_, fused_vel_, current_imu_raw_data_.time);
-        has_new_fused_odom_ = false;
-    }
-    
-    if ( has_new_lidar_odom_ ) {
-        const Eigen::Vector3f &laser_t = laser_pose_.block<3, 1>(0, 3);
-        const Eigen::Vector3f &fused_t = fused_pose_.block<3, 1>(0, 3);
+bool FilteringFlow::PublishLidarOdom() {
+    // a. publish lidar odometry
+    laser_odom_pub_ptr_->Publish(laser_pose_, current_cloud_data_.time);
+    // b. publish current scan:
+    current_scan_pub_ptr_->Publish(filtering_ptr_->GetCurrentScan());
 
-        LOG(INFO) << std::endl 
-                  << laser_t.x() << ", " << laser_t.y() << ", " << laser_t.z() << std::endl
-                  << fused_t.x() << ", " << fused_t.y() << ", " << fused_t.z() << std::endl
-                  << std::endl;
+    return true;
+}
 
-        laser_tf_pub_ptr_->SendTransform(laser_pose_, current_cloud_data_.time);
-        laser_odom_pub_ptr_->Publish(laser_pose_, current_cloud_data_.time);
-        current_scan_pub_ptr_->Publish(filtering_ptr_->GetCurrentScan());
+bool FilteringFlow::PublishFusionOdom() {
+    // get odometry from Kalman filter:
+    filtering_ptr_->GetOdometry(fused_pose_, fused_vel_);
 
-        has_new_lidar_odom_ = false;
-    }
+    // a. publish tf:
+    laser_tf_pub_ptr_->SendTransform(fused_pose_, current_imu_raw_data_.time);
+    // b. publish fusion odometry:
+    fused_odom_pub_ptr_->Publish(fused_pose_, fused_vel_, current_imu_raw_data_.time);
 
     return true;
 }

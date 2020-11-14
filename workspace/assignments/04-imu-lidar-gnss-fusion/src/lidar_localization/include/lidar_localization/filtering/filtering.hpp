@@ -59,6 +59,7 @@ class Filtering {
     CloudData::CLOUD_PTR& GetLocalMap() { return local_map_ptr_; }
     CloudData::CLOUD_PTR& GetCurrentScan() { return current_scan_ptr_; }
 
+    double GetTime(void) { return kalman_filter_ptr_->GetTime(); }
     Eigen::Matrix4f GetPose(void) { return current_pose_; }
     Eigen::Vector3f GetVel(void) { return current_vel_; }
     void GetOdometry(Eigen::Matrix4f &pose, Eigen::Vector3f &vel);
