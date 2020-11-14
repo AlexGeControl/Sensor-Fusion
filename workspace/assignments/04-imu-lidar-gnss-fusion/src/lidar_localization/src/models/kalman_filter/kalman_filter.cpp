@@ -75,12 +75,8 @@ KalmanFilter::KalmanFilter(const YAML::Node& node) {
         EARTH.ROTATION_SPEED*cos(EARTH.LATITUDE),
         EARTH.ROTATION_SPEED*sin(EARTH.LATITUDE)
     );
-    // b. prior state covariance:
-    P_.block<3, 3>(  INDEX_ERROR_POS,   INDEX_ERROR_POS) = COV.PRIOR.POS*Eigen::Matrix3d::Identity();
-    P_.block<3, 3>(  INDEX_ERROR_VEL,   INDEX_ERROR_VEL) = COV.PRIOR.VEL*Eigen::Matrix3d::Identity();
-    P_.block<3, 3>(  INDEX_ERROR_ORI,   INDEX_ERROR_ORI) = COV.PRIOR.ORIENTATION*Eigen::Matrix3d::Identity();
-    P_.block<3, 3>( INDEX_ERROR_GYRO,  INDEX_ERROR_GYRO) = COV.PRIOR.EPSILON*Eigen::Matrix3d::Identity();
-    P_.block<3, 3>(INDEX_ERROR_ACCEL, INDEX_ERROR_ACCEL) = COV.PRIOR.DELTA*Eigen::Matrix3d::Identity();
+    // b. prior state & covariance:
+    ResetState();
     // c. process noise:
     Q_.block<3, 3>(0, 0) = COV.PROCESS.GYRO*Eigen::Matrix3d::Identity();
     Q_.block<3, 3>(3, 3) = COV.PROCESS.ACCEL*Eigen::Matrix3d::Identity();
@@ -179,13 +175,13 @@ bool KalmanFilter::Correct(
     double time_deviation = fabs(time - time_);
     if ( time_deviation < 0.05 ) {
         // perform Kalman prediction:
-        /*
-        double T = time - time_;
-        MatrixF F = MatrixF::Identity() + T*F_;
-        MatrixB B = T*B_;
-        X_ = F*X_;
-        P_ = F*P_*F.transpose() + B*Q_*B.transpose();
-        */
+        if (time > time_) {
+            double T = time - time_;
+            MatrixF F = MatrixF::Identity() + T*F_;
+            MatrixB B = T*B_;
+            X_ = F*X_;
+            P_ = F*P_*F.transpose() + B*Q_*B.transpose();
+        }
        
         // get observation in navigation frame:
         Eigen::Matrix4d T_nb_lidar_double = init_pose_ * T_nb_lidar.cast<double>();
@@ -209,11 +205,15 @@ bool KalmanFilter::Correct(
         // b. velocity:
         vel_ = vel_ - X_.block<3, 1>(INDEX_ERROR_VEL, 0);
         // c. orientation:
-        Eigen::Matrix3d C_nn = Sophus::SO3d::exp(-X_.block<3, 1>(INDEX_ERROR_ORI, 0)).matrix();
-        pose_.block<3, 3>(0, 0) = C_nn.transpose()*pose_.block<3, 3>(0, 0);
+        Eigen::Matrix3d C_nn = Sophus::SO3d::exp(X_.block<3, 1>(INDEX_ERROR_ORI, 0)).matrix();
+        pose_.block<3, 3>(0, 0) = C_nn*pose_.block<3, 3>(0, 0);
+        // d. gyro bias:
+        gyro_bias_ += X_.block<3, 1>(INDEX_ERROR_GYRO, 0);
+        // e. accel bias:
+        accl_bias_ += X_.block<3, 1>(INDEX_ERROR_ACCEL, 0);
 
         // reset error state:
-        X_.block<3, 1>(INDEX_ERROR_POS, 0) = X_.block<3, 1>(INDEX_ERROR_VEL, 0) = X_.block<3, 1>(INDEX_ERROR_ORI, 0) = Eigen::Vector3d::Zero();
+        ResetState();
 
         return true;
     }
@@ -258,12 +258,14 @@ void KalmanFilter::GetOdometry(
 /**
  * @brief  get unbiased angular velocity in body frame
  * @param  angular_vel, angular velocity measurement
+ * @param  R, corresponding orientation of measurement
  * @return unbiased angular velocity in body frame
  */
 inline Eigen::Vector3d KalmanFilter::GetUnbiasedAngularVel(
-    const Eigen::Vector3d &angular_vel
+    const Eigen::Vector3d &angular_vel,
+    const Eigen::Matrix3d &R
 ) {
-    return angular_vel - X_.block<3, 1>(INDEX_ERROR_GYRO, 0);
+    return angular_vel - R.transpose() * w_ - gyro_bias_;
 }
 
 /**
@@ -276,7 +278,7 @@ inline Eigen::Vector3d KalmanFilter::GetUnbiasedLinearAcc(
     const Eigen::Vector3d &linear_acc,
     const Eigen::Matrix3d &R
 ) {
-    return R*(linear_acc - X_.block<3, 1>(INDEX_ERROR_ACCEL, 0)) - g_;
+    return R*(linear_acc - accl_bias_) - g_;
 }
 
 /**
@@ -307,14 +309,16 @@ bool KalmanFilter::GetAngularDelta(
         imu_data_curr.angular_velocity.y,
         imu_data_curr.angular_velocity.z
     );
-    angular_vel_curr = GetUnbiasedAngularVel(angular_vel_curr);
+    Eigen::Matrix3d R_curr = imu_data_curr.GetOrientationMatrix().cast<double>();
+    angular_vel_curr = GetUnbiasedAngularVel(angular_vel_curr, R_curr);
 
     Eigen::Vector3d angular_vel_prev = Eigen::Vector3d(
         imu_data_prev.angular_velocity.x,
         imu_data_prev.angular_velocity.y,
         imu_data_prev.angular_velocity.z
     );
-    angular_vel_prev = GetUnbiasedAngularVel(angular_vel_prev);
+    Eigen::Matrix3d R_prev = imu_data_prev.GetOrientationMatrix().cast<double>();
+    angular_vel_prev = GetUnbiasedAngularVel(angular_vel_prev, R_prev);
 
     angular_delta = 0.5*delta_t*(angular_vel_curr + angular_vel_prev);
 
@@ -332,6 +336,7 @@ void KalmanFilter::UpdateOrientation(
     const Eigen::Vector3d &angular_delta,
     Eigen::Matrix3d &R_curr, Eigen::Matrix3d &R_prev
 ) {
+
     // magnitude:
     double angular_delta_mag = angular_delta.norm();
     // direction:
@@ -355,6 +360,15 @@ void KalmanFilter::UpdateOrientation(
     R_prev = pose_.block<3, 3>(0, 0);
     pose_.block<3, 3>(0, 0) = q.normalized().toRotationMatrix();
     R_curr = pose_.block<3, 3>(0, 0);
+    /*
+    const IMUData &imu_data_curr = imu_data_buff_.at(1);
+    const IMUData &imu_data_prev = imu_data_buff_.at(0);
+
+    R_curr = imu_data_curr.GetOrientationMatrix().cast<double>();
+    R_prev = imu_data_prev.GetOrientationMatrix().cast<double>();
+
+    pose_.block<3, 3>(0, 0) = R_curr;
+    */
 }
 
 /**
@@ -451,13 +465,9 @@ void KalmanFilter::GetProcessInput(
     T = imu_data.time - time_;
 
     // get rotation matrix, body frame -> navigation frame:
-    Eigen::Quaterniond q_nb(
-        imu_data.orientation.w,
-        imu_data.orientation.x,
-        imu_data.orientation.y,
-        imu_data.orientation.z
-    );
-    C_nb = q_nb.toRotationMatrix();
+    C_nb = pose_.block<3, 3>(0, 0);
+    Eigen::Matrix3d C_nn = Sophus::SO3d::exp(-X_.block<3, 1>(INDEX_ERROR_ORI, 0)).matrix();
+    C_nb = C_nn.transpose()*C_nb;
 
     // get accel measurement in navigation frame:
     Eigen::Vector3d f_b(
@@ -465,7 +475,7 @@ void KalmanFilter::GetProcessInput(
         imu_data.linear_acceleration.y,
         imu_data.linear_acceleration.z
     );
-    f_n = C_nb*f_b;
+    f_n = C_nb*(f_b - accl_bias_ - X_.block<3, 1>(INDEX_ERROR_ACCEL, 0));
 }
 
 /**
@@ -479,12 +489,10 @@ void KalmanFilter::SetProcessEquation(
 ) {
     // a. set process equation for delta vel:
     F_.block<3, 3>(INDEX_ERROR_VEL,  INDEX_ERROR_ORI) = Sophus::SO3d::hat(f_n).matrix();
-    F_.block<3, 3>(INDEX_ERROR_VEL,INDEX_ERROR_ACCEL) =  C_nb;
-    B_.block<3, 3>(INDEX_ERROR_VEL, 3) =  C_nb;
+    F_.block<3, 3>(INDEX_ERROR_VEL,INDEX_ERROR_ACCEL) = B_.block<3, 3>(INDEX_ERROR_VEL, 3) = C_nb;
     // b. set process equation for delta ori:
     // TODO: update the block influenced by earth rotation speed:
-    F_.block<3, 3>(INDEX_ERROR_ORI, INDEX_ERROR_GYRO) = -C_nb;
-    B_.block<3, 3>(INDEX_ERROR_ORI, 0) = -C_nb;
+    F_.block<3, 3>(INDEX_ERROR_ORI, INDEX_ERROR_GYRO) = B_.block<3, 3>(INDEX_ERROR_ORI, 0) = -C_nb;
 }
 
 /**
@@ -524,6 +532,23 @@ void KalmanFilter::UpdateErrorEstimation(
     // perform Kalman prediction:
     X_ = F*X_;
     P_ = F*P_*F.transpose() + B*Q_*B.transpose();
+}
+
+/**
+ * @brief  reset filter state
+ * @param  void
+ * @return void
+ */
+void KalmanFilter::ResetState(void) {
+    // a. set prior state:
+    X_ = VectorX::Zero();
+    // b. set prior covariance:
+    P_ = MatrixP::Zero();
+    P_.block<3, 3>(  INDEX_ERROR_POS,   INDEX_ERROR_POS) = COV.PRIOR.POS*Eigen::Matrix3d::Identity();
+    P_.block<3, 3>(  INDEX_ERROR_VEL,   INDEX_ERROR_VEL) = COV.PRIOR.VEL*Eigen::Matrix3d::Identity();
+    P_.block<3, 3>(  INDEX_ERROR_ORI,   INDEX_ERROR_ORI) = COV.PRIOR.ORIENTATION*Eigen::Matrix3d::Identity();
+    P_.block<3, 3>( INDEX_ERROR_GYRO,  INDEX_ERROR_GYRO) = COV.PRIOR.EPSILON*Eigen::Matrix3d::Identity();
+    P_.block<3, 3>(INDEX_ERROR_ACCEL, INDEX_ERROR_ACCEL) = COV.PRIOR.DELTA*Eigen::Matrix3d::Identity();
 }
 
 } // namespace lidar_localization

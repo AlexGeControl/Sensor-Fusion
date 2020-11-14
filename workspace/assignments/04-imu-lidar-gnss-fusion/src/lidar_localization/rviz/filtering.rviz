@@ -31,7 +31,7 @@ Panels:
     Experimental: false
     Name: Time
     SyncMode: 0
-    SyncSource: global_map
+    SyncSource: ""
 Preferences:
   PromptSaveOnExit: true
 Toolbars:
@@ -349,5 +349,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1235
-  X: 0
-  Y: 0
+  X: -1
+  Y: -1

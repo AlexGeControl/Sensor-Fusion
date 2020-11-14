@@ -295,7 +295,6 @@ bool FilteringFlow::PublishLidarOdom() {
 bool FilteringFlow::PublishFusionOdom() {
     // get odometry from Kalman filter:
     filtering_ptr_->GetOdometry(fused_pose_, fused_vel_);
-
     // a. publish tf:
     laser_tf_pub_ptr_->SendTransform(fused_pose_, current_imu_raw_data_.time);
     // b. publish fusion odometry:

@@ -92,10 +92,12 @@ private:
     /**
      * @brief  get unbiased angular velocity in body frame
      * @param  angular_vel, angular velocity measurement
+     * @param  R, corresponding orientation of measurement
      * @return unbiased angular velocity in body frame
      */
     Eigen::Vector3d GetUnbiasedAngularVel(
-        const Eigen::Vector3d &angular_vel
+        const Eigen::Vector3d &angular_vel,
+        const Eigen::Matrix3d &R
     );
     /**
      * @brief  get unbiased linear acceleration in navigation frame
@@ -192,6 +194,12 @@ private:
      * @return void
      */
     void UpdateErrorEstimation(const IMUData &imu_data);
+    /**
+     * @brief  reset filter state
+     * @param  void
+     * @return void
+     */
+    void ResetState(void);
 
     // data buff:
     std::deque<IMUData> imu_data_buff_;
@@ -201,11 +209,14 @@ private:
 
     // odometry estimation from IMU integration:
     Eigen::Matrix4d init_pose_ = Eigen::Matrix4d::Identity();
+    
     Eigen::Matrix4d pose_ = Eigen::Matrix4d::Identity();
     Eigen::Vector3d vel_ = Eigen::Vector3d::Zero();
+    Eigen::Vector3d gyro_bias_ = Eigen::Vector3d::Zero();
+    Eigen::Vector3d accl_bias_ = Eigen::Vector3d::Zero();
 
     // state:
-    VectorX X_;
+    VectorX X_ = VectorX::Zero();
     MatrixP P_ = MatrixP::Zero();
     // process & measurement equations:
     MatrixF F_ = MatrixF::Zero();
