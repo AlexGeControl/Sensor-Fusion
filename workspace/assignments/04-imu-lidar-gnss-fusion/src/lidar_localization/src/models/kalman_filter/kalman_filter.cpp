@@ -171,17 +171,13 @@ bool KalmanFilter::Correct(
     const double &time,
     const Eigen::Matrix4f &T_nb_lidar
 ) {
-    // get discretized process equations:
-    double time_deviation = fabs(time - time_);
-    if ( time_deviation < 0.05 ) {
+    if ( time_ < time ) {
         // perform Kalman prediction:
-        if (time > time_) {
-            double T = time - time_;
-            MatrixF F = MatrixF::Identity() + T*F_;
-            MatrixB B = T*B_;
-            X_ = F*X_;
-            P_ = F*P_*F.transpose() + B*Q_*B.transpose();
-        }
+        double T = time - time_;
+        MatrixF F = MatrixF::Identity() + T*F_;
+        MatrixB B = T*B_;
+        X_ = F*X_;
+        P_ = F*P_*F.transpose() + B*Q_*B.transpose();
        
         // get observation in navigation frame:
         Eigen::Matrix4d T_nb_lidar_double = init_pose_ * T_nb_lidar.cast<double>();
@@ -215,11 +211,13 @@ bool KalmanFilter::Correct(
         // reset error state:
         ResetState();
 
+        time_ = time;
+
         return true;
     }
 
     LOG(INFO) << "Kalman Correct: Observation is older than filter time. Skip, " 
-              << (int)time << " <-- " << (int)time_ << " @ " << time_deviation
+              << (int)time << " <-- " << (int)time_
               << std::endl; 
     
     return false;

@@ -39,34 +39,17 @@ This is the solution of Assignment 04 of Sensor Fusion from [深蓝学院](https
     max        0 days 00:00:01.919595
     ```
 
-    使用如下脚本进行修复
+    使用[scripts](src/lidar_localization/scripts/generate_100hz_oxts.py)中的脚本进行修复, 修复后的`timestamp`差分统计描述如下:
 
-    ```python
-    import pandas as pd
-    
-    #
-    # read:
-    #
-    df_timestamps = pd.read_csv('timestamps.with.disorder.txt', header=None)
-    
-    #
-    # modify:
-    #
-    # get first timestamp from velodyne since scan context is used for localization init:
-    df_timestamps = df_timestamps.loc[df_timestamps[0] >= '2011-10-03 12:55:34.934675232', :]
-    
-    # parse timestamp
-    df_timestamps[0] = df_timestamps[0].apply(lambda x: pd.to_datetime(x))
-    # create time deltas:
-    ss_timedelta = pd.Series(df_timestamps.index.values).apply(lambda x: pd.Timedelta(0.01*x, unit='sec'))
-
-    # sync timestamps:
-    df_timestamps[0] = df_timestamps.iloc[0, 0] + ss_timedelta
-
-    #
-    # write back:
-    #
-    df_timestamps.to_csv('timestamps.txt', header=None, index=False)
+    ```bash
+    count                     50244
+    mean     0 days 00:00:00.009384
+    std      0 days 00:00:00.006092
+    min             0 days 00:00:00
+    25%      0 days 00:00:00.009953
+    50%      0 days 00:00:00.009992
+    75%      0 days 00:00:00.010021
+    max      0 days 00:00:00.519616
     ```
 
 4. 修改`kitti2bag`源代码, 将`IMU` `Linear Acceleration / Angular Velocity`测量值的坐标系改为`Body Frame(xyz)` [here](src/lidar_localization/scripts/kitti2bag.py#L39)
@@ -92,7 +75,7 @@ This is the solution of Assignment 04 of Sensor Fusion from [深蓝学院](https
         imu.angular_velocity.z = oxts.packet.wz
         bag.write(topic, imu, t=imu.header.stamp)
     ```
-5. 然后运行`kitti2bag`, 产生用于`Filtering/Graph Optimization`的ROS Bag
+5. 然后运行`kitti2bag`, 产生用于`LIO/VIO Filtering/Graph Optimization`的ROS Bag
 
 在`kitti_2011_10_03_drive_0027_sync`上得到的ROS Bag Info如下:
 
@@ -101,12 +84,12 @@ $ rosbag info kitti_2011_10_03_drive_0027_synced.bag
 
 path:        kitti_2011_10_03_drive_0027_synced.bag
 version:     2.0
-duration:    7:49s (469s)
-start:       Oct 03 2011 12:55:36.39 (1317646536.39)
+duration:    7:51s (471s)
+start:       Oct 03 2011 12:55:34.48 (1317646534.48)
 end:         Oct 03 2011 13:03:25.83 (1317647005.83)
 size:        24.1 GB
-messages:    269396
-compression: none [18259/18259 chunks]
+messages:    292116
+compression: none [18267/18267 chunks]
 types:       geometry_msgs/TwistStamped [98d34b0043a2093cf9d9345ab6eef12e]
              sensor_msgs/CameraInfo     [c9a58c1b0b154e0e6da7578cb991d214]
              sensor_msgs/Image          [060021388200f6f0f447d0fcd9c64743]
@@ -122,12 +105,12 @@ topics:      /kitti/camera_color_left/camera_info     4544 msgs    : sensor_msgs
              /kitti/camera_gray_left/image_raw        4544 msgs    : sensor_msgs/Image         
              /kitti/camera_gray_right/camera_info     4544 msgs    : sensor_msgs/CameraInfo    
              /kitti/camera_gray_right/image_raw       4544 msgs    : sensor_msgs/Image         
-             /kitti/oxts/gps/fix                     45700 msgs    : sensor_msgs/NavSatFix     
-             /kitti/oxts/gps/vel                     45700 msgs    : geometry_msgs/TwistStamped
-             /kitti/oxts/imu                         45700 msgs    : sensor_msgs/Imu           
+             /kitti/oxts/gps/fix                     50244 msgs    : sensor_msgs/NavSatFix     
+             /kitti/oxts/gps/vel                     50244 msgs    : geometry_msgs/TwistStamped
+             /kitti/oxts/imu                         50244 msgs    : sensor_msgs/Imu           
              /kitti/velo/pointcloud                   4544 msgs    : sensor_msgs/PointCloud2   
-             /tf                                     45700 msgs    : tf2_msgs/TFMessage        
-             /tf_static                              45700 msgs    : tf2_msgs/TFMessage
+             /tf                                     50244 msgs    : tf2_msgs/TFMessage        
+             /tf_static                              50244 msgs    : tf2_msgs/TFMessage
 ```
 
 基于`Eigen`与`Sophus`的`Error-State Kalman Fusion`实现参考[here](src/lidar_localization/src/models/kalman_filter/kalman_filter.cpp)

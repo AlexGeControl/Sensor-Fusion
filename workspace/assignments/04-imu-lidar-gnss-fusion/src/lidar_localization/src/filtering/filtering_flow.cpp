@@ -63,7 +63,7 @@ bool FilteringFlow::Run() {
 
     ReadData();
 
-    while( HasData() ) {
+    if( HasData() ) {
         if ( !HasInited() ) {
             if ( ValidLidarData() ) {
                 InitLocalization();
@@ -164,11 +164,31 @@ bool FilteringFlow::HasData() {
         }
     }
 
+    /*
+    LOG(INFO) << "HasData: "
+              << imu_raw_data_buff_.size() << ", "
+              << cloud_data_buff_.size() << ", "
+              << gnss_data_buff_.size() << ", "
+              << imu_synced_data_buff_.size() 
+              << std::endl;
+    */
+
     return true;
 }
 
 bool FilteringFlow::ValidIMUData() {
     current_imu_raw_data_ = imu_raw_data_buff_.front();
+
+    double diff_filter_time = current_imu_raw_data_.time - filtering_ptr_->GetTime();
+
+    if ( HasInited() && diff_filter_time < 0.00 ) {
+        imu_raw_data_buff_.pop_front();
+        return false;
+    }
+
+    if (diff_filter_time > 0.01) {
+        return false;
+    }
 
     imu_raw_data_buff_.pop_front();
 
@@ -187,6 +207,11 @@ bool FilteringFlow::ValidLidarData() {
     //
     // this check assumes the frequency of lidar is 10Hz:
     //
+    if ( HasInited() && diff_filter_time < 0.00 ) {
+        cloud_data_buff_.pop_front();
+        return false;
+    } 
+
     if (diff_gnss_time < -0.05 || diff_imu_time < -0.05) {
         cloud_data_buff_.pop_front();
         return false;
