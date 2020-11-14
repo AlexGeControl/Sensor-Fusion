@@ -41,7 +41,17 @@ class FilteringFlow {
     
     bool HasData();
 
-    bool HasIMUData(void) const { return !imu_raw_data_buff_.empty(); }
+    bool HasIMUData(void) const { 
+      if ( !imu_raw_data_buff_.empty() ) {
+        double diff_filter_time = current_imu_raw_data_.time - filtering_ptr_->GetTime();
+
+        if ( diff_filter_time <= 0.01 ) {
+          return true;
+        }
+      }
+
+      return false; 
+    }
     bool HasLidarData(void) const { 
       return (
         !cloud_data_buff_.empty() && 

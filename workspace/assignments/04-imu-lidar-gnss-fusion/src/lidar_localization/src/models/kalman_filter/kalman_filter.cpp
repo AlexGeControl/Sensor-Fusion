@@ -171,14 +171,15 @@ bool KalmanFilter::Correct(
     const double &time,
     const Eigen::Matrix4f &T_nb_lidar
 ) {
-    if ( time_ < time ) {
+    // get time delta:
+    double time_delta = time - time_;
+
+    if ( time_delta > -0.05 ) {
         // perform Kalman prediction:
-        double T = time - time_;
-        MatrixF F = MatrixF::Identity() + T*F_;
-        MatrixB B = T*B_;
-        X_ = F*X_;
-        P_ = F*P_*F.transpose() + B*Q_*B.transpose();
-       
+        if ( time_ < time ) {
+            Update(imu_data);
+        }
+
         // get observation in navigation frame:
         Eigen::Matrix4d T_nb_lidar_double = init_pose_ * T_nb_lidar.cast<double>();
 
@@ -211,13 +212,11 @@ bool KalmanFilter::Correct(
         // reset error state:
         ResetState();
 
-        time_ = time;
-
         return true;
     }
 
-    LOG(INFO) << "Kalman Correct: Observation is older than filter time. Skip, " 
-              << (int)time << " <-- " << (int)time_
+    LOG(INFO) << "Kalman Correct: Observation is not synced with filter. Skip, " 
+              << (int)time << " <-- " << (int)time_ << " @ " << time_delta
               << std::endl; 
     
     return false;

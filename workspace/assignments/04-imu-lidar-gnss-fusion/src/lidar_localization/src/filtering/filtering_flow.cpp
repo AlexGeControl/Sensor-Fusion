@@ -63,7 +63,7 @@ bool FilteringFlow::Run() {
 
     ReadData();
 
-    if( HasData() ) {
+    while( HasData() ) {
         if ( !HasInited() ) {
             if ( ValidLidarData() ) {
                 InitLocalization();
@@ -76,6 +76,7 @@ bool FilteringFlow::Run() {
                         HasIMUData() && ValidIMUData() && 
                         current_imu_raw_data_.time < current_cloud_data_.time
                     ) {
+                        LOG(INFO) << "Update before Correct..." << std::endl;
                         UpdateLocalization();
                     }
 
@@ -130,6 +131,14 @@ bool FilteringFlow::ReadData() {
     // pipe raw IMU measurements into buffer:
     // 
     imu_raw_sub_ptr_->ParseData(imu_raw_data_buff_);
+    while (
+        HasInited() && 
+        HasIMUData() && 
+        imu_raw_data_buff_.front().time < filtering_ptr_->GetTime()
+    ) {
+        imu_raw_data_buff_.pop_front();
+    }
+
     //
     // pipe synced lidar-GNSS-IMU measurements into buffer:
     // 
@@ -146,49 +155,20 @@ bool FilteringFlow::HasInited(void) {
 
 bool FilteringFlow::HasData() {
     if ( !HasInited() ) {
-        if (
-            cloud_data_buff_.empty() || gnss_data_buff_.empty() || imu_synced_data_buff_.empty()
-        ) {
+        if ( !HasLidarData() ) {
             return false;
         }
     } else {
-        if (
-            imu_raw_data_buff_.empty() && 
-            (
-                cloud_data_buff_.empty() || 
-                gnss_data_buff_.empty() || 
-                imu_synced_data_buff_.empty()
-            )
-        ) {
+        if ( !HasIMUData() && !HasLidarData() ) {
             return false;
         }
     }
-
-    /*
-    LOG(INFO) << "HasData: "
-              << imu_raw_data_buff_.size() << ", "
-              << cloud_data_buff_.size() << ", "
-              << gnss_data_buff_.size() << ", "
-              << imu_synced_data_buff_.size() 
-              << std::endl;
-    */
 
     return true;
 }
 
 bool FilteringFlow::ValidIMUData() {
     current_imu_raw_data_ = imu_raw_data_buff_.front();
-
-    double diff_filter_time = current_imu_raw_data_.time - filtering_ptr_->GetTime();
-
-    if ( HasInited() && diff_filter_time < 0.00 ) {
-        imu_raw_data_buff_.pop_front();
-        return false;
-    }
-
-    if (diff_filter_time > 0.01) {
-        return false;
-    }
 
     imu_raw_data_buff_.pop_front();
 
@@ -200,17 +180,8 @@ bool FilteringFlow::ValidLidarData() {
     current_gnss_data_ = gnss_data_buff_.front();
     current_imu_synced_data_ = imu_synced_data_buff_.front();
 
-    double diff_filter_time = current_cloud_data_.time - filtering_ptr_->GetTime();
     double diff_gnss_time = current_cloud_data_.time - current_gnss_data_.time;
     double diff_imu_time = current_cloud_data_.time - current_imu_synced_data_.time;
-
-    //
-    // this check assumes the frequency of lidar is 10Hz:
-    //
-    if ( HasInited() && diff_filter_time < 0.00 ) {
-        cloud_data_buff_.pop_front();
-        return false;
-    } 
 
     if (diff_gnss_time < -0.05 || diff_imu_time < -0.05) {
         cloud_data_buff_.pop_front();
@@ -282,19 +253,13 @@ bool FilteringFlow::InitLocalization(void) {
         LOG(INFO) << "Scan Context Localization Init Failed. Fallback to GNSS/IMU." 
                   << std::endl;
     }
-
-    while (
-        HasIMUData() && 
-        imu_raw_data_buff_.front().time < current_imu_synced_data_.time
-    ) {
-        imu_raw_data_buff_.pop_front();
-    }
     
     return true;
 }
 
 bool FilteringFlow::UpdateLocalization() {
     if ( filtering_ptr_->Update(current_imu_raw_data_) ) {
+        LOG(INFO) << "Update" << std::endl;
         PublishFusionOdom();
         return true;
     }
@@ -311,6 +276,7 @@ bool FilteringFlow::CorrectLocalization() {
     PublishLidarOdom();
 
     if ( is_fusion_succeeded ) {
+        LOG(INFO) << "Correct" << std::endl;
         PublishFusionOdom();
         // add to odometry output for evo evaluation:
         UpdateOdometry();
@@ -370,6 +336,8 @@ bool FilteringFlow::UpdateOdometry(void) {
     trajectory.ref_.push_back(current_gnss_data_.pose);
 
     ++trajectory.N;
+
+    return true;
 }
 
 /**

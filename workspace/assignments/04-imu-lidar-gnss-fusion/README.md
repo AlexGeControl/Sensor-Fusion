@@ -135,21 +135,21 @@ evo_ape kitti ground_truth.txt fused.txt -r full --plot --plot_mode xy
 
 两者的KPI比较参照下表. 
 
-在`2011_10_03_drive_0027_extract`上, 两者的估计性能相近, `IMU-Lidar Fusion`结果略优. 此处仅对比前35秒的轨迹, 因为`extract oxts`从36秒开始, GPS信号会出现跳变, 原因未知.
+在`2011_10_03_drive_0027_extract`上, 两者的估计性能相近, `IMU-Lidar Fusion`结果略优.
 
 Lidar Only                 |IMU-Lidar Fusion
 :-------------------------:|:-------------------------:
-![EVO Lidar Only](doc/images/01-evo--lidar-only-extract.png)  |  ![EVO IMU-Lidar Fusion](doc/images/01-evo--imu-lidar-fusion-extract.png)
+![EVO Lidar Only](doc/images/01-evo--lidar-only-map-plot.png)  |  ![EVO IMU-Lidar Fusion](doc/images/01-evo--imu-lidar-fusion-map-plot.png)
 
 |  Algo. |  Lidar Only   |  IMU-Lidar    |
 |:------:|:-------------:|:-------------:|
-|   max  |   0.984610    |    0.973354   |
-|  mean  |   0.823947    |    0.819428   |
-| median |   0.835531    |    0.829191   |
-|   min  |   0.595141    |    0.594396   |
-|  rmse  |   0.827453    |    0.822921   |
-|   sse  |  205.403366   |   203.159754  |
-|   std  |   0.076082    |    0.075745   |
+|   max  |   2.638827    |    2.637105   |
+|  mean  |   1.748553    |    1.742532   |
+| median |   1.729221    |    1.718721   |
+|   min  |   1.234703    |    1.237628   |
+|  rmse  |   1.757275    |    1.751481   |
+|   sse  | 13967.101578  | 13875.137013  |
+|   std  |   0.174870    |    0.176829   |
 
 ---
 

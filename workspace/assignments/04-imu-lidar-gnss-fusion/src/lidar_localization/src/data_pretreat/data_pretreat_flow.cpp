@@ -192,8 +192,8 @@ bool DataPretreatFlow::PublishData() {
     //
     // a. lidar frame's pose in map
     // b. lidar frame's velocity 
-    gnss_pub_ptr_->Publish(gnss_pose_, current_velocity_data_, current_gnss_data_.time);
-    imu_pub_ptr_->Publish(current_imu_data_, current_imu_data_.time);
+    gnss_pub_ptr_->Publish(gnss_pose_, current_velocity_data_, current_cloud_data_.time);
+    imu_pub_ptr_->Publish(current_imu_data_, current_cloud_data_.time);
 
     return true;
 }
