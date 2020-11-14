@@ -101,9 +101,9 @@ $ rosbag info kitti_2011_10_03_drive_0027_synced.bag
 
 path:        kitti_2011_10_03_drive_0027_synced.bag
 version:     2.0
-duration:    7:51s (471s)
-start:       Oct 03 2011 20:55:34.48 (1317646534.48)
-end:         Oct 03 2011 21:03:25.83 (1317647005.83)
+duration:    7:49s (469s)
+start:       Oct 03 2011 12:55:36.39 (1317646536.39)
+end:         Oct 03 2011 13:03:25.83 (1317647005.83)
 size:        24.1 GB
 messages:    269396
 compression: none [18259/18259 chunks]
