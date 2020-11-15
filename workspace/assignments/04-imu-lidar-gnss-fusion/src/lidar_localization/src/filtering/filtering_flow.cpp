@@ -21,7 +21,7 @@ FilteringFlow::FilteringFlow(
 ) {
     // subscriber:
     // a. IMU raw measurement:
-    imu_raw_sub_ptr_ = std::make_shared<IMUSubscriber>(nh, "/kitti/oxts/imu", 1000000);
+    imu_raw_sub_ptr_ = std::make_shared<IMUSubscriber>(nh, "/kitti/oxts/imu/extract", 1000000);
     // b. undistorted Velodyne measurement: 
     cloud_sub_ptr_ = std::make_shared<CloudSubscriber>(nh, "/synced_cloud", 100000);
     // c. lidar pose in map frame:

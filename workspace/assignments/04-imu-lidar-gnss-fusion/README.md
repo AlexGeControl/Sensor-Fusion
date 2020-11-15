@@ -77,7 +77,13 @@ This is the solution of Assignment 04 of Sensor Fusion from [深蓝学院](https
     ```
 5. 然后运行`kitti2bag`, 产生用于`LIO/VIO Filtering/Graph Optimization`的ROS Bag
 
-在`kitti_2011_10_03_drive_0027_sync`上得到的ROS Bag Info如下:
+6. 为了提高`lidar-IMU-GNSS`配准的精度, 方便`evo`的精度评估:
+
+    * 删除`sync.bag`中的`\tf_static`, `\tf`
+    * 保留`extract.bag`中的`\tf_static`, `\tf`和`/kitti/oxts/imu`, 并将`/kitti/oxts/imu`重命名为`/kitti/oxts/imu/extract`
+    * 合并上述两生成bag, 作为最终的`synced.bag`
+
+在`kitti_2011_10_03_drive_0027_synced`上得到的ROS Bag Info如下:
 
 ```bash
 $ rosbag info kitti_2011_10_03_drive_0027_synced.bag
@@ -85,11 +91,11 @@ $ rosbag info kitti_2011_10_03_drive_0027_synced.bag
 path:        kitti_2011_10_03_drive_0027_synced.bag
 version:     2.0
 duration:    7:51s (471s)
-start:       Oct 03 2011 12:55:34.48 (1317646534.48)
-end:         Oct 03 2011 13:03:25.83 (1317647005.83)
+start:       Oct 03 2011 20:55:34.93 (1317646534.93)
+end:         Oct 03 2011 21:03:26.01 (1317647006.01)
 size:        24.1 GB
-messages:    292116
-compression: none [18267/18267 chunks]
+messages:    192006
+compression: none [18243/18243 chunks]
 types:       geometry_msgs/TwistStamped [98d34b0043a2093cf9d9345ab6eef12e]
              sensor_msgs/CameraInfo     [c9a58c1b0b154e0e6da7578cb991d214]
              sensor_msgs/Image          [060021388200f6f0f447d0fcd9c64743]
@@ -105,12 +111,14 @@ topics:      /kitti/camera_color_left/camera_info     4544 msgs    : sensor_msgs
              /kitti/camera_gray_left/image_raw        4544 msgs    : sensor_msgs/Image         
              /kitti/camera_gray_right/camera_info     4544 msgs    : sensor_msgs/CameraInfo    
              /kitti/camera_gray_right/image_raw       4544 msgs    : sensor_msgs/Image         
-             /kitti/oxts/gps/fix                     50244 msgs    : sensor_msgs/NavSatFix     
-             /kitti/oxts/gps/vel                     50244 msgs    : geometry_msgs/TwistStamped
-             /kitti/oxts/imu                         50244 msgs    : sensor_msgs/Imu           
+             /kitti/oxts/gps/fix                      4544 msgs    : sensor_msgs/NavSatFix     
+             /kitti/oxts/gps/vel                      4544 msgs    : geometry_msgs/TwistStamped
+             /kitti/oxts/imu                          4544 msgs    : sensor_msgs/Imu           
+             /kitti/oxts/imu/extract                 45826 msgs    : sensor_msgs/Imu           
              /kitti/velo/pointcloud                   4544 msgs    : sensor_msgs/PointCloud2   
-             /tf                                     50244 msgs    : tf2_msgs/TFMessage        
-             /tf_static                              50244 msgs    : tf2_msgs/TFMessage
+             /tf                                     45826 msgs    : tf2_msgs/TFMessage        
+             /tf_static                              45826 msgs    : tf2_msgs/TFMessage
+
 ```
 
 基于`Eigen`与`Sophus`的`Error-State Kalman Fusion`实现参考[here](src/lidar_localization/src/models/kalman_filter/kalman_filter.cpp)
@@ -118,6 +126,8 @@ topics:      /kitti/camera_color_left/camera_info     4544 msgs    : sensor_msgs
 `IMU-Lidar Error-State Kalman Fusion Odometry`与`GNSS Groud Truth`的对比如下图所示. 其中`黄色`为`GNSS Groud Truth`, `红色`为`Lidar Odometry`, `蓝色`为`IMU-Lidar Fusion Odometry`:
 
 <img src="doc/images/01-IMU-lidar-fusion.png" alt="IMU-Lidar Fusion v.s. GNSS" width="100%">
+
+<img src="doc/images/01-IMU-lidar-fusion-micro.png" alt="IMU-Lidar Fusion v.s. GNSS Micro" width="100%">
 
 可通过如下`ROS Service Call`, 比较融合前后的Odometry: 
 
@@ -135,7 +145,7 @@ evo_ape kitti ground_truth.txt fused.txt -r full --plot --plot_mode xy
 
 两者的KPI比较参照下表. 
 
-在`2011_10_03_drive_0027_extract`上, 两者的估计性能相近, `IMU-Lidar Fusion`结果略优.
+在`2011_10_03_drive_0027_extract`上, 两者的估计性能相近, `IMU-Lidar Fusion`的估计精度略优.
 
 Lidar Only                 |IMU-Lidar Fusion
 :-------------------------:|:-------------------------:
@@ -143,13 +153,13 @@ Lidar Only                 |IMU-Lidar Fusion
 
 |  Algo. |  Lidar Only   |  IMU-Lidar    |
 |:------:|:-------------:|:-------------:|
-|   max  |   2.638827    |    2.637105   |
-|  mean  |   1.748553    |    1.742532   |
-| median |   1.729221    |    1.718721   |
-|   min  |   1.234703    |    1.237628   |
-|  rmse  |   1.757275    |    1.751481   |
-|   sse  | 13967.101578  | 13875.137013  |
-|   std  |   0.174870    |    0.176829   |
+|   max  |   1.059857    |    1.035433   |
+|  mean  |   0.228137    |    0.232957   |
+| median |   0.160143    |    0.165522   |
+|   min  |   0.015406    |    0.015572   |
+|  rmse  |   0.284854    |    0.288054   |
+|   sse  |  356.212471   |  364.259559   |
+|   std  |   0.170574    |    0.169428   |	
 
 ---
 

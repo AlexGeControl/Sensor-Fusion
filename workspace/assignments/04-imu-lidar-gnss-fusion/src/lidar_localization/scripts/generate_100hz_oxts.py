@@ -60,16 +60,18 @@ def main(config):
             config.input, 'oxts_extract', 'data' , '{:010d}.txt'.format(x)
         )
     )
+    df_timestamps_extract = df_timestamps_extract.drop_duplicates(subset=['timestamp'], keep='first')
     df_timestamps_sync['input_data'] = df_timestamps_sync.index.to_series().apply(
         lambda x: os.path.join(
             config.input, 'oxts_sync', 'data' , '{:010d}.txt'.format(x)
         )
     )
+    df_timestamps_extract = df_timestamps_extract.drop_duplicates(subset=['timestamp'], keep='first')
 
     # concate extract & sync then sort by timestamp:
     df_timestamps = pd.concat(
         [df_timestamps_extract, df_timestamps_sync]
-    ).sort_values('timestamp').reset_index(
+    ).drop_duplicates(subset=['timestamp'], keep='first').sort_values('timestamp').reset_index(
         drop=True
     )
 
