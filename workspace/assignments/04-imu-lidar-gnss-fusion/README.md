@@ -80,8 +80,13 @@ This is the solution of Assignment 04 of Sensor Fusion from [深蓝学院](https
 6. 为了提高`lidar-IMU-GNSS`配准的精度, 方便`evo`的精度评估:
 
     * 删除`sync.bag`中的`\tf_static`, `\tf`
-    * 保留`extract.bag`中的`\tf_static`, `\tf`和`/kitti/oxts/imu`, 并将`/kitti/oxts/imu`重命名为`/kitti/oxts/imu/extract`
-    * 合并上述两生成bag, 作为最终的`synced.bag`
+    * 保留`extract.bag`中的`\tf_static`, `\tf`和`/kitti/oxts/imu`, 并将`/kitti/oxts/imu`重命名为`/kitti/oxts/imu/extract`. 重命名时可使用ROS自带脚本:
+        
+        ```bash
+        rosrun rosbag topic_renamer.py [INPUT_TOPIC] [INPUT_BAG] [OUTPUT_TOPIC] [OUTPUT_BAG] 
+        ```
+
+    * 合并上述两生成bag, 作为最终的`synced.bag`. 合并可用使用[scripts](src/lidar_localization/scripts/merge_bags.py)中的脚本.
 
 在`kitti_2011_10_03_drive_0027_synced`上得到的ROS Bag Info如下:
 
