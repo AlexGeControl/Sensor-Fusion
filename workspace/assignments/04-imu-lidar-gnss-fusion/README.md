@@ -79,8 +79,14 @@ This is the solution of Assignment 04 of Sensor Fusion from [深蓝学院](https
 
 6. 为了提高`lidar-IMU-GNSS`配准的精度, 方便`evo`的精度评估:
 
-    * 删除`sync.bag`中的`\tf_static`, `\tf`
-    * 保留`extract.bag`中的`\tf_static`, `\tf`和`/kitti/oxts/imu`, 并将`/kitti/oxts/imu`重命名为`/kitti/oxts/imu/extract`. 重命名时可使用ROS自带脚本:
+    * 删除`sync.bag`中的`/tf_static`, `/tf`
+    * 保留`extract.bag`中的
+        * `/tf_static`;
+        * `/tf`;
+        * `/kitti/oxts/imu`, 并将`/kitti/oxts/imu`重命名为`/kitti/oxts/imu/extract`;
+        * `/kitti/oxts/gps/fix`, 并将`/kitti/oxts/gps/fix`重命名为`/kitti/oxts/gps/fix/extract`;
+        * `/kitti/oxts/gps/vel`, 并将`/kitti/oxts/gps/vel`重命名为`/kitti/oxts/gps/vel/extract`;
+    * 重命名时可使用ROS自带脚本:
         
         ```bash
         rosrun rosbag topic_renamer.py [INPUT_TOPIC] [INPUT_BAG] [OUTPUT_TOPIC] [OUTPUT_BAG] 
@@ -99,8 +105,8 @@ duration:    7:51s (471s)
 start:       Oct 03 2011 20:55:34.93 (1317646534.93)
 end:         Oct 03 2011 21:03:26.01 (1317647006.01)
 size:        24.1 GB
-messages:    192006
-compression: none [18243/18243 chunks]
+messages:    283658
+compression: none [18260/18260 chunks]
 types:       geometry_msgs/TwistStamped [98d34b0043a2093cf9d9345ab6eef12e]
              sensor_msgs/CameraInfo     [c9a58c1b0b154e0e6da7578cb991d214]
              sensor_msgs/Image          [060021388200f6f0f447d0fcd9c64743]
@@ -117,7 +123,9 @@ topics:      /kitti/camera_color_left/camera_info     4544 msgs    : sensor_msgs
              /kitti/camera_gray_right/camera_info     4544 msgs    : sensor_msgs/CameraInfo    
              /kitti/camera_gray_right/image_raw       4544 msgs    : sensor_msgs/Image         
              /kitti/oxts/gps/fix                      4544 msgs    : sensor_msgs/NavSatFix     
+             /kitti/oxts/gps/fix/extract             45826 msgs    : sensor_msgs/NavSatFix     
              /kitti/oxts/gps/vel                      4544 msgs    : geometry_msgs/TwistStamped
+             /kitti/oxts/gps/vel/extract             45826 msgs    : geometry_msgs/TwistStamped
              /kitti/oxts/imu                          4544 msgs    : sensor_msgs/Imu           
              /kitti/oxts/imu/extract                 45826 msgs    : sensor_msgs/Imu           
              /kitti/velo/pointcloud                   4544 msgs    : sensor_msgs/PointCloud2   
@@ -150,7 +158,13 @@ evo_ape kitti ground_truth.txt fused.txt -r full --plot --plot_mode xy
 
 两者的KPI比较参照下表. 
 
-在`2011_10_03_drive_0027_extract`上, 两者的估计性能相近, `IMU-Lidar Fusion`的估计精度略优.
+在`2011_10_03_drive_0027_extract`上, 两者的估计性能相近, `IMU-Lidar Fusion`的
+
+* 估计精度(Standard Deviation)
+
+* 误差的散布度
+
+略优, 相比Lidar Frontend直接估计的里程计有**4%**的提升.
 
 Lidar Only                 |IMU-Lidar Fusion
 :-------------------------:|:-------------------------:
@@ -158,13 +172,13 @@ Lidar Only                 |IMU-Lidar Fusion
 
 |  Algo. |  Lidar Only   |  IMU-Lidar    |
 |:------:|:-------------:|:-------------:|
-|   max  |   1.059857    |    1.035433   |
-|  mean  |   0.228137    |    0.232957   |
-| median |   0.160143    |    0.165522   |
-|   min  |   0.015406    |    0.015572   |
-|  rmse  |   0.284854    |    0.288054   |
-|   sse  |  356.212471   |  364.259559   |
-|   std  |   0.170574    |    0.169428   |	
+|   max  |   1.059857    |    1.014167   |
+|  mean  |   0.228196    |    0.263027   |
+| median |   0.160542    |    0.221769   |
+|   min  |   0.015406    |    0.023357   |
+|  rmse  |   0.284818    |    0.309772   |
+|   sse  |  356.771743   |   422.025509  |
+| **std**| **0.170434**  |  **0.163632** |	
 
 ---
 

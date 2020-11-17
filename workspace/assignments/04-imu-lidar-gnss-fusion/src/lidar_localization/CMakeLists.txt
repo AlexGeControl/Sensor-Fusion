@@ -10,12 +10,23 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   rospy
   std_msgs
-  pcl_ros
   geometry_msgs
+  sensor_msgs
+  nav_msgs
+  pcl_ros
   tf
   eigen_conversions
   message_generation 
   std_srvs
+)
+
+## Generate messages in the 'msg' folder
+add_message_files(
+    FILES
+    # IMU:
+    IMUGNSSMeasurement.msg
+    # lidar:
+    LidarMeasurement.msg
 )
 
 add_service_files(
@@ -29,6 +40,8 @@ add_service_files(
 generate_messages(
    DEPENDENCIES
    std_msgs
+   sensor_msgs
+   nav_msgs
 )
 
 set(ALL_TARGET_LIBRARIES "")
@@ -55,6 +68,10 @@ target_link_libraries(test_frame_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES
 add_executable(data_pretreat_node src/apps/data_pretreat_node.cpp ${ALL_SRCS})
 add_dependencies(data_pretreat_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(data_pretreat_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
+
+add_executable(lidar_preprocess_node src/apps/lidar_preprocess_node.cpp ${ALL_SRCS})
+add_dependencies(lidar_preprocess_node ${catkin_EXPORTED_TARGETS})
+target_link_libraries(lidar_preprocess_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
 
 add_executable(front_end_node src/apps/front_end_node.cpp ${ALL_SRCS})
 add_dependencies(front_end_node ${catkin_EXPORTED_TARGETS})
@@ -95,6 +112,7 @@ target_link_libraries(filtering_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES}
 install(TARGETS 
         test_frame_node
         data_pretreat_node
+        lidar_preprocess_node
         front_end_node
         back_end_node
         loop_closing_node

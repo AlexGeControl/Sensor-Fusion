@@ -76,7 +76,6 @@ bool FilteringFlow::Run() {
                         HasIMUData() && ValidIMUData() && 
                         current_imu_raw_data_.time < current_cloud_data_.time
                     ) {
-                        LOG(INFO) << "Update before Correct..." << std::endl;
                         UpdateLocalization();
                     }
 
@@ -259,7 +258,6 @@ bool FilteringFlow::InitLocalization(void) {
 
 bool FilteringFlow::UpdateLocalization() {
     if ( filtering_ptr_->Update(current_imu_raw_data_) ) {
-        LOG(INFO) << "Update" << std::endl;
         PublishFusionOdom();
         return true;
     }
@@ -276,7 +274,6 @@ bool FilteringFlow::CorrectLocalization() {
     PublishLidarOdom();
 
     if ( is_fusion_succeeded ) {
-        LOG(INFO) << "Correct" << std::endl;
         PublishFusionOdom();
         // add to odometry output for evo evaluation:
         UpdateOdometry();
