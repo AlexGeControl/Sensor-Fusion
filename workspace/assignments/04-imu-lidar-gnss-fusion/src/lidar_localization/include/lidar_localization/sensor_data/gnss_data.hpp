@@ -14,8 +14,8 @@ namespace lidar_localization {
 class GNSSData {
   public:
     double time = 0.0;
-    double longitude = 0.0;
     double latitude = 0.0;
+    double longitude = 0.0;
     double altitude = 0.0;
     double local_E = 0.0;
     double local_N = 0.0;

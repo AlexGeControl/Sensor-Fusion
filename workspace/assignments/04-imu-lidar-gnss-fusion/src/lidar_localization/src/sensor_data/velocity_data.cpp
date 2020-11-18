@@ -80,4 +80,27 @@ void VelocityData::TransformCoordinate(Eigen::Matrix4f transform_matrix) {
     linear_velocity.y = v(1);
     linear_velocity.z = v(2);
 }
+
+void VelocityData::NED2ENU(void) {
+    LinearVelocity linear_velocity_enu;
+
+    linear_velocity_enu.x = +linear_velocity.y;
+    linear_velocity_enu.y = +linear_velocity.x;
+    linear_velocity_enu.z = -linear_velocity.z;
+
+    linear_velocity.x = linear_velocity_enu.x;
+    linear_velocity.y = linear_velocity_enu.y;
+    linear_velocity.z = linear_velocity_enu.z;
+
+    AngularVelocity angular_velocity_enu;
+
+    angular_velocity_enu.x = +angular_velocity.y;
+    angular_velocity_enu.y = +angular_velocity.x;
+    angular_velocity_enu.z = -angular_velocity.z;
+
+    angular_velocity.x = angular_velocity_enu.x;
+    angular_velocity.y = angular_velocity_enu.y;
+    angular_velocity.z = angular_velocity_enu.z;
+}
+
 }

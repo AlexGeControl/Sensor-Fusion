@@ -15,7 +15,7 @@ topic_name:
     gps_pos: /sim/sensor/gps/fix
     gps_vel: /sim/sensor/gps/vel
     # d. reference trajectory:
-    reference_trajectory: /reference_trajectory
+    reference_trajectory: /reference_pose
 # output rosbag path:
 output_path: /workspace/data/gnss_ins_sim/eskf_analysis
 # output name:

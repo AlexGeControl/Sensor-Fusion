@@ -73,6 +73,10 @@ add_executable(lidar_preprocess_node src/apps/lidar_preprocess_node.cpp ${ALL_SR
 add_dependencies(lidar_preprocess_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(lidar_preprocess_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
 
+add_executable(eskf_preprocess_node src/apps/eskf_preprocess_node.cpp ${ALL_SRCS})
+add_dependencies(eskf_preprocess_node ${catkin_EXPORTED_TARGETS})
+target_link_libraries(eskf_preprocess_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
+
 add_executable(front_end_node src/apps/front_end_node.cpp ${ALL_SRCS})
 add_dependencies(front_end_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(front_end_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
@@ -111,8 +115,11 @@ target_link_libraries(filtering_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES}
 ## See http://docs.ros.org/melodic/api/catkin/html/howto/format1/building_executables.html
 install(TARGETS 
         test_frame_node
+
         data_pretreat_node
         lidar_preprocess_node
+        eskf_preprocess_node
+
         front_end_node
         back_end_node
         loop_closing_node

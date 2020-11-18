@@ -22,8 +22,8 @@ from geometry_msgs.msg import TwistStamped
 from nav_msgs.msg import Odometry
 
 
-D2R = math.pi/180.0
-
+D2R = math.pi / 180.0
+R2D = 180.0 / math.pi
 
 def get_init_pose(stamp, motion_def_file):
     """
@@ -47,6 +47,7 @@ def get_init_pose(stamp, motion_def_file):
     init_pose_msg.child_frame_id = '/imu_link'
 
     # a. navigation frame, position:
+    """
     (
         init_pose_msg.pose.pose.position.x, 
         init_pose_msg.pose.pose.position.y, 
@@ -56,6 +57,14 @@ def get_init_pose(stamp, motion_def_file):
             lat*D2R, lon*D2R, alt
         ]
     )
+    """
+    (
+        init_pose_msg.pose.pose.position.x, 
+        init_pose_msg.pose.pose.position.y, 
+        init_pose_msg.pose.pose.position.z
+    ) = [
+        0.0, 0.0, 0.0
+    ]
     # b. navigation frame, orientation
     (
         init_pose_msg.pose.pose.orientation.w, 
@@ -133,7 +142,11 @@ def get_gps_pos_msg(stamp, gps_pos):
         gps_pos_msg.latitude,
         gps_pos_msg.longitude,
         gps_pos_msg.altitude
-    ) = gps_pos
+    ) = (
+        gps_pos[0] * R2D,
+        gps_pos[1] * R2D,
+        gps_pos[2]
+    )
 
     return gps_pos_msg
 
@@ -154,7 +167,7 @@ def get_gps_vel_msg(stamp, gps_vel):
         gps_vel_msg.twist.linear.x,
         gps_vel_msg.twist.linear.y,
         gps_vel_msg.twist.linear.z
-    ) = gps_vel
+    ) = gps_vel 
 
     return gps_vel_msg
 
@@ -176,7 +189,12 @@ def get_pose_msg(stamp, ref_pos, ref_vel, ref_att_quat):
         pose_msg.pose.pose.position.x, 
         pose_msg.pose.pose.position.y, 
         pose_msg.pose.pose.position.z
-    ) = ref_pos
+    ) = (
+        ref_pos[0] * R2D,
+        ref_pos[1] * R2D,
+        ref_pos[2]
+    )
+    
     # b. navigation frame, orientation
     (
         pose_msg.pose.pose.orientation.w, 
@@ -236,12 +254,20 @@ def get_gnss_ins_sim(motion_def_file, fs_imu, fs_gps):
         'mag_hi': np.array([10.0, 10.0, 10.0])*0.0,
         'mag_std': np.array([0.1, 0.1, 0.1])
     }
+    gps_err = {
+        'stdp': np.array([0.0, 0.0, 0.0]),
+        'stdv': np.array([0.0, 0.0, 0.0])
+    }
+    odo_err = {
+        'scale': 1.00,
+        'stdv': 0.0
+    }
     # generate GPS and magnetometer data:
     imu = imu_model.IMU(
         accuracy=imu_err, 
         axis=9, 
-        gps=True,
-        odo=True
+        gps=True, gps_opt=gps_err,
+        odo=True, odo_opt=odo_err
     )
 
     # init simulation:
@@ -249,7 +275,8 @@ def get_gnss_ins_sim(motion_def_file, fs_imu, fs_gps):
         # here sync GPS with other measurements as marker:
         [fs_imu, fs_imu, fs_imu],
         motion_def_file,
-        ref_frame=1,
+        # use NED frame:
+        ref_frame=0,
         imu=imu,
         mode=None,
         env=None,
@@ -298,7 +325,8 @@ def get_gnss_ins_sim(motion_def_file, fs_imu, fs_gps):
     STEP_SIZE = 1.0 / fs_imu
 
     # yield init pose:
-    yield get_init_pose(timestamp_start, motion_def_file)
+    init_pose_msg = get_init_pose(timestamp_start, motion_def_file)
+    yield init_pose_msg
 
     # yield measurements:
     for i, (

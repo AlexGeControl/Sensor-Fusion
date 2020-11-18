@@ -1,0 +1,4 @@
+<launch>
+    <node pkg="rviz"  type="rviz"  name="rviz"  args="-d $(find lidar_localization)/rviz/eskf_analysis.rviz"></node>
+    <node pkg="lidar_localization"  type="eskf_preprocess_node"  name="eskf_preprocess_node"  output="screen"></node>
+</launch>
