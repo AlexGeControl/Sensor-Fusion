@@ -131,7 +131,7 @@ bool Filtering::Correct(
     if (
         kalman_filter_ptr_->Correct(
             imu_data,
-            cloud_data.time, init_pose_.inverse() * cloud_pose
+            cloud_data.time, KalmanFilter::MeasurementType::POSE, init_pose_.inverse() * cloud_pose
         )
     ) {
         kalman_filter_ptr_->GetOdometry(

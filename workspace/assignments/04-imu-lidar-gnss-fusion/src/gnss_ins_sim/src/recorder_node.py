@@ -103,10 +103,10 @@ def get_imu_msg(stamp, gyro, accel):
     imu_msg.header.frame_id = '/imu_link'
 
     # b. set orientation estimation:
+    imu_msg.orientation.w = 1.0
     imu_msg.orientation.x = 0.0
     imu_msg.orientation.y = 0.0
     imu_msg.orientation.z = 0.0
-    imu_msg.orientation.w = 1.0
 
     # c. gyro:
     (

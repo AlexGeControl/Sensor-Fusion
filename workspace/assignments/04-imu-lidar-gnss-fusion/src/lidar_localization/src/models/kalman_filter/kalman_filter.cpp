@@ -81,15 +81,20 @@ KalmanFilter::KalmanFilter(const YAML::Node& node) {
     Q_.block<3, 3>(0, 0) = COV.PROCESS.GYRO*Eigen::Matrix3d::Identity();
     Q_.block<3, 3>(3, 3) = COV.PROCESS.ACCEL*Eigen::Matrix3d::Identity();
     // d. measurement noise:
-    R_.block<3, 3>(0, 0) = COV.MEASUREMENT.POS*Eigen::Matrix3d::Identity();
-    R_.block<3, 3>(3, 3) = COV.MEASUREMENT.ORIENTATION*Eigen::Matrix3d::Identity();
+    RPose_.block<3, 3>(0, 0) = COV.MEASUREMENT.POS*Eigen::Matrix3d::Identity();
+    RPose_.block<3, 3>(3, 3) = COV.MEASUREMENT.ORIENTATION*Eigen::Matrix3d::Identity();
+
+    RPosition_.block<3, 3>(0, 0) = COV.MEASUREMENT.POS*Eigen::Matrix3d::Identity();
     // e. process equation:
     F_.block<3, 3>(  INDEX_ERROR_POS,   INDEX_ERROR_VEL) = Eigen::Matrix3d::Identity();
     F_.block<3, 3>(  INDEX_ERROR_ORI,   INDEX_ERROR_ORI) = Sophus::SO3d::hat(-w_).matrix();
     // f. measurement equation:
-    G_.block<3, 3>(0, INDEX_ERROR_POS) = Eigen::Matrix3d::Identity();
-    G_.block<3, 3>(3, INDEX_ERROR_ORI) = Eigen::Matrix3d::Identity();
-    C_.block<3, 3>(0, 0) = C_.block<3, 3>(3, 3) = Eigen::Matrix3d::Identity();
+    GPose_.block<3, 3>(0, INDEX_ERROR_POS) = Eigen::Matrix3d::Identity();
+    GPose_.block<3, 3>(3, INDEX_ERROR_ORI) = Eigen::Matrix3d::Identity();
+    CPose_.block<3, 3>(0, 0) = CPose_.block<3, 3>(3, 3) = Eigen::Matrix3d::Identity();
+
+    GPosition_.block<3, 3>(0, INDEX_ERROR_POS) = Eigen::Matrix3d::Identity();
+    CPosition_.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
 }
 
 /**
@@ -162,14 +167,13 @@ bool KalmanFilter::Update(const IMUData &imu_data) {
 }
 
 /**
- * @brief  Kalman correction
+ * @brief  Kalman correction, pose measurement
  * @param  T_nb, odometry delta from lidar frontend
  * @return void
  */
 bool KalmanFilter::Correct(
     const IMUData &imu_data,
-    const double &time,
-    const Eigen::Matrix4f &T_nb_lidar
+    const double &time, const MeasurementType &measurement_type, const Eigen::Matrix4f &T_nb
 ) {
     // get time delta:
     double time_delta = time - time_;
@@ -181,33 +185,13 @@ bool KalmanFilter::Correct(
         }
 
         // get observation in navigation frame:
-        Eigen::Matrix4d T_nb_lidar_double = init_pose_ * T_nb_lidar.cast<double>();
+        Eigen::Matrix4d T_nb_double = init_pose_ * T_nb.cast<double>();
 
-        Eigen::Vector3d P_nn_obs = pose_.block<3, 1>(0,3) - T_nb_lidar_double.block<3, 1>(0,3);
-        Eigen::Matrix3d C_nn_obs = pose_.block<3, 3>(0,0) * T_nb_lidar_double.block<3, 3>(0,0).transpose();;
-
-        Y_.block<3, 1>(0, 0) = P_nn_obs;
-        Y_.block<3, 1>(3, 0) = Sophus::SO3d::vee(Eigen::Matrix3d::Identity() - C_nn_obs);
-
-        // perform Kalman correction:
-        MatrixR R = G_*P_*G_.transpose() + C_*R_*C_.transpose();
-        MatrixK K = P_*G_.transpose()*R.inverse();
-
-        P_ = (MatrixP::Identity() - K*G_)*P_;
-        X_ = X_ + K*(Y_ - G_*X_);
+        // correct error estimation:
+        CorrectErrorEstimation(measurement_type, T_nb_double);
 
         // eliminate error:
-        // a. position:
-        pose_.block<3, 1>(0, 3) = pose_.block<3, 1>(0, 3) - X_.block<3, 1>(INDEX_ERROR_POS, 0);
-        // b. velocity:
-        vel_ = vel_ - X_.block<3, 1>(INDEX_ERROR_VEL, 0);
-        // c. orientation:
-        Eigen::Matrix3d C_nn = Sophus::SO3d::exp(X_.block<3, 1>(INDEX_ERROR_ORI, 0)).matrix();
-        pose_.block<3, 3>(0, 0) = C_nn*pose_.block<3, 3>(0, 0);
-        // d. gyro bias:
-        gyro_bias_ += X_.block<3, 1>(INDEX_ERROR_GYRO, 0);
-        // e. accel bias:
-        accl_bias_ += X_.block<3, 1>(INDEX_ERROR_ACCEL, 0);
+        EliminateError();
 
         // reset error state:
         ResetState();
@@ -529,6 +513,86 @@ void KalmanFilter::UpdateErrorEstimation(
     // perform Kalman prediction:
     X_ = F*X_;
     P_ = F*P_*F.transpose() + B*Q_*B.transpose();
+}
+
+/**
+ * @brief  correct error estimation using pose measurement
+ * @param  T_nb, input pose measurement
+ * @return void
+ */
+void KalmanFilter::CorrectErrorEstimationPose(
+    const Eigen::Matrix4d &T_nb
+) {
+    // parse measurement:
+    Eigen::Vector3d P_nn_obs = pose_.block<3, 1>(0,3) - T_nb.block<3, 1>(0,3);
+    Eigen::Matrix3d C_nn_obs = pose_.block<3, 3>(0,0) * T_nb.block<3, 3>(0,0).transpose();;
+
+    YPose_.block<3, 1>(0, 0) = P_nn_obs;
+    YPose_.block<3, 1>(3, 0) = Sophus::SO3d::vee(Eigen::Matrix3d::Identity() - C_nn_obs);
+
+    // build Kalman gain:
+    MatrixRPose R = GPose_*P_*GPose_.transpose() + CPose_*RPose_*CPose_.transpose();
+    MatrixKPose K = P_*GPose_.transpose()*R.inverse();
+
+    // perform Kalman correct:
+    P_ = (MatrixP::Identity() - K*GPose_)*P_;
+    X_ = X_ + K*(YPose_ - GPose_*X_);
+}
+
+/**
+ * @brief  correct error estimation using position measurement
+ * @param  T_nb, input position measurement
+ * @return void
+ */
+void KalmanFilter::CorrectErrorEstimationPosition(
+    const Eigen::Matrix4d &T_nb
+) {
+    // parse measurement:
+    Eigen::Vector3d P_nn_obs = pose_.block<3, 1>(0,3) - T_nb.block<3, 1>(0,3);
+
+    YPosition_.block<3, 1>(0, 0) = P_nn_obs;
+
+    // build Kalman gain:
+    MatrixRPosition R = GPosition_*P_*GPosition_.transpose() + CPosition_*RPosition_*CPosition_.transpose();
+    MatrixKPosition K = P_*GPosition_.transpose()*R.inverse();
+
+    // perform Kalman correct:
+    P_ = (MatrixP::Identity() - K*GPosition_)*P_;
+    X_ = X_ + K*(YPosition_ - GPosition_*X_);
+}
+
+void KalmanFilter::CorrectErrorEstimation(
+    const MeasurementType &measurement_type, const Eigen::Matrix4d &T_nb
+) {
+    switch ( measurement_type ) {
+        case MeasurementType::POSE:
+            CorrectErrorEstimationPose(T_nb);
+            break;
+        case MeasurementType::POSITION:
+            CorrectErrorEstimationPosition(T_nb);
+            break;
+        default:
+            break;
+    }
+}
+
+/**
+ * @brief  eliminate error
+ * @param  void
+ * @return void
+ */
+void KalmanFilter::EliminateError(void) {
+    // a. position:
+    pose_.block<3, 1>(0, 3) = pose_.block<3, 1>(0, 3) - X_.block<3, 1>(INDEX_ERROR_POS, 0);
+    // b. velocity:
+    vel_ = vel_ - X_.block<3, 1>(INDEX_ERROR_VEL, 0);
+    // c. orientation:
+    Eigen::Matrix3d C_nn = Sophus::SO3d::exp(X_.block<3, 1>(INDEX_ERROR_ORI, 0)).matrix();
+    pose_.block<3, 3>(0, 0) = C_nn*pose_.block<3, 3>(0, 0);
+    // d. gyro bias:
+    gyro_bias_ += X_.block<3, 1>(INDEX_ERROR_GYRO, 0);
+    // e. accel bias:
+    accl_bias_ += X_.block<3, 1>(INDEX_ERROR_ACCEL, 0);
 }
 
 /**

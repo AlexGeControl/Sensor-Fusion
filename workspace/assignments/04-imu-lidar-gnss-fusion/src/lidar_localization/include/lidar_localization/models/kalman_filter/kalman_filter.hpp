@@ -20,11 +20,19 @@ namespace lidar_localization {
 
 class KalmanFilter {
 public:
+    enum MeasurementType {
+        POSE = 0,
+        POSITION,
+        NUM_TYPES
+    };
+
     // dimensions:
     static const int DIM_STATE = 15;
     static const int DIM_PROCESS_NOISE = 6;
-    static const int DIM_MEASUREMENT = 6;
-    static const int DIM_MEASUREMENT_NOISE = 6;
+    static const int DIM_MEASUREMENT_POSE = 6;
+    static const int DIM_MEASUREMENT_POSE_NOISE = 6;
+    static const int DIM_MEASUREMENT_POSITION = 3;
+    static const int DIM_MEASUREMENT_POSITION_NOISE = 3;
 
     // indices:
     static const int INDEX_ERROR_POS = 0;
@@ -34,20 +42,25 @@ public:
     static const int INDEX_ERROR_ACCEL = 12;
     
     // state:
-    typedef Eigen::Matrix<double,             DIM_STATE,                     1> VectorX;
-    typedef Eigen::Matrix<double,             DIM_STATE,             DIM_STATE> MatrixP;
+    typedef Eigen::Matrix<double,                      DIM_STATE,                              1> VectorX;
+    typedef Eigen::Matrix<double,                      DIM_STATE,                      DIM_STATE> MatrixP;
     // process equation:
-    typedef Eigen::Matrix<double,             DIM_STATE,             DIM_STATE> MatrixF;
-    typedef Eigen::Matrix<double,             DIM_STATE,     DIM_PROCESS_NOISE> MatrixB;
-    typedef Eigen::Matrix<double,     DIM_PROCESS_NOISE,     DIM_PROCESS_NOISE> MatrixQ;
+    typedef Eigen::Matrix<double,                      DIM_STATE,                      DIM_STATE> MatrixF;
+    typedef Eigen::Matrix<double,                      DIM_STATE,              DIM_PROCESS_NOISE> MatrixB;
+    typedef Eigen::Matrix<double,              DIM_PROCESS_NOISE,              DIM_PROCESS_NOISE> MatrixQ;
     // measurement equation:
-    typedef Eigen::Matrix<double,       DIM_MEASUREMENT,             DIM_STATE> MatrixG;
-    typedef Eigen::Matrix<double,       DIM_MEASUREMENT, DIM_MEASUREMENT_NOISE> MatrixC;
-    typedef Eigen::Matrix<double, DIM_MEASUREMENT_NOISE, DIM_MEASUREMENT_NOISE> MatrixR;
+    typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSE,                      DIM_STATE> MatrixGPose;
+    typedef Eigen::Matrix<double,       DIM_MEASUREMENT_POSITION,                      DIM_STATE> MatrixGPosition;
+    typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSE,     DIM_MEASUREMENT_POSE_NOISE> MatrixCPose;
+    typedef Eigen::Matrix<double,       DIM_MEASUREMENT_POSITION, DIM_MEASUREMENT_POSITION_NOISE> MatrixCPosition;
+    typedef Eigen::Matrix<double,     DIM_MEASUREMENT_POSE_NOISE,     DIM_MEASUREMENT_POSE_NOISE> MatrixRPose;
+    typedef Eigen::Matrix<double, DIM_MEASUREMENT_POSITION_NOISE, DIM_MEASUREMENT_POSITION_NOISE> MatrixRPosition;
     // measurement:
-    typedef Eigen::Matrix<double,       DIM_MEASUREMENT,                     1> VectorY;
+    typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSE,                              1> VectorYPose;
+    typedef Eigen::Matrix<double,       DIM_MEASUREMENT_POSITION,                              1> VectorYPosition;
     // Kalman gain:
-    typedef Eigen::Matrix<double,             DIM_STATE,       DIM_MEASUREMENT> MatrixK;
+    typedef Eigen::Matrix<double,                      DIM_STATE,           DIM_MEASUREMENT_POSE> MatrixKPose;
+    typedef Eigen::Matrix<double,                      DIM_STATE,       DIM_MEASUREMENT_POSITION> MatrixKPosition;
 
     KalmanFilter(const YAML::Node& node);
 
@@ -66,18 +79,23 @@ public:
      * @param  imu_data, input IMU measurements
      * @return true if success false otherwise
      */
-    bool Update(const IMUData &imu_data);
+    bool Update(
+        const IMUData &imu_data
+    );
 
     /**
-     * @brief  Kalman correction
-     * @param  T_nb, odometry delta from lidar frontend
-     * @return void
+     * @brief  Kalman correction, pose measurement
+     * @param  T_nb, pose measurement
+     * @return void                                   
      */
-    bool Correct(const IMUData &imu_data, const double &time, const Eigen::Matrix4f &T_nb_lidar);
+    bool Correct(
+        const IMUData &imu_data, 
+        const double &time, const MeasurementType &measurement_type, const Eigen::Matrix4f &T_nb
+    );
 
     /**
      * @brief  get filter time
-     * @return filter time as double
+     * @return filter time as double    
      */
     double GetTime(void) const { return time_; }
     
@@ -88,6 +106,7 @@ public:
      * @return void
      */
     void GetOdometry(Eigen::Matrix4f &pose, Eigen::Vector3f &vel);
+
 private:
     /**
      * @brief  get unbiased angular velocity in body frame
@@ -194,6 +213,38 @@ private:
      * @return void
      */
     void UpdateErrorEstimation(const IMUData &imu_data);
+
+    /**
+     * @brief  correct error estimation using pose measurement
+     * @param  T_nb, input pose measurement
+     * @return void
+     */
+    void CorrectErrorEstimationPose(const Eigen::Matrix4d &T_nb);
+
+    /**
+     * @brief  correct error estimation using position measurement
+     * @param  T_nb, input position measurement
+     * @return void
+     */
+    void CorrectErrorEstimationPosition(const Eigen::Matrix4d &T_nb);
+
+    /**
+     * @brief  correct error estimation
+     * @param  measurement_type, measurement type
+     * @param  T_nb, input measurement
+     * @return void
+     */
+    void CorrectErrorEstimation(
+        const MeasurementType &measurement_type, const Eigen::Matrix4d &T_nb
+    );
+
+    /**
+     * @brief  eliminate error
+     * @param  void
+     * @return void
+     */
+    void EliminateError(void);
+
     /**
      * @brief  reset filter state
      * @param  void
@@ -223,11 +274,16 @@ private:
     MatrixB B_ = MatrixB::Zero();
     MatrixQ Q_ = MatrixQ::Zero();
 
-    MatrixG G_ = MatrixG::Zero();
-    MatrixC C_ = MatrixC::Zero();
-    MatrixR R_ = MatrixR::Zero();
+    MatrixGPose GPose_ = MatrixGPose::Zero();
+    MatrixGPosition GPosition_ = MatrixGPosition::Zero();
+    MatrixCPose CPose_ = MatrixCPose::Zero();
+    MatrixCPosition CPosition_ = MatrixCPosition::Zero();
+    MatrixRPose RPose_ = MatrixRPose::Zero();
+    MatrixRPosition RPosition_ = MatrixRPosition::Zero();
+
     // measurement:
-    VectorY Y_;
+    VectorYPose YPose_;
+    VectorYPosition YPosition_;
 
     // earth constants:
     Eigen::Vector3d g_;

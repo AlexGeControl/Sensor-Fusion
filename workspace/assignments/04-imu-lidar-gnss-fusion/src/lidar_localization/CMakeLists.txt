@@ -97,6 +97,10 @@ add_executable(filtering_node src/apps/filtering_node.cpp ${ALL_SRCS})
 add_dependencies(filtering_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(filtering_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
 
+add_executable(imu_gnss_filtering_node src/apps/imu_gnss_filtering_node.cpp ${ALL_SRCS})
+add_dependencies(imu_gnss_filtering_node ${catkin_EXPORTED_TARGETS})
+target_link_libraries(imu_gnss_filtering_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
+
 #############
 ## Install ##
 #############
@@ -124,7 +128,9 @@ install(TARGETS
         back_end_node
         loop_closing_node
         viewer_node
+
         filtering_node
+        imu_gnss_filtering_node
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

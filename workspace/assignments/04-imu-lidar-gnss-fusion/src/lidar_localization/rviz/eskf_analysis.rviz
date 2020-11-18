@@ -8,8 +8,8 @@ Panels:
         - /Status1
         - /trajectory1
         - /trajectory1/ref_odom1/Shape1
-        - /trajectory1/gnss_odom1
         - /trajectory1/gnss_odom1/Shape1
+        - /trajectory1/fused_odom1/Shape1
       Splitter Ratio: 0.5
     Tree Height: 356
   - Class: rviz/Selection
@@ -126,6 +126,40 @@ Visualization Manager:
           Topic: /synced_gnss_pose
           Unreliable: false
           Value: true
+        - Angle Tolerance: 0.10000000149011612
+          Class: rviz/Odometry
+          Covariance:
+            Orientation:
+              Alpha: 0.5
+              Color: 255; 255; 127
+              Color Style: Unique
+              Frame: Local
+              Offset: 1
+              Scale: 1
+              Value: true
+            Position:
+              Alpha: 0.30000001192092896
+              Color: 204; 51; 204
+              Scale: 1
+              Value: true
+            Value: true
+          Enabled: true
+          Keep: 0
+          Name: fused_odom
+          Position Tolerance: 0.10000000149011612
+          Shape:
+            Alpha: 0.5
+            Axes Length: 1
+            Axes Radius: 0.10000000149011612
+            Color: 255; 25; 0
+            Head Length: 1
+            Head Radius: 1
+            Shaft Length: 1
+            Shaft Radius: 0.30000001192092896
+            Value: Arrow
+          Topic: /fused_pose
+          Unreliable: false
+          Value: true
       Enabled: true
       Name: trajectory
     - Class: rviz/TF
@@ -206,5 +240,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1235
-  X: -1
-  Y: -22
+  X: 0
+  Y: 0
