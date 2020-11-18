@@ -199,8 +199,42 @@ Lidar Only                 |IMU-Lidar Fusion
 
 #### ANS
 
+##### Measurement Model Derivation
+
 组合导航(GNSS + IMU)的滤波模型参考 [here](doc/derivations).
 
+##### Data Pre-processing
 
-##### 可观测性与可观测度的分析
+为了简化算法的比较与分析, 首先重新实现`GNSS-INS-Sim ROS Wrapper Package`, 将`GNSS-INS-Sim`的输出转化为与`KITTI Road Test Data`兼容的格式. 以加减速场景的测试数据为例, 得到的ROS Bag如下. 其中`/init_pose`为起始点, `/reference_pose`为`Groud Truth Trajectory`.
 
+```bash
+$ rosbag info acc.bag
+
+path:        acc.bag
+version:     2.0
+duration:    40.0s
+start:       Nov 18 2020 15:15:21.78 (1605683721.78)
+end:         Nov 18 2020 15:16:01.77 (1605683761.77)
+size:        5.6 MB
+messages:    16001
+compression: none [8/8 chunks]
+types:       geometry_msgs/TwistStamped [98d34b0043a2093cf9d9345ab6eef12e]
+             nav_msgs/Odometry          [cd5e73d190d741a2f92e81eda573aca7]
+             sensor_msgs/Imu            [6a62c6daae103f4ff57a132d6f95cec2]
+             sensor_msgs/NavSatFix      [2d3a8cd499b9b4a0249fb98fd05cfa48]
+topics:      /init_pose               1 msg     : nav_msgs/Odometry         
+             /reference_pose       4000 msgs    : nav_msgs/Odometry         
+             /sim/sensor/gps/fix   4000 msgs    : sensor_msgs/NavSatFix     
+             /sim/sensor/gps/vel   4000 msgs    : geometry_msgs/TwistStamped
+             /sim/sensor/imu       4000 msgs    : sensor_msgs/Imu
+```
+
+同时增加新的数据预处理节点`eskf_preprocess_node` [here](src/lidar_localization/src/apps/eskf_preprocess_node.cpp), 完成:
+
+* `LLA`位置向`ENU`系位置的转换.
+
+* `NED`系速度向`ENU`系速度的转换.
+
+最后, 将`Observability Analysis`分析的逻辑集成至`FilteringFlow`. 至此, 所有准备工作均已完成.
+
+##### Result & Analysis
