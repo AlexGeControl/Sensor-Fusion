@@ -1,0 +1,22 @@
+# motion def:
+motion_file: turning.csv
+# IMU params:
+imu: 1
+# sample frequency of simulated GNSS/IMU data:
+sample_frequency:
+    imu: 100.0
+    gps: 10.0
+# topic name:
+topic_name: 
+    init_pose: /init_pose
+    # a. IMU:
+    imu: /sim/sensor/imu
+    # b. GNSS:
+    gps_pos: /sim/sensor/gps/fix
+    gps_vel: /sim/sensor/gps/vel
+    # d. reference trajectory:
+    reference_trajectory: /reference_trajectory
+# output rosbag path:
+output_path: /workspace/data/gnss_ins_sim/eskf_analysis
+# output name:
+output_name: turning.bag

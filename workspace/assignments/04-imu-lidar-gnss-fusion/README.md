@@ -79,7 +79,7 @@ This is the solution of Assignment 04 of Sensor Fusion from [深蓝学院](https
         imu.angular_velocity.z = oxts.packet.wz
         bag.write(topic, imu, t=imu.header.stamp)
     ```
-    
+
 5. 然后运行`kitti2bag`, 产生用于`LIO/VIO Filtering/Graph Optimization`的ROS Bag
 
 6. 为了提高`lidar-IMU-GNSS`配准的精度, 方便`evo`的精度评估:
@@ -198,3 +198,9 @@ Lidar Only                 |IMU-Lidar Fusion
 * 统计Kalman滤波中各状态量的收敛速度和收敛精度, 并与可观测度分析的结果汇总比较.
 
 #### ANS
+
+组合导航(GNSS + IMU)的滤波模型参考 [here](doc/derivations).
+
+
+##### 可观测性与可观测度的分析
+
