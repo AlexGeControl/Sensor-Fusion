@@ -25,7 +25,11 @@ This is the solution of Assignment 04 of Sensor Fusion from [深蓝学院](https
 为了产生`未降频的IMU测量值`:
 
 1. 下载`extract.zip`
-2. 解压后, 将其中的`oxts`替换`sync`中的`oxts`
+
+2. 解压后
+    * 将`extract.zip`中的`oxts`重命名为`oxts_extract`, 拷贝至`sync`的文件目录下
+    * 将`sync`中的`oxts`重命名为`oxts_sync`
+
 3. 修复`extract oxts`测量值的`timestamp`异常. 原始`timestamp`差分的统计描述如下:
 
     ```bash
@@ -75,6 +79,7 @@ This is the solution of Assignment 04 of Sensor Fusion from [深蓝学院](https
         imu.angular_velocity.z = oxts.packet.wz
         bag.write(topic, imu, t=imu.header.stamp)
     ```
+    
 5. 然后运行`kitti2bag`, 产生用于`LIO/VIO Filtering/Graph Optimization`的ROS Bag
 
 6. 为了提高`lidar-IMU-GNSS`配准的精度, 方便`evo`的精度评估:
