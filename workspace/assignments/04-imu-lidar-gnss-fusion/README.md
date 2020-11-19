@@ -235,6 +235,12 @@ topics:      /init_pose               1 msg     : nav_msgs/Odometry
 
 * `NED`系速度向`ENU`系速度的转换.
 
-最后, 将`Observability Analysis`分析的逻辑集成至`FilteringFlow`. 至此, 所有准备工作均已完成.
+最后, 将`Observability Analysis`分析的逻辑集成至`IMUGNSSFilteringFlow`:
+
+* 首先重构`Kalman Filter`[here](src/lidar_localization/include/lidar_localization/models/kalman_filter/kalman_filter.hpp#L23),  使ESKF可支持GNSS观测值, ESKF可产生融合后的轨迹
+
+    <img src="doc/images/02-ROS-test-framework.png" alt="ROS IMU-GNSS Fusion for Localization" width="100%">
+
+* 然后在`Kalman Filter`中, 增加`可观测性`以及`可观测度`分析的模块, 并将所得数据写至可持续性存储, 方便后续分析.
 
 ##### Result & Analysis
