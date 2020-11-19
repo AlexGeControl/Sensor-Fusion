@@ -258,6 +258,9 @@ topics:      /init_pose               1 msg     : nav_msgs/Odometry
         svd.matrixU().transpose()
     )*Y;
     ```
+* 将不同时刻采样得到的`奇异值`以及状态的`可观测度`, 以CSV格式写入`可持续性存储`
+
+* 使用Python工具链, 分析系统的`可观测性`与`可观测度`
 
 针对四种典型运动模式的`可观测性`与`可观测度`分析结果如下:
 
