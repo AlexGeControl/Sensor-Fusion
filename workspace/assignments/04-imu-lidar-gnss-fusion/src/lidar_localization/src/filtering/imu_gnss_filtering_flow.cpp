@@ -99,7 +99,21 @@ bool IMUGNSSFilteringFlow::SaveOdometry(void) {
     for (size_t i = 0; i < trajectory.N; ++i) {
         SavePose(trajectory.fused_.at(i), fused_odom_ofs);
         SavePose(trajectory.gnss_.at(i), gnss_odom_ofs);
-        SavePose(trajectory.ref_.at(i), ref_odom_ofs);
+
+        // sync ref pose with gnss measurement:
+        while (
+            !ref_pose_data_buff_.empty() && 
+            (ref_pose_data_buff_.front().time - trajectory.time_.at(i) <= -0.005)
+        ) {
+            ref_pose_data_buff_.pop_front();
+        }
+    
+        if ( ref_pose_data_buff_.empty() ) {
+            break;
+        }
+        current_ref_pose_data_ = ref_pose_data_buff_.front();
+        
+        SavePose(current_ref_pose_data_.pose, ref_odom_ofs);
     }
 
     return true;
@@ -205,7 +219,7 @@ bool IMUGNSSFilteringFlow::CorrectLocalization() {
         PublishFusionOdom();
 
         // add to odometry output for evo evaluation:
-        UpdateOdometry();
+        UpdateOdometry(current_gnss_data_.time);
         
         LOG(INFO) << "Correct" << std::endl;
 
@@ -227,25 +241,11 @@ bool IMUGNSSFilteringFlow::PublishFusionOdom() {
     return true;
 }
 
-bool IMUGNSSFilteringFlow::UpdateOdometry(void) {
-    /*
-    // sync ref pose with gnss measurement:
-    while (
-        !ref_pose_data_buff_.empty() && 
-        (ref_pose_data_buff_.front().time - current_gnss_data_.time <= -0.005)
-    ) {
-        ref_pose_data_buff_.pop_front();
-    }
-    
-    if ( ref_pose_data_buff_.empty() ) {
-        return false;
-    }
-    
-    current_ref_pose_data_ = ref_pose_data_buff_.front();
-    */
+bool IMUGNSSFilteringFlow::UpdateOdometry(const double &time) {
+    trajectory.time_.push_back(time);
+
     trajectory.fused_.push_back(fused_pose_);
     trajectory.gnss_.push_back(current_gnss_data_.pose);
-    trajectory.ref_.push_back(current_ref_pose_data_.pose);
 
     ++trajectory.N;
 

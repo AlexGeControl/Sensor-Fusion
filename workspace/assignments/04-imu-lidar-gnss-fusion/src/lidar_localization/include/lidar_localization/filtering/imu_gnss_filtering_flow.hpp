@@ -57,7 +57,7 @@ class IMUGNSSFilteringFlow {
 
     bool PublishFusionOdom();
 
-    bool UpdateOdometry();
+    bool UpdateOdometry(const double &time);
     /**
      * @brief  save pose in KITTI format for evo evaluation
      * @param  pose, input pose
@@ -102,6 +102,7 @@ class IMUGNSSFilteringFlow {
     struct {
       size_t N = 0;
 
+      std::deque<double> time_;
       std::deque<Eigen::Matrix4f> fused_;
       std::deque<Eigen::Matrix4f> gnss_;
       std::deque<Eigen::Matrix4f> ref_;

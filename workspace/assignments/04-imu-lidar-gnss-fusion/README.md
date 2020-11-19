@@ -251,8 +251,8 @@ IMU-GNSS ESKF, Acc         |IMU-GNSS ESKF, Turning
 
 | Scenario |  **Static**  | **Const. Velocity** |  **Turning** | **Acc & Deacc** |
 |:--------:|:------------:|:-------------------:|:------------:|:---------------:|
-|   GNSS   |   1.687825   |       1.687825      |   1.687825   |     1.687825    |
-| IMU-GNSS | **0.566759** |     **0.566759**    | **0.566759** |   **0.566759**  |
+|   GNSS   |   1.058485   |       1.110988      |   1.087577   |     1.070520    |
+| IMU-GNSS | **0.294847** |     **0.422899**    | **0.681078** |   **0.336837**  |
 
 Static, GNSS Only          |Static, IMU-GNSS
 :-------------------------:|:-------------------------:
@@ -260,15 +260,15 @@ Static, GNSS Only          |Static, IMU-GNSS
 
 Const. Velocity, GNSS Only |Const. Velocity, IMU-GNSS
 :-------------------------:|:-------------------------:
-![Const. Velocity, GNSS Only](doc/images/02-evo-static--gnss-only.png)  |  ![Const. Velocity IMU-GNSS Fusion](doc/images/02-evo-static--imu-gnss.png)
+![Const. Velocity, GNSS Only](doc/images/02-evo-const-velocity--gnss-only.png)  |  ![Const. Velocity IMU-GNSS Fusion](doc/images/02-evo-const-velocity--imu-gnss.png)
 
 Turning, GNSS Only         |Turning, IMU-GNSS
 :-------------------------:|:-------------------------:
-![Turning, GNSS Only](doc/images/02-evo-static--gnss-only.png)  |  ![Turning, IMU-GNSS Fusion](doc/images/02-evo-static--imu-gnss.png)
+![Turning, GNSS Only](doc/images/02-evo-turning--gnss-only.png)  |  ![Turning, IMU-GNSS Fusion](doc/images/02-evo-turning--imu-gnss.png)
 
 Acc & Deacc, GNSS Only     |Acc & Deacc, IMU-GNSS
 :-------------------------:|:-------------------------:
-![Acc & Deacc, GNSS Only](doc/images/02-evo-static--gnss-only.png)  |  ![Acc & Deacc, IMU-GNSS Fusion](doc/images/02-evo-static--imu-gnss.png)
+![Acc & Deacc, GNSS Only](doc/images/02-evo-acc--gnss-only.png)  |  ![Acc & Deacc, IMU-GNSS Fusion](doc/images/02-evo-acc--imu-gnss.png)
 
 
 `可观测性`和`可观测度`的分析流程如下:
