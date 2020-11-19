@@ -42,7 +42,10 @@ int main(int argc, char *argv[]) {
         imu_gnss_filtering_flow_ptr->Run();
 
         // save odometry estimations for evo evaluation:
-        if ( _need_save_odometry && imu_gnss_filtering_flow_ptr->SaveOdometry()) {
+        if ( _need_save_odometry && 
+             imu_gnss_filtering_flow_ptr->SaveOdometry() && 
+             imu_gnss_filtering_flow_ptr->SaveObservabilityAnalysis()
+        ) {
             _need_save_odometry = false;
         }
 

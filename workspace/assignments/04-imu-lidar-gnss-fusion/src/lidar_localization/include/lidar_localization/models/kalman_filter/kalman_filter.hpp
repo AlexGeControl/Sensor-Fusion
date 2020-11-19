@@ -62,6 +62,10 @@ public:
     typedef Eigen::Matrix<double,                      DIM_STATE,           DIM_MEASUREMENT_POSE> MatrixKPose;
     typedef Eigen::Matrix<double,                      DIM_STATE,       DIM_MEASUREMENT_POSITION> MatrixKPosition;
 
+    // state observality matrix:
+    typedef Eigen::Matrix<double,     DIM_STATE*DIM_MEASUREMENT_POSE, DIM_STATE> MatrixSOMPose;
+    typedef Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSITION, DIM_STATE> MatrixSOMPosition;
+
     KalmanFilter(const YAML::Node& node);
 
     /**
@@ -106,6 +110,26 @@ public:
      * @return void
      */
     void GetOdometry(Eigen::Matrix4f &pose, Eigen::Vector3f &vel);
+
+    /**
+     * @brief  update observability analysis
+     * @param  time, measurement time
+     * @param  measurement_type, measurement type
+     * @return void
+     */
+    void UpdateObservabilityAnalysis(
+        const double &time,
+        const MeasurementType &measurement_type
+    );
+
+    /**
+     * @brief  save observability analysis to persistent storage
+     * @param  measurement_type, measurement type
+     * @return void
+     */
+    void SaveObservabilityAnalysis(
+        const MeasurementType &measurement_type
+    );
 
 private:
     /**
@@ -252,6 +276,24 @@ private:
      */
     void ResetState(void);
 
+    /**
+     * @brief  update observability analysis for pose measurement
+     * @param  void
+     * @return void
+     */
+    void UpdateObservabilityAnalysisPose(
+        const double &time, std::vector<double> &record
+    );
+
+    /**
+     * @brief  update observability analysis for position measurement
+     * @param  void
+     * @return void
+     */
+    void UpdateObservabilityAnalysisPosition(
+        const double &time, std::vector<double> &record
+    );
+
     // data buff:
     std::deque<IMUData> imu_data_buff_;
 
@@ -281,6 +323,9 @@ private:
     MatrixRPose RPose_ = MatrixRPose::Zero();
     MatrixRPosition RPosition_ = MatrixRPosition::Zero();
 
+    MatrixSOMPose SOMPose_ = MatrixSOMPose::Zero();
+    MatrixSOMPosition SOMPosition_ = MatrixSOMPosition::Zero();
+
     // measurement:
     VectorYPose YPose_;
     VectorYPosition YPosition_;
@@ -288,6 +333,12 @@ private:
     // earth constants:
     Eigen::Vector3d g_;
     Eigen::Vector3d w_;
+
+    // observability analysis:
+    struct {
+        std::vector<std::vector<double>> pose_;
+        std::vector<std::vector<double>> position_;
+    } observability;
 
     // hyper-params:
     // a. earth constants:

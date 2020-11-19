@@ -53,6 +53,8 @@ bool IMUGNSSFiltering::Correct(
     const IMUData &imu_data,
     const PoseData &gnss_pose_data
 ) {
+    static int count = 0;
+
     if (
         kalman_filter_ptr_->Correct(
             imu_data,
@@ -63,6 +65,19 @@ bool IMUGNSSFiltering::Correct(
         kalman_filter_ptr_->GetOdometry(
             current_pose_, current_vel_
         );
+        
+        // downsample for observability analysis:
+        if ( 0 == (++count % 10) ) {
+            // reset downsample counter:
+            count = 0;
+
+            // perform observability analysis:
+            kalman_filter_ptr_->UpdateObservabilityAnalysis(
+                gnss_pose_data.time,
+                KalmanFilter::MeasurementType::POSITION
+            );
+        }
+        
         return true;
     }
 
@@ -72,6 +87,12 @@ bool IMUGNSSFiltering::Correct(
 void IMUGNSSFiltering::GetOdometry(Eigen::Matrix4f &pose, Eigen::Vector3f &vel) {
     pose = init_pose_ * current_pose_;
     vel = init_pose_.block<3, 3>(0, 0) * current_vel_;
+}
+
+void IMUGNSSFiltering::SaveObservabilityAnalysis(void) {
+    kalman_filter_ptr_->SaveObservabilityAnalysis(
+        KalmanFilter::MeasurementType::POSITION
+    );
 }
 
 bool IMUGNSSFiltering::InitWithConfig(void) {

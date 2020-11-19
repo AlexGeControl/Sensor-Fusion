@@ -43,7 +43,8 @@ class IMUGNSSFiltering {
     Eigen::Matrix4f GetPose(void) { return current_pose_; }
     Eigen::Vector3f GetVel(void) { return current_vel_; }
     void GetOdometry(Eigen::Matrix4f &pose, Eigen::Vector3f &vel);
-
+    void SaveObservabilityAnalysis(void);
+    
   private:
     bool InitWithConfig(void);
     bool InitFusion(const YAML::Node& config_node);

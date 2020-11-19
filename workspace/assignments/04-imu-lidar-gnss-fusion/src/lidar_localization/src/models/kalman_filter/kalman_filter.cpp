@@ -13,7 +13,14 @@
 // use sophus to handle so3 hat & SO3 log operations:
 #include <sophus/so3.hpp>
 
+// SVD for observability analysis:
+#include <Eigen/SVD>
+
 #include "lidar_localization/models/kalman_filter/kalman_filter.hpp"
+
+#include "lidar_localization/global_defination/global_defination.h"
+
+#include "lidar_localization/tools/CSVWriter.hpp"
 
 #include "glog/logging.h"
 
@@ -95,6 +102,10 @@ KalmanFilter::KalmanFilter(const YAML::Node& node) {
 
     GPosition_.block<3, 3>(0, INDEX_ERROR_POS) = Eigen::Matrix3d::Identity();
     CPosition_.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
+
+    // init soms:
+    SOMPose_.block<DIM_MEASUREMENT_POSE, DIM_STATE>(0, 0) = GPose_;
+    SOMPosition_.block<DIM_MEASUREMENT_POSITION, DIM_STATE>(0, 0) = GPosition_;
 }
 
 /**
@@ -610,6 +621,129 @@ void KalmanFilter::ResetState(void) {
     P_.block<3, 3>(  INDEX_ERROR_ORI,   INDEX_ERROR_ORI) = COV.PRIOR.ORIENTATION*Eigen::Matrix3d::Identity();
     P_.block<3, 3>( INDEX_ERROR_GYRO,  INDEX_ERROR_GYRO) = COV.PRIOR.EPSILON*Eigen::Matrix3d::Identity();
     P_.block<3, 3>(INDEX_ERROR_ACCEL, INDEX_ERROR_ACCEL) = COV.PRIOR.DELTA*Eigen::Matrix3d::Identity();
+}
+
+/**
+ * @brief  update observability analysis for pose measurement
+ * @param  void
+ * @return void
+ */
+void KalmanFilter::UpdateObservabilityAnalysisPose(
+    const double &time, std::vector<double> &record
+) {
+    ;
+}
+
+/**
+ * @brief  update observability analysis for position measurement
+ * @param  void
+ * @return void
+ */
+void KalmanFilter::UpdateObservabilityAnalysisPosition(
+    const double &time, std::vector<double> &record
+) {
+    // build observability matrix for position measurement:
+    for (int i = 1; i < DIM_STATE; ++i) {
+        SOMPosition_.block<DIM_MEASUREMENT_POSITION, DIM_STATE>(i*DIM_MEASUREMENT_POSITION, 0) = (
+            SOMPosition_.block<DIM_MEASUREMENT_POSITION, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSITION, 0) * F_
+        );
+    }
+
+    // perform SVD analysis:
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(SOMPosition_, Eigen::ComputeThinU | Eigen::ComputeThinV);
+
+    // record timestamp:
+    record.push_back(time);
+
+    // record singular values:
+    for (int i = 0; i < DIM_STATE; ++i) {
+        record.push_back(svd.singularValues()(i, 0));
+    }
+
+    // record degree of observability:
+    Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSITION, 1> Y = COV.MEASUREMENT.POS*Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSITION, 1>::Ones();
+    VectorX X = (
+        svd.matrixV()*
+        svd.singularValues().asDiagonal().inverse()*
+        svd.matrixU().transpose()
+    )*Y;
+    for (int i = 0; i < DIM_STATE; ++i) {
+        record.push_back(X(i, 0));
+    }
+}
+
+/**
+ * @brief  update observability analysis
+ * @param  measurement_type, measurement type
+ * @return void
+ */
+void KalmanFilter::UpdateObservabilityAnalysis(
+    const double &time,
+    const MeasurementType &measurement_type
+) {
+    // init record:
+    std::vector<double> record;
+
+    switch ( measurement_type ) {
+        case MeasurementType::POSE:
+            UpdateObservabilityAnalysisPose(time, record);
+            observability.pose_.push_back(record);
+            break;
+        case MeasurementType::POSITION:
+            UpdateObservabilityAnalysisPosition(time, record);
+            observability.position_.push_back(record);
+            break;
+        default:
+            break;
+    }
+}
+
+void KalmanFilter::SaveObservabilityAnalysis(
+    const MeasurementType &measurement_type
+) {
+    std::vector<std::vector<double>> *data = nullptr;
+    std::string type;
+
+    switch ( measurement_type ) {
+        case MeasurementType::POSE:
+            data = &(observability.pose_);
+            type = std::string("pose");
+            break;
+        case MeasurementType::POSITION:
+            data = &(observability.position_);
+            type = std::string("position");
+            break;
+        default:
+            break;
+    }
+
+    // init:
+    CSVWriter csv(",");
+    csv.enableAutoNewRow(1 + 2*DIM_STATE);
+
+    // a. write header:
+    csv << "T";
+    for (int i = 0; i < DIM_STATE; ++i) {
+        csv << ("sv" + std::to_string(i + 1)); 
+    }
+    for (int i = 0; i < DIM_STATE; ++i) {
+        csv << ("doo" + std::to_string(i + 1)); 
+    }
+
+    // b. write contents:
+    for (const auto &record: *data) {
+        // cast timestamp to int:
+        csv << static_cast<int>(record.at(0));
+
+        for (size_t i = 1; i < record.size(); ++i) {
+            csv << record.at(i);
+        }    
+    }
+
+    // save to persistent storage:
+    csv.writeToFile(
+        WORK_SPACE_PATH + "/slam_data/observability/" + type + ".csv"
+    );
 }
 
 } // namespace lidar_localization

@@ -105,6 +105,12 @@ bool IMUGNSSFilteringFlow::SaveOdometry(void) {
     return true;
 }
 
+bool IMUGNSSFilteringFlow::SaveObservabilityAnalysis(void) {
+    filtering_ptr_->SaveObservabilityAnalysis();
+
+    return true;
+}
+
 bool IMUGNSSFilteringFlow::ReadData() {
     //
     // pipe synced IMU-GNSS measurements into buffer:

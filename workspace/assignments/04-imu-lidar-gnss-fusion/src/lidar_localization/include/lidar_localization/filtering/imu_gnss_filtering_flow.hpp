@@ -31,6 +31,7 @@ class IMUGNSSFilteringFlow {
     bool Run();
     // save odometry for evo evaluation:
     bool SaveOdometry(void);
+    bool SaveObservabilityAnalysis(void);
 
   private:
     bool ReadData();
