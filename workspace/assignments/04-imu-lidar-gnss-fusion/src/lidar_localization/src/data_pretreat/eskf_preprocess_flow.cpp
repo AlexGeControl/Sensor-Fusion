@@ -133,8 +133,8 @@ bool ESKFPreprocessFlow::TransformData() {
 
     current_gnss_data_.UpdateXYZ();
     
-    gnss_pose_(0,3) = current_gnss_data_.local_E;
-    gnss_pose_(1,3) = current_gnss_data_.local_N;
+    gnss_pose_(0,3) = current_gnss_data_.local_N;
+    gnss_pose_(1,3) = current_gnss_data_.local_E;
     gnss_pose_(2,3) = current_gnss_data_.local_U;
 
     // b. transform velocity measurement from NED to ENU:
@@ -149,8 +149,8 @@ bool ESKFPreprocessFlow::TransformData() {
 
     ref_position.UpdateXYZ();
 
-    current_ref_pose_data_.pose(0,3) = ref_position.local_E;
-    current_ref_pose_data_.pose(1,3) = ref_position.local_N;
+    current_ref_pose_data_.pose(0,3) = ref_position.local_N;
+    current_ref_pose_data_.pose(1,3) = ref_position.local_E;
     current_ref_pose_data_.pose(2,3) = ref_position.local_U;
 
     return true;

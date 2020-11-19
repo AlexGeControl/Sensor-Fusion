@@ -66,7 +66,7 @@ bool IMUGNSSFilteringFlow::Run() {
                     }
                 }
 
-                // CorrectLocalization();
+                CorrectLocalization();
             }
            
             if ( HasIMUData() && ValidIMUData() ) {
@@ -183,17 +183,18 @@ bool IMUGNSSFilteringFlow::UpdateLocalization() {
 bool IMUGNSSFilteringFlow::CorrectLocalization() {
     static int count = 0;
 
-    if ( 0 != (++count % 10) ) {
-        return true;
-    }
-    count = 0;
-
     if ( 
+        // downsample GNSS measurement:
+        0 == (++count % 10) && 
+        // successful correct:
         filtering_ptr_->Correct(
             current_imu_data_, 
             current_gnss_data_
         ) 
     ) {
+        // reset downsample counter:
+        count = 0;
+
         // publish new odom estimation:
         PublishFusionOdom();
 

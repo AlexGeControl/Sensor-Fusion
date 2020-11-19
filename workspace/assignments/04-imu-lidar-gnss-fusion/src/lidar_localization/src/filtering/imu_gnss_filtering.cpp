@@ -53,12 +53,11 @@ bool IMUGNSSFiltering::Correct(
     const IMUData &imu_data,
     const PoseData &gnss_pose_data
 ) {
-    return true;
-    
     if (
         kalman_filter_ptr_->Correct(
             imu_data,
-            gnss_pose_data.time, KalmanFilter::MeasurementType::POSITION, init_pose_.inverse() * gnss_pose_data.pose
+            gnss_pose_data.time, 
+            KalmanFilter::MeasurementType::POSITION, init_pose_.inverse() * gnss_pose_data.pose
         )
     ) {
         kalman_filter_ptr_->GetOdometry(

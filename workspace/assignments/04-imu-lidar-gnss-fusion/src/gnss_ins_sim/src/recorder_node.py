@@ -21,9 +21,111 @@ from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import TwistStamped
 from nav_msgs.msg import Odometry
 
-
 D2R = math.pi / 180.0
 R2D = 180.0 / math.pi
+
+config = {
+    'imu': {
+        'no_error': {
+            # 1. gyro:
+            # a. random noise:
+            # gyro angle random walk, deg/rt-hr
+            'gyro_arw': np.array([0.00, 0.00, 0.00]) * D2R/60,
+            # gyro bias instability, deg/hr
+            'gyro_b_stability': np.array([0.00, 0.0, 0.0]) * D2R/3600.0,
+            # gyro bias isntability correlation time, sec
+            #'gyro_b_corr': np.array([100.0, 100.0, 100.0]),
+            # b. deterministic error:
+            'gyro_b': np.array([0.00, 0.00, 0.00]),
+            'gyro_k': np.array([1.00, 1.00, 1.00]),
+            'gyro_s': np.array([0.00, 0.00, 0.00, 0.00, 0.00, 0.00]),
+            # 2. accel:
+            # a. random noise:
+            # accel velocity random walk, m/s/rt-hr
+            'accel_vrw': np.array([0.00, 0.00, 0.00]) / 60,
+            # accel bias instability, m/s2
+            'accel_b_stability': np.array([0.00, 0.00, 0.00]),
+            # accel bias isntability correlation time, sec
+            #'accel_b_corr': np.array([100.0, 100.0, 100.0]),
+            # b. deterministic error:
+            'accel_b': np.array([0.00, 0.00, 0.00]),
+            'accel_k': np.array([1.00, 1.00, 1.00]),
+            'accel_s': np.array([0.00, 0.00, 0.00, 0.00, 0.00, 0.00]),
+        },
+        'high_accuracy': {
+            # 1. gyro:
+            # a. random noise:
+            # gyro angle random walk, deg/rt-hr
+            'gyro_arw': np.array([2.0e-3, 2.0e-3, 2.0e-3]) * D2R/60,
+            # gyro bias instability, deg/hr
+            'gyro_b_stability': np.array([0.1, 0.1, 0.1]) * D2R/3600.0,
+            # gyro bias isntability correlation time, sec
+            'gyro_b_corr': np.array([100.0, 100.0, 100.0]),
+            # b. deterministic error:
+            'gyro_b': np.array([0.0, 0.0, 0.0]) * D2R,
+            'gyro_k': np.array([1.00, 1.00, 1.00]),
+            'gyro_s': np.array([0.00, 0.00, 0.00, 0.00, 0.00, 0.00]),
+            # 2. accel:
+            # a. random noise:
+            # accel velocity random walk, m/s/rt-hr
+            'accel_vrw': np.array([2.5e-5, 2.5e-5, 2.5e-5]) / 60,
+            # accel bias instability, m/s2
+            'accel_b_stability': np.array([3.6e-6, 3.6e-6, 3.6e-6]),
+            # accel bias isntability correlation time, sec
+            'accel_b_corr': np.array([100.0, 100.0, 100.0]),
+            # b. deterministic error:
+            'accel_b': np.array([0.0e-3, 0.0e-3, 0.0e-3]),
+            'accel_k': np.array([1.00, 1.00, 1.00]),
+            'accel_s': np.array([0.00, 0.00, 0.00, 0.00, 0.00, 0.00]),
+        }
+    },
+    'mag': {
+        'no_error': {
+            'mag_si': np.eye(3) + np.random.randn(3, 3)*0.0,
+            'mag_hi': np.array([10.0, 10.0, 10.0])*0.0,
+            'mag_std': np.array([0.00, 0.00, 0.00])
+        },
+        'high_accuracy': {
+            'mag_si': np.eye(3) + np.random.randn(3, 3)*0.0,
+            'mag_hi': np.array([10.0, 10.0, 10.0])*0.0,
+            'mag_std': np.array([0.001, 0.001, 0.001])
+        },
+        'mid_accuracy': {
+            'mag_si': np.eye(3) + np.random.randn(3, 3)*0.0,
+            'mag_hi': np.array([10.0, 10.0, 10.0])*0.0,
+            'mag_std': np.array([0.01, 0.01, 0.01])
+        },
+        'low_accuracy': {
+            'mag_si': np.eye(3) + np.random.randn(3, 3)*0.0, 
+            'mag_hi': np.array([10.0, 10.0, 10.0])*0.0,
+            'mag_std': np.array([0.1, 0.1, 0.1])
+        }
+    },
+    'gps': {
+        'no_error': {
+            'stdp': np.array([0.0, 0.0, 0.0]),
+            'stdv': np.array([0.0, 0.0, 0.0])
+        },
+        'high_accuracy': {
+            'stdp': np.array([0.10, 0.10, 1.00]),
+            'stdv': np.array([0.01, 0.01, 0.01])
+        },
+        'mid_accuracy': {
+            'stdp': np.array([0.50, 0.50, 2.00]),
+            'stdv': np.array([0.02, 0.02, 0.02])
+        },
+        'low_accuracy': {
+            'stdp': np.array([1.00, 1.00, 4.00]),
+            'stdv': np.array([0.05, 0.05, 0.05])
+        }
+    },
+    'odo': {
+        'no_error': {
+            'scale': 1.00,
+            'stdv': 0.0
+        }
+    }
+}
 
 def get_init_pose(stamp, motion_def_file):
     """
@@ -214,7 +316,12 @@ def get_pose_msg(stamp, ref_pos, ref_vel, ref_att_quat):
     return pose_msg 
 
 
-def get_gnss_ins_sim(motion_def_file, fs_imu, fs_gps):
+def get_gnss_ins_sim(
+    motion_def_file, 
+    fs_imu, fs_gps,
+    imu_error_level = 'high_accuracy',
+    mag_error_level = 'mid_accuracy', gps_error_level = 'mid_accuracy', odo_error_level = 'no_error'
+):
     '''
     Generate simulated GNSS/IMU data using specified trajectory.
     '''
@@ -224,44 +331,20 @@ def get_gnss_ins_sim(motion_def_file, fs_imu, fs_gps):
 
     # for error-state Kalman filter observability & the degree of observability analysis
     # remove deterministic error and random noise:
-    imu_err = {
-        # 1. gyro:
-        # a. random noise:
-        # gyro angle random walk, deg/rt-hr
-        'gyro_arw': np.array([0.00, 0.00, 0.00]),
-        # gyro bias instability, deg/hr
-        'gyro_b_stability': np.array([0.00, 0.0, 0.0]),
-        # gyro bias isntability correlation time, sec
-        # 'gyro_b_corr': np.array([100.0, 100.0, 100.0]),
-        # b. deterministic error:
-        'gyro_b': np.array([0.00, 0.00, 0.00]),
-        'gyro_k': np.array([1.00, 1.00, 1.00]),
-        'gyro_s': np.array([0.00, 0.00, 0.00, 0.00, 0.00, 0.00]),
-        # 2. accel:
-        # a. random noise:
-        # accel velocity random walk, m/s/rt-hr
-        'accel_vrw': np.array([0.00, 0.00, 0.00]),
-        # accel bias instability, m/s2
-        'accel_b_stability': np.array([0.00, 0.00, 0.00]),
-        # accel bias isntability correlation time, sec
-        # 'accel_b_corr': np.array([100.0, 100.0, 100.0]),
-        # b. deterministic error:
-        'accel_b': np.array([0.00, 0.00, 0.00]),
-        'accel_k': np.array([1.00, 1.00, 1.00]),
-        'accel_s': np.array([0.00, 0.00, 0.00, 0.00, 0.00, 0.00]),
-        # 3. mag:
-        'mag_si': np.eye(3) + np.random.randn(3, 3)*0.0, 
-        'mag_hi': np.array([10.0, 10.0, 10.0])*0.0,
-        'mag_std': np.array([0.1, 0.1, 0.1])
-    }
-    gps_err = {
-        'stdp': np.array([0.0, 0.0, 0.0]),
-        'stdv': np.array([0.0, 0.0, 0.0])
-    }
-    odo_err = {
-        'scale': 1.00,
-        'stdv': 0.0
-    }
+    imu_err = config['imu'][imu_error_level].copy()
+    imu_err.update(config['mag'][mag_error_level])
+    
+    gps_err = config['gps'][gps_error_level]
+    odo_err = config['odo'][odo_error_level]
+
+    # show device error level config:
+    for k in imu_err:
+        rospy.logwarn("{}: {}".format(k, imu_err[k]))
+    for k in gps_err:
+        rospy.logwarn("{}: {}".format(k, gps_err[k]))
+    for k in odo_err:
+        rospy.logwarn("{}: {}".format(k, odo_err[k]))
+
     # generate GPS and magnetometer data:
     imu = imu_model.IMU(
         accuracy=imu_err, 
@@ -392,6 +475,11 @@ def gnss_ins_sim_recorder():
     sample_freq_imu = rospy.get_param('/gnss_ins_sim_recorder_node/sample_frequency/imu')
     sample_freq_gps = rospy.get_param('/gnss_ins_sim_recorder_node/sample_frequency/gps')
 
+    imu_error_level = rospy.get_param('/gnss_ins_sim_recorder_node/device_error_level/imu')
+    mag_error_level = rospy.get_param('/gnss_ins_sim_recorder_node/device_error_level/mag')
+    gps_error_level = rospy.get_param('/gnss_ins_sim_recorder_node/device_error_level/gps')
+    odo_error_level = rospy.get_param('/gnss_ins_sim_recorder_node/device_error_level/odo')
+
     topic_name_init_pose = rospy.get_param('/gnss_ins_sim_recorder_node/topic_name/init_pose')
     topic_name_imu = rospy.get_param('/gnss_ins_sim_recorder_node/topic_name/imu')
     topic_name_gps_pos = rospy.get_param('/gnss_ins_sim_recorder_node/topic_name/gps_pos')
@@ -411,7 +499,11 @@ def gnss_ins_sim_recorder():
         # gyro-accel/gyro-accel-mag sample rate:
         sample_freq_imu,
         # GPS sample rate:
-        sample_freq_gps
+        sample_freq_gps,
+        # IMU error level:
+        imu_error_level,
+        # other error levels:
+        mag_error_level, gps_error_level, odo_error_level
     )
 
     with rosbag.Bag(

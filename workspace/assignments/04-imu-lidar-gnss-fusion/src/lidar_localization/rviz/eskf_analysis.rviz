@@ -10,6 +10,8 @@ Panels:
         - /trajectory1/ref_odom1/Shape1
         - /trajectory1/gnss_odom1/Shape1
         - /trajectory1/fused_odom1/Shape1
+        - /TF1
+        - /TF1/Frames1
       Splitter Ratio: 0.5
     Tree Height: 356
   - Class: rviz/Selection
@@ -167,13 +169,19 @@ Visualization Manager:
       Frame Timeout: 999999
       Frames:
         All Enabled: false
-      Marker Scale: 50
+        imu_link:
+          Value: true
+        map:
+          Value: true
+      Marker Scale: 10
       Name: TF
       Show Arrows: false
       Show Axes: true
       Show Names: false
       Tree:
-        {}
+        map:
+          imu_link:
+            {}
       Update Interval: 0
       Value: true
   Enabled: true
@@ -204,7 +212,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 10
+      Distance: 64.61489868164062
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -219,10 +227,10 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.7853981852531433
+      Pitch: 1.389796495437622
       Target Frame: vehicle_link
       Value: Orbit (rviz)
-      Yaw: 0.7853981852531433
+      Yaw: 4.703583240509033
     Saved: ~
 Window Geometry:
   Displays:
@@ -240,5 +248,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1235
-  X: 0
-  Y: 0
+  X: -1
+  Y: -22

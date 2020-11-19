@@ -1,11 +1,18 @@
 # motion def:
 motion_file: constant_velocity.csv
-# IMU params:
-imu: 1
+
 # sample frequency of simulated GNSS/IMU data:
 sample_frequency:
     imu: 100.0
     gps: 10.0
+
+# device error level:
+device_error_level:
+    imu: high_accuracy
+    mag: mid_accuracy
+    gps: mid_accuracy
+    odo: no_error
+
 # topic name:
 topic_name: 
     init_pose: /init_pose
@@ -16,6 +23,7 @@ topic_name:
     gps_vel: /sim/sensor/gps/vel
     # d. reference trajectory:
     reference_trajectory: /reference_pose
+    
 # output rosbag path:
 output_path: /workspace/data/gnss_ins_sim/eskf_analysis
 # output name:

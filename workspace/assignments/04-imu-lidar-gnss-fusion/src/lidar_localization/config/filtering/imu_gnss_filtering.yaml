@@ -22,5 +22,5 @@ kalman_filter:
             gyro: 1.0e-4
             accel: 2.5e-3
         measurement:
-            pos: 4.0e-2
+            pos: 2.5e-1
             orientation: 9.0e-2
