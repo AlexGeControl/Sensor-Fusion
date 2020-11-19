@@ -8,6 +8,8 @@
 
 #include <ros/ros.h>
 
+#include "lidar_localization/ESKFStd.h"
+
 // subscribers:
 // a. IMU:
 #include "lidar_localization/subscriber/imu_subscriber.hpp"
@@ -56,6 +58,7 @@ class IMUGNSSFilteringFlow {
     bool CorrectLocalization();
 
     bool PublishFusionOdom();
+    bool PublishFusionStandardDeviation();
 
     bool UpdateOdometry(const double &time);
     /**
@@ -86,7 +89,8 @@ class IMUGNSSFilteringFlow {
     std::shared_ptr<OdometryPublisher> fused_odom_pub_ptr_;
     // b. tf:
     std::shared_ptr<TFBroadCaster> imu_tf_pub_ptr_;
-
+    // c. standard deviation:
+    ros::Publisher fused_std_pub_;
     // filtering instance:
     std::shared_ptr<IMUGNSSFiltering> filtering_ptr_;
 
@@ -94,9 +98,10 @@ class IMUGNSSFilteringFlow {
     PoseData current_gnss_data_;
     PoseData current_ref_pose_data_;
     
-    // lidar odometry frame in map frame:
+    // fused odometry:
     Eigen::Matrix4f fused_pose_ = Eigen::Matrix4f::Identity();
     Eigen::Vector3f fused_vel_ = Eigen::Vector3f::Zero();
+    ESKFStd fused_std_;
 
     // trajectory for evo evaluation:
     struct {

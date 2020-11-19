@@ -32,6 +32,9 @@ IMUGNSSFilteringFlow::IMUGNSSFilteringFlow(
     fused_odom_pub_ptr_ = std::make_shared<OdometryPublisher>(nh, "/fused_pose", "/map", "/imu_link", 100);
     // b. tf, map -> imu_link:
     imu_tf_pub_ptr_ = std::make_shared<TFBroadCaster>("/map", "/imu_link");
+    // c. covariance:
+    fused_std_pub_ = nh.advertise<lidar_localization::ESKFStd>("/fused_std", 100);
+    fused_std_.header.frame_id = "/imu_link";
 
     // filtering instance:
     filtering_ptr_ = std::make_shared<IMUGNSSFiltering>();
@@ -217,7 +220,7 @@ bool IMUGNSSFilteringFlow::CorrectLocalization() {
 
         // publish new odom estimation:
         PublishFusionOdom();
-
+        
         // add to odometry output for evo evaluation:
         UpdateOdometry(current_gnss_data_.time);
         
@@ -237,6 +240,18 @@ bool IMUGNSSFilteringFlow::PublishFusionOdom() {
     fused_odom_pub_ptr_->Publish(fused_pose_, fused_vel_, current_imu_data_.time);
     // b. publish tf:
     imu_tf_pub_ptr_->SendTransform(fused_pose_, current_imu_data_.time);
+
+    // publish standard deviation:
+    PublishFusionStandardDeviation();
+
+    return true;
+}
+
+bool IMUGNSSFilteringFlow::PublishFusionStandardDeviation() {
+    // get standard deviation from Kalman filter:
+    filtering_ptr_->GetStandardDeviation(fused_std_);
+    // c. publish standard deviation:
+    fused_std_pub_.publish(fused_std_);
 
     return true;
 }

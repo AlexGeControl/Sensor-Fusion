@@ -27,6 +27,8 @@ add_message_files(
     IMUGNSSMeasurement.msg
     # lidar:
     LidarMeasurement.msg
+    # ESKF covariance monitor:
+    ESKFStd.msg
 )
 
 add_service_files(

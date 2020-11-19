@@ -26,6 +26,34 @@ public:
         NUM_TYPES
     };
 
+    struct ESKFCov {
+        struct {
+            double x;
+            double y;
+            double z;
+        } delta_pos;
+        struct {
+            double x;
+            double y;
+            double z;
+        } delta_vel;
+        struct {
+            double x;
+            double y;
+            double z;
+        } delta_ori;
+            struct {
+            double x;
+            double y;
+            double z;
+        } gyro_bias;
+        struct {
+            double x;
+            double y;
+            double z;
+        } accel_bias;
+    };
+
     // dimensions:
     static const int DIM_STATE = 15;
     static const int DIM_PROCESS_NOISE = 6;
@@ -111,6 +139,13 @@ public:
      */
     void GetOdometry(Eigen::Matrix4f &pose, Eigen::Vector3f &vel);
 
+    /**
+     * @brief  get covariance estimation
+     * @param  cov, covariance output
+     * @return void
+     */
+    void GetCovariance(ESKFCov &cov);
+    
     /**
      * @brief  update observability analysis
      * @param  time, measurement time

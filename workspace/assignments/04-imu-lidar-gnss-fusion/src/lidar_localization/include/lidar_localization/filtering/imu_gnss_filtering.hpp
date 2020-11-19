@@ -10,6 +10,8 @@
 #include <Eigen/Dense>
 #include <yaml-cpp/yaml.h>
 
+#include "lidar_localization/ESKFStd.h"
+
 #include "lidar_localization/sensor_data/imu_data.hpp"
 #include "lidar_localization/sensor_data/cloud_data.hpp"
 #include "lidar_localization/sensor_data/pose_data.hpp"
@@ -43,6 +45,7 @@ class IMUGNSSFiltering {
     Eigen::Matrix4f GetPose(void) { return current_pose_; }
     Eigen::Vector3f GetVel(void) { return current_vel_; }
     void GetOdometry(Eigen::Matrix4f &pose, Eigen::Vector3f &vel);
+    void GetStandardDeviation(ESKFStd &eskf_std_msg);
     void SaveObservabilityAnalysis(void);
     
   private:
@@ -54,6 +57,8 @@ class IMUGNSSFiltering {
     bool SetInitPose(const Eigen::Matrix4f& init_pose);
 
   private:
+    bool has_inited_ = false;
+
     // IMU-GNSS Kalman filter:
     std::shared_ptr<KalmanFilter> kalman_filter_ptr_;
     
@@ -61,8 +66,7 @@ class IMUGNSSFiltering {
     Eigen::Matrix4f init_pose_ = Eigen::Matrix4f::Identity(); 
     Eigen::Matrix4f current_pose_ = Eigen::Matrix4f::Identity();
     Eigen::Vector3f current_vel_ = Eigen::Vector3f::Zero();
-
-    bool has_inited_ = false;
+    KalmanFilter::ESKFCov current_cov_;
 };
 
 } // namespace lidar_localization

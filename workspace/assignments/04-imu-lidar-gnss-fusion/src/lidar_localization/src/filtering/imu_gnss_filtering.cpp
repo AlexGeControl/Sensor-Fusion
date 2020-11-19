@@ -89,6 +89,32 @@ void IMUGNSSFiltering::GetOdometry(Eigen::Matrix4f &pose, Eigen::Vector3f &vel) 
     vel = init_pose_.block<3, 3>(0, 0) * current_vel_;
 }
 
+void IMUGNSSFiltering::GetStandardDeviation(ESKFStd &eskf_std_msg) {
+    kalman_filter_ptr_->GetCovariance(current_cov_);
+
+    eskf_std_msg.header.stamp = ros::Time(kalman_filter_ptr_->GetTime());
+
+    eskf_std_msg.delta_pos_x_std = std::sqrt(current_cov_.delta_pos.x);
+    eskf_std_msg.delta_pos_y_std = std::sqrt(current_cov_.delta_pos.y);
+    eskf_std_msg.delta_pos_z_std = std::sqrt(current_cov_.delta_pos.z);
+
+    eskf_std_msg.delta_vel_x_std = std::sqrt(current_cov_.delta_vel.x);
+    eskf_std_msg.delta_vel_y_std = std::sqrt(current_cov_.delta_vel.y);
+    eskf_std_msg.delta_vel_z_std = std::sqrt(current_cov_.delta_vel.z);
+
+    eskf_std_msg.delta_ori_x_std = std::sqrt(current_cov_.delta_ori.x);
+    eskf_std_msg.delta_ori_y_std = std::sqrt(current_cov_.delta_ori.y);
+    eskf_std_msg.delta_ori_z_std = std::sqrt(current_cov_.delta_ori.z);
+
+    eskf_std_msg.gyro_bias_x_std = std::sqrt(current_cov_.gyro_bias.x);
+    eskf_std_msg.gyro_bias_y_std = std::sqrt(current_cov_.gyro_bias.y);
+    eskf_std_msg.gyro_bias_z_std = std::sqrt(current_cov_.gyro_bias.z);
+
+    eskf_std_msg.accel_bias_x_std = std::sqrt(current_cov_.accel_bias.x);
+    eskf_std_msg.accel_bias_y_std = std::sqrt(current_cov_.accel_bias.y);
+    eskf_std_msg.accel_bias_z_std = std::sqrt(current_cov_.accel_bias.z);
+}
+
 void IMUGNSSFiltering::SaveObservabilityAnalysis(void) {
     kalman_filter_ptr_->SaveObservabilityAnalysis(
         KalmanFilter::MeasurementType::POSITION

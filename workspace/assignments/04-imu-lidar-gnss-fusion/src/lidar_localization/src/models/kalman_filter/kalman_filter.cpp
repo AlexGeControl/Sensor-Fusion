@@ -248,6 +248,42 @@ void KalmanFilter::GetOdometry(
 }
 
 /**
+ * @brief  get covariance estimation
+ * @param  cov, covariance output
+ * @return void
+ */
+void KalmanFilter::GetCovariance(ESKFCov &cov) {
+    static int OFFSET_X = 0;
+    static int OFFSET_Y = 1;
+    static int OFFSET_Z = 2;
+
+    // a. delta position:
+    cov.delta_pos.x = P_(INDEX_ERROR_POS + OFFSET_X, INDEX_ERROR_POS + OFFSET_X);
+    cov.delta_pos.y = P_(INDEX_ERROR_POS + OFFSET_Y, INDEX_ERROR_POS + OFFSET_Y);
+    cov.delta_pos.z = P_(INDEX_ERROR_POS + OFFSET_Z, INDEX_ERROR_POS + OFFSET_Z);
+
+    // b. delta velocity:
+    cov.delta_vel.x = P_(INDEX_ERROR_VEL + OFFSET_X, INDEX_ERROR_VEL + OFFSET_X);
+    cov.delta_vel.y = P_(INDEX_ERROR_VEL + OFFSET_Y, INDEX_ERROR_VEL + OFFSET_Y);
+    cov.delta_vel.z = P_(INDEX_ERROR_VEL + OFFSET_Z, INDEX_ERROR_VEL + OFFSET_Z);
+
+    // c. delta orientation:
+    cov.delta_ori.x = P_(INDEX_ERROR_ORI + OFFSET_X, INDEX_ERROR_ORI + OFFSET_X);
+    cov.delta_ori.y = P_(INDEX_ERROR_ORI + OFFSET_Y, INDEX_ERROR_ORI + OFFSET_Y);
+    cov.delta_ori.z = P_(INDEX_ERROR_ORI + OFFSET_Z, INDEX_ERROR_ORI + OFFSET_Z);
+
+    // d. gyro. bias:
+    cov.gyro_bias.x = P_(INDEX_ERROR_GYRO + OFFSET_X, INDEX_ERROR_GYRO + OFFSET_X);
+    cov.gyro_bias.y = P_(INDEX_ERROR_GYRO + OFFSET_Y, INDEX_ERROR_GYRO + OFFSET_Y);
+    cov.gyro_bias.z = P_(INDEX_ERROR_GYRO + OFFSET_Z, INDEX_ERROR_GYRO + OFFSET_Z);
+
+    // e. accel bias:
+    cov.accel_bias.x = P_(INDEX_ERROR_ACCEL + OFFSET_X, INDEX_ERROR_ACCEL + OFFSET_X);
+    cov.accel_bias.y = P_(INDEX_ERROR_ACCEL + OFFSET_Y, INDEX_ERROR_ACCEL + OFFSET_Y);
+    cov.accel_bias.z = P_(INDEX_ERROR_ACCEL + OFFSET_Z, INDEX_ERROR_ACCEL + OFFSET_Z);
+}
+
+/**
  * @brief  get unbiased angular velocity in body frame
  * @param  angular_vel, angular velocity measurement
  * @param  R, corresponding orientation of measurement

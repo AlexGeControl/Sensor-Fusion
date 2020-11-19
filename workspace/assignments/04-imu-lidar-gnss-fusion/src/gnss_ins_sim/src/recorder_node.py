@@ -107,15 +107,15 @@ config = {
             'stdv': np.array([0.0, 0.0, 0.0])
         },
         'high_accuracy': {
-            'stdp': np.array([0.10, 0.10, 1.00]),
+            'stdp': np.array([0.10, 0.10, 0.10]),
             'stdv': np.array([0.01, 0.01, 0.01])
         },
         'mid_accuracy': {
-            'stdp': np.array([0.50, 0.50, 2.00]),
+            'stdp': np.array([0.50, 0.50, 0.50]),
             'stdv': np.array([0.02, 0.02, 0.02])
         },
         'low_accuracy': {
-            'stdp': np.array([1.00, 1.00, 4.00]),
+            'stdp': np.array([1.00, 1.00, 1.00]),
             'stdv': np.array([0.05, 0.05, 0.05])
         }
     },
