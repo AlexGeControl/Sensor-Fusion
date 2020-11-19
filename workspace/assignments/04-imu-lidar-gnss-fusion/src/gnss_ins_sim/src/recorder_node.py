@@ -140,6 +140,32 @@ def get_init_pose(stamp, motion_def_file):
         motion_def_file, delimiter=',', skip_header=True, max_rows=1
     )
 
+    (
+        rm, rn,
+        g,
+        sl, cl,
+        w_ie
+    ) = geoparams.geo_param(
+        np.array([lat, lon, alt])
+    )
+
+    rospy.logwarn(
+        """
+        Earth Params:
+        \tRm: {}
+        \tRn: {}
+        \tG: {}
+        \tsin(Lat): {}
+        \tcos(Lat): {}
+        \tw_ie: {}
+        """.format(
+            rm, rn,
+            g,
+            sl, cl,
+            w_ie
+        )
+    )
+
     # init:
     init_pose_msg = Odometry()
 

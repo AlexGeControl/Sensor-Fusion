@@ -736,7 +736,7 @@ void KalmanFilter::SaveObservabilityAnalysis(
         csv << static_cast<int>(record.at(0));
 
         for (size_t i = 1; i < record.size(); ++i) {
-            csv << record.at(i);
+            csv << std::fabs(record.at(i));
         }    
     }
 

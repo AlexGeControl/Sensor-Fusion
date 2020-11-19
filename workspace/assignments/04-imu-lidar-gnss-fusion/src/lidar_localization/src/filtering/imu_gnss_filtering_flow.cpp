@@ -228,6 +228,21 @@ bool IMUGNSSFilteringFlow::PublishFusionOdom() {
 }
 
 bool IMUGNSSFilteringFlow::UpdateOdometry(void) {
+    /*
+    // sync ref pose with gnss measurement:
+    while (
+        !ref_pose_data_buff_.empty() && 
+        (ref_pose_data_buff_.front().time - current_gnss_data_.time <= -0.005)
+    ) {
+        ref_pose_data_buff_.pop_front();
+    }
+    
+    if ( ref_pose_data_buff_.empty() ) {
+        return false;
+    }
+    
+    current_ref_pose_data_ = ref_pose_data_buff_.front();
+    */
     trajectory.fused_.push_back(fused_pose_);
     trajectory.gnss_.push_back(current_gnss_data_.pose);
     trajectory.ref_.push_back(current_ref_pose_data_.pose);
