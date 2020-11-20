@@ -6,21 +6,23 @@ This is the solution of Assignment 04 of Sensor Fusion from [深蓝学院](https
 
 ---
 
-## Problem Statement
+# Problem Statement
 
 ---
 
-### 1. 基于滤波的融合定位
+## 1. 基于滤波的融合定位
 
 任选一种滤波模型和方法, 在`KITTI`数据集上, 实现基于`IMU`以及`点云地图匹配`的融合定位
 
-#### ANS
+### ANS
 
 此处选用`基于误差信息的Kalman Filtering`进行融合定位. 解决方案的架构图如下:
 
 <img src="doc/images/01-error-based-kalman-filtering--architect.png" alt="Trajectory Estimation using Scan Context" width="100%" />
 
 算法的`理论推导`以及`针对KITTI Road Test Data`的`伪代码实现`参考 [here](doc/derivations)
+
+### Data Preprocessing
 
 为了产生`未降频的IMU测量值`:
 
@@ -139,17 +141,62 @@ topics:      /kitti/camera_color_left/camera_info     4544 msgs    : sensor_msgs
 
 ```
 
+### Implementation
+
 基于`Eigen`与`Sophus`的`Error-State Kalman Fusion`实现参考[here](src/lidar_localization/src/models/kalman_filter/kalman_filter.cpp)
+
+### Demo
 
 `IMU-Lidar Error-State Kalman Fusion Odometry`与`GNSS Groud Truth`的对比如下图所示. 其中`黄色`为`GNSS Groud Truth`, `红色`为`Lidar Odometry`, `蓝色`为`IMU-Lidar Fusion Odometry`:
 
-<img src="doc/images/01-IMU-lidar-fusion.png" alt="IMU-Lidar Fusion v.s. GNSS" width="100%">
+<img src="doc/images/01-IMU-lidar-fusion-macro.png" alt="IMU-Lidar Fusion v.s. GNSS" width="100%">
 
 <img src="doc/images/01-IMU-lidar-fusion-micro.png" alt="IMU-Lidar Fusion v.s. GNSS Micro" width="100%">
 
+### Result Analysis
+
+为了获取可用于`evo评估`的轨迹输出, 可通过如下`ROS Service Call`, 比较融合前后的Odometry: 
+
+```bash
+# set up session:
+source install/setup.bash
+# save odometry:
+rosservice call /save_odometry "{}"
+# run evo evaluation:
+# a. laser:
+evo_ape kitti ground_truth.txt laser.txt -r full --plot --plot_mode xy
+# b. fused:
+evo_ape kitti ground_truth.txt fused.txt -r full --plot --plot_mode xy
+```
+
+两者的KPI比较参照下表. 
+
+在`2011_10_03_drive_0027_extract`上, 两者的估计性能相近, `IMU-Lidar Fusion`的
+
+* 估计精度(Standard Deviation)
+
+* 误差的散布度(Max - Min)
+
+略优, 在`Standard Deviation`上, 相比Lidar Frontend的直接估计, 基于IMU-Lidar Fusion的里程计有**1%**的提升.
+
+Lidar Only                 |IMU-Lidar Fusion
+:-------------------------:|:-------------------------:
+![Lidar Only, Time Series Plot](doc/images/01-evo--lidar-only-time-series-plot.png)  |  ![IMU-Lidar Fusion, Map Plot](doc/images/01-evo--imu-lidar-fusion-time-series-plot.png)
+![Lidar Only, Map Plot](doc/images/01-evo--lidar-only-map-plot.png)  |  ![IMU-Lidar Fusion, Map Plot](doc/images/01-evo--imu-lidar-fusion-map-plot.png)
+
+|  Algo. |  Lidar Only  |  IMU-Lidar   |
+|:------:|:------------:|:------------:|
+|   max  |   1.059857   |   1.013975   |
+|  mean  |   0.228051   |   0.244695   |
+| median |   0.160213   |   0.185263   |
+|   min  |   0.015406   |   0.020395   |
+|  rmse  |   0.284716   |   0.297277   |
+|   sse  |  355.463371  |  387.517623  |
+| **std**| **0.170458** | **0.168813** |		
+
 ---
 
-### 2. GNSS/IMU融合分析
+## 2. GNSS/IMU融合分析
 
 推导组合导航(GNSS + IMU)的滤波模型. 要求:
 
@@ -159,13 +206,15 @@ topics:      /kitti/camera_color_left/camera_info     4544 msgs    : sensor_msgs
 
 * 统计Kalman滤波中各状态量的收敛速度和收敛精度, 并与可观测度分析的结果汇总比较.
 
-#### ANS
+### ANS
 
-##### Measurement Model Derivation
+### Measurement Model Derivation
 
 组合导航(GNSS + IMU)的滤波模型参考 [here](doc/derivations).
 
-##### Data Pre-processing
+### Data Pre-processing
+
+#### ROS GNSS-INS-Sim
 
 为了简化算法的比较与分析, 首先重新实现`GNSS-INS-Sim ROS Wrapper Package`, 将`GNSS-INS-Sim`的输出转化为与`KITTI Road Test Data`兼容的格式. 以加减速场景的测试数据为例, 得到的ROS Bag如下. 其中`/init_pose`为起始点, `/reference_pose`为`Groud Truth Trajectory`.
 
@@ -191,11 +240,15 @@ topics:      /init_pose               1 msg     : nav_msgs/Odometry
              /sim/sensor/imu       4000 msgs    : sensor_msgs/Imu
 ```
 
+#### GNSS-INS-Sim Preprocessing Node
+
 同时增加新的数据预处理节点`eskf_preprocess_node` [here](src/lidar_localization/src/apps/eskf_preprocess_node.cpp), 完成:
 
 * `LLA`位置向`ENU`系位置的转换.
 
 * `NED`系速度向`ENU`系速度的转换.
+
+#### ESKF with Observability Analysis
 
 最后, 将`Observability Analysis`分析的逻辑集成至`IMUGNSSFilteringFlow`:
 
@@ -207,9 +260,11 @@ IMU-GNSS ESKF, Acc         |IMU-GNSS ESKF, Turning
 
 * 然后在`Kalman Filter`中, 增加`可观测性`以及`可观测度`分析的模块, 并将所得数据写至可持续性存储, 方便后续分析.
 
-##### Result & Analysis
+### Result & Analysis
 
-融合前后定位精度的对比如下. 数据显示`ESKF`可以显著提升定位精度.
+#### Localization Precision
+
+融合前后定位精度的对比如下. 数据显示在四种典型运动模式下, `ESKF`均可显著提升定位精度.
 
 | Scenario |  **Static**  | **Const. Velocity** |  **Turning** | **Acc & Deacc** |
 |:--------:|:------------:|:-------------------:|:------------:|:---------------:|
@@ -232,6 +287,9 @@ Acc & Deacc, GNSS Only     |Acc & Deacc, IMU-GNSS
 :-------------------------:|:-------------------------:
 ![Acc & Deacc, GNSS Only](doc/images/02-evo-acc--gnss-only.png)  |  ![Acc & Deacc, IMU-GNSS Fusion](doc/images/02-evo-acc--imu-gnss.png)
 
+#### Observability Analysis
+
+##### Workflow
 
 `可观测性`和`可观测度`的分析流程如下:
 
@@ -250,7 +308,17 @@ Acc & Deacc, GNSS Only     |Acc & Deacc, IMU-GNSS
 
 * 使用Python工具链, 分析系统的`可观测性`与`可观测度`
 
-四种典型运动模式的`可观测性`与`可观测度`测量数据如下表所示. 完整的测量数据请点击 [here](doc/results/observability)
+##### Observability using SVD
+
+四种典型运动模式的`可观测性`与`可观测度`测量数据如下表所示. 完整的测量数据请点击 [here](doc/results/observability). 数据显示:
+
+* 四种典型运动模式下TOM的秩均为`12`
+
+* 在不同的运动模式下, 状态量的`可观测度`不同. 
+
+    * `Static`与`Const. Velocity`模式下可观测度相近且`较低`
+
+    * `Turning`与`Acc & Deacc`模式下可观测度会提高, 且运动越剧烈, 可观测度越高(参见完整测量数据). 
 
 | Attribute |    **Static**    | **Const. Velocity** |    **Turning**   |  **Acc & Deacc** |
 |:---------:|:----------------:|:-------------------:|:----------------:|:----------------:|
@@ -285,7 +353,9 @@ Acc & Deacc, GNSS Only     |Acc & Deacc, IMU-GNSS
 |    dABy   |   4.756790e+20   |     2.708440e+20    |   8.967510e+18   |   3.227030e+20   |
 |    dABz   |   3.638080e+16   |     1.912320e+16    |   6.274590e+18   |   7.822130e+18   | 
 
-四种典型运动模式的`ESKF`方差收敛速度如下图所示. 
+##### ESKF Convergence
+
+四种典型运动模式的`ESKF收敛速度`如下图所示. 数据显示: `Turning`与`Acc & Deacc`模式下, `ESKF`收敛速度优于`Static`与`Const. Velocity`模式
 
 Static                    |Const. Velocity
 :-------------------------:|:-------------------------:
@@ -295,7 +365,9 @@ Turning                    |Acc & Deacc
 :-------------------------:|:-------------------------:
 ![Turning](doc/images/02-eskf-cov--turning.png)  |  ![Acc & Deacc](doc/images/02-eskf-cov--acc.png)
 
-`可观测性`与`可观测度`的分析结果如下:
+##### Conclusion
+
+`可观测性`与`可观测度`的分析结果总结如下:
 
 * `IMU-GUSS ESKF Fusion`的`SOM`秩为`12`(Singular Value Threshold @ `1.0e-05`)
 

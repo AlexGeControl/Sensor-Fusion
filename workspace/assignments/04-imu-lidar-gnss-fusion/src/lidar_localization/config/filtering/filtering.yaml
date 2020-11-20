@@ -70,9 +70,9 @@ kalman_filter:
         latitude: 48.9827703173
     covariance:
         prior:
-            pos: 4.0e-2
-            vel: 4.0e-2
-            orientation: 9.0e-2
+            pos: 1.0e-6
+            vel: 1.0e-6
+            orientation: 1.0e-6
             epsilon: 1.0e-6
             delta: 1.0e-6
         process:
@@ -80,5 +80,5 @@ kalman_filter:
             gyro: 1.0e-4
             accel: 2.5e-3
         measurement:
-            pos: 4.0e-2
-            orientation: 9.0e-2
+            pos: 1.0e-4
+            orientation: 1.0e-4

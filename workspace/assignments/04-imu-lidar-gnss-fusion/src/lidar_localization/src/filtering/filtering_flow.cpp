@@ -129,6 +129,13 @@ bool FilteringFlow::SaveOdometry(void) {
         
         current_gnss_data_ = gnss_data_buff_.front();
 
+        const Eigen::Vector3f &position_ref = current_gnss_data_.pose.block<3, 1>(0, 3);
+        const Eigen::Vector3f &position_lidar = trajectory.lidar_.at(i).block<3, 1>(0, 3);
+
+        if ( (position_ref - position_lidar).norm() > 3.0 ) {
+            continue;
+        }
+
         SavePose(trajectory.fused_.at(i), fused_odom_ofs);
         SavePose(trajectory.lidar_.at(i), laser_odom_ofs);
         SavePose(current_gnss_data_.pose, ref_odom_ofs);
