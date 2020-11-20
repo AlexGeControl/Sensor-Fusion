@@ -13,9 +13,9 @@ kalman_filter:
         latitude: 31.224361
     covariance:
         prior:
-            pos: 4.0e-2
-            vel: 4.0e-2
-            orientation: 4.0e-2
+            pos: 1.0e-8
+            vel: 1.0e-6
+            orientation: 1.0e-8
             epsilon: 1.0e-6
             delta: 1.0e-6
         process:

@@ -205,12 +205,15 @@ private:
      * @param  R_curr, corresponding orientation of current imu measurement
      * @param  R_prev, corresponding orientation of previous imu measurement
      * @param  velocity_delta, velocity delta output
+     * @param  linear_acc_mid, mid-value unbiased linear acc
      * @return true if success false otherwise
      */
     bool GetVelocityDelta(
         const size_t index_curr, const size_t index_prev,
         const Eigen::Matrix3d &R_curr, const Eigen::Matrix3d &R_prev, 
-        double &T, Eigen::Vector3d &velocity_delta
+        double &T, 
+        Eigen::Vector3d &velocity_delta,
+        Eigen::Vector3d &linear_acc_mid
     );
     /**
      * @brief  update orientation with effective rotation angular_delta
@@ -231,23 +234,11 @@ private:
     void UpdatePosition(const double &T, const Eigen::Vector3d &velocity_delta);
     /**
      * @brief  update IMU odometry estimation
-     * @param  void
+     * @param  linear_acc_mid, output mid-value unbiased linear acc
      * @return void
      */
-    void UpdateOdomEstimation(void);
+    void UpdateOdomEstimation(Eigen::Vector3d &linear_acc_mid);
 
-    /**
-     * @brief  get process input, C_nb & f_n, from IMU measurement
-     * @param  imu_data, input IMU measurement
-     * @param  T, output time delta
-     * @param  C_nb, output rotation matrix, body frame -> navigation frame
-     * @param  f_n, output accel measurement in navigation frame
-     * @return void
-     */
-    void GetProcessInput(
-        const IMUData &imu_data,
-        double &T, Eigen::Matrix3d &C_nb, Eigen::Vector3d &f_n
-    );
     /**
      * @brief  set process equation
      * @param  C_nb, rotation matrix, body frame -> navigation frame
@@ -259,19 +250,20 @@ private:
     );
     /**
      * @brief  update process equation
-     * @param  imu_data, input IMU measurement
-     * @param  T, output time delta
+     * @param  linear_acc_mid, input mid-value unbiased linear acc
      * @return void
      */
-    void UpdateProcessEquation(
-        const IMUData &imu_data, double &T
-    );
+    void UpdateProcessEquation(const Eigen::Vector3d &linear_acc_mid);
+
     /**
      * @brief  update error estimation
-     * @param  imu_data, input IMU measurement
+     * @param  linear_acc_mid, input mid-value unbiased linear acc
      * @return void
      */
-    void UpdateErrorEstimation(const IMUData &imu_data);
+    void UpdateErrorEstimation(
+        const double &T,
+        const Eigen::Vector3d &linear_acc_mid
+    );
 
     /**
      * @brief  correct error estimation using pose measurement
@@ -305,12 +297,25 @@ private:
     void EliminateError(void);
 
     /**
+     * @brief  is covariance stable
+     * @param  INDEX_OFSET, state index offset
+     * @param  THRESH, covariance threshold, defaults to 1.0e-5
+     * @return void
+     */
+    bool IsCovStable(const int INDEX_OFSET, const double THRESH = 1.0e-5);
+
+    /**
      * @brief  reset filter state
      * @param  void
      * @return void
      */
     void ResetState(void);
-
+    /**
+     * @brief  reset filter covariance
+     * @param  void
+     * @return void
+     */
+    void ResetCovariance(void);
     /**
      * @brief  update observability analysis for pose measurement
      * @param  void

@@ -72,10 +72,11 @@ kalman_filter:
         prior:
             pos: 4.0e-2
             vel: 4.0e-2
-            orientation: 4.0e-2
+            orientation: 9.0e-2
             epsilon: 1.0e-6
             delta: 1.0e-6
         process:
+            # follow the practice of https://caor-mines-paristech.github.io/ukfm/auto_examples/imugnss.html
             gyro: 1.0e-4
             accel: 2.5e-3
         measurement:

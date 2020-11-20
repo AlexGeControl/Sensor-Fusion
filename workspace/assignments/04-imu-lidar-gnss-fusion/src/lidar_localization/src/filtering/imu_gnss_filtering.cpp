@@ -71,13 +71,15 @@ bool IMUGNSSFiltering::Correct(
             // reset downsample counter:
             count = 0;
 
+            /*
             // perform observability analysis:
             kalman_filter_ptr_->UpdateObservabilityAnalysis(
                 gnss_pose_data.time,
                 KalmanFilter::MeasurementType::POSITION
             );
+            */
         }
-        
+
         return true;
     }
 

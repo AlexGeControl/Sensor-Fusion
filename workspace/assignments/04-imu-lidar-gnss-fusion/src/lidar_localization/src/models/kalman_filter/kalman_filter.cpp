@@ -84,6 +84,7 @@ KalmanFilter::KalmanFilter(const YAML::Node& node) {
     );
     // b. prior state & covariance:
     ResetState();
+    ResetCovariance();
     // c. process noise:
     Q_.block<3, 3>(0, 0) = COV.PROCESS.GYRO*Eigen::Matrix3d::Identity();
     Q_.block<3, 3>(3, 3) = COV.PROCESS.ACCEL*Eigen::Matrix3d::Identity();
@@ -137,8 +138,16 @@ void KalmanFilter::Init(
     time_ = imu_data.time;
 
     // set process equation in case of one step prediction & correction:
-    double T;
-    UpdateProcessEquation(imu_data, T);
+    Eigen::Vector3d linear_acc_init(
+        imu_data.linear_acceleration.x,
+        imu_data.linear_acceleration.y,
+        imu_data.linear_acceleration.z
+    );
+    // covert to navigation frame:
+    linear_acc_init = C_nb * (linear_acc_init - accl_bias_);
+
+    // init process equation, in case of direct correct step:
+    UpdateProcessEquation(linear_acc_init);
 
     LOG(INFO) << std::endl 
               << "Kalman Filter Inited at " << static_cast<int>(time_) << std::endl
@@ -160,13 +169,19 @@ void KalmanFilter::Init(
 bool KalmanFilter::Update(const IMUData &imu_data) {
     // update IMU buff:
     if (time_ < imu_data.time) {
-        // update IMU odometry:
+        // update buffer:
         imu_data_buff_.push_back(imu_data);
-        UpdateOdomEstimation();
-        imu_data_buff_.pop_front();
 
+        // update IMU odometry:
+        Eigen::Vector3d linear_acc_mid;
+        UpdateOdomEstimation(linear_acc_mid);
+        
         // update error estimation:
-        UpdateErrorEstimation(imu_data);
+        double T = imu_data.time - time_;
+        UpdateErrorEstimation(T, linear_acc_mid);
+        
+        // move forward:
+        imu_data_buff_.pop_front();
 
         // update filter time:
         time_ = imu_data.time;
@@ -293,7 +308,7 @@ inline Eigen::Vector3d KalmanFilter::GetUnbiasedAngularVel(
     const Eigen::Vector3d &angular_vel,
     const Eigen::Matrix3d &R
 ) {
-    return angular_vel - R.transpose() * w_ - gyro_bias_;
+    return angular_vel - gyro_bias_ - R.transpose() * w_;
 }
 
 /**
@@ -364,7 +379,6 @@ void KalmanFilter::UpdateOrientation(
     const Eigen::Vector3d &angular_delta,
     Eigen::Matrix3d &R_curr, Eigen::Matrix3d &R_prev
 ) {
-
     // magnitude:
     double angular_delta_mag = angular_delta.norm();
     // direction:
@@ -388,15 +402,6 @@ void KalmanFilter::UpdateOrientation(
     R_prev = pose_.block<3, 3>(0, 0);
     pose_.block<3, 3>(0, 0) = q.normalized().toRotationMatrix();
     R_curr = pose_.block<3, 3>(0, 0);
-    /*
-    const IMUData &imu_data_curr = imu_data_buff_.at(1);
-    const IMUData &imu_data_prev = imu_data_buff_.at(0);
-
-    R_curr = imu_data_curr.GetOrientationMatrix().cast<double>();
-    R_prev = imu_data_prev.GetOrientationMatrix().cast<double>();
-
-    pose_.block<3, 3>(0, 0) = R_curr;
-    */
 }
 
 /**
@@ -406,12 +411,15 @@ void KalmanFilter::UpdateOrientation(
  * @param  R_curr, corresponding orientation of current imu measurement
  * @param  R_prev, corresponding orientation of previous imu measurement
  * @param  velocity_delta, velocity delta output
+ * @param  linear_acc_mid, mid-value unbiased linear acc
  * @return true if success false otherwise
  */
 bool KalmanFilter::GetVelocityDelta(
     const size_t index_curr, const size_t index_prev,
     const Eigen::Matrix3d &R_curr, const Eigen::Matrix3d &R_prev, 
-    double &T, Eigen::Vector3d &velocity_delta
+    double &T, 
+    Eigen::Vector3d &velocity_delta, 
+    Eigen::Vector3d &linear_acc_mid
 ) {
     if (
         index_curr <= index_prev ||
@@ -438,7 +446,9 @@ bool KalmanFilter::GetVelocityDelta(
     );
     linear_acc_prev = GetUnbiasedLinearAcc(linear_acc_prev, R_prev);
     
-    velocity_delta = 0.5*T*(linear_acc_curr + linear_acc_prev);
+    // mid-value acc can improve error state prediction accuracy:
+    linear_acc_mid = 0.5*(linear_acc_curr + linear_acc_prev);
+    velocity_delta = T*linear_acc_mid;
 
     return true;
 }
@@ -456,10 +466,10 @@ void KalmanFilter::UpdatePosition(const double &T, const Eigen::Vector3d &veloci
 
 /**
  * @brief  update IMU odometry estimation
- * @param  void
+ * @param  linear_acc_mid, output mid-value unbiased linear acc
  * @return void
  */
-void KalmanFilter::UpdateOdomEstimation(void) {
+void KalmanFilter::UpdateOdomEstimation(Eigen::Vector3d &linear_acc_mid) {
     // get deltas:
     Eigen::Vector3d angular_delta; 
     GetAngularDelta(1, 0, angular_delta);
@@ -471,39 +481,15 @@ void KalmanFilter::UpdateOdomEstimation(void) {
     // get velocity delta:
     double T;
     Eigen::Vector3d velocity_delta;
-    GetVelocityDelta(1, 0, R_curr, R_prev, T, velocity_delta);
+    // save mid-value unbiased linear acc for error-state update:
+    GetVelocityDelta(
+        1, 0, 
+        R_curr, R_prev, 
+        T, velocity_delta, linear_acc_mid
+    );
 
     // update position:
     UpdatePosition(T, velocity_delta);
-}
-
-/**
- * @brief  get process input, C_nb & f_n, from IMU measurement
- * @param  imu_data, input IMU measurement
- * @param  T, output time delta
- * @param  C_nb, output rotation matrix, body frame -> navigation frame
- * @param  f_n, output accel measurement in navigation frame
- * @return void
- */
-void KalmanFilter::GetProcessInput(
-    const IMUData &imu_data,
-    double &T, Eigen::Matrix3d &C_nb, Eigen::Vector3d &f_n
-) {
-    // get time delta:
-    T = imu_data.time - time_;
-
-    // get rotation matrix, body frame -> navigation frame:
-    C_nb = pose_.block<3, 3>(0, 0);
-    Eigen::Matrix3d C_nn = Sophus::SO3d::exp(X_.block<3, 1>(INDEX_ERROR_ORI, 0)).matrix();
-    C_nb = C_nn*C_nb;
-
-    // get accel measurement in navigation frame:
-    Eigen::Vector3d f_b(
-        imu_data.linear_acceleration.x,
-        imu_data.linear_acceleration.y,
-        imu_data.linear_acceleration.z
-    );
-    f_n = C_nb*(f_b - accl_bias_ - X_.block<3, 1>(INDEX_ERROR_ACCEL, 0));
 }
 
 /**
@@ -530,12 +516,11 @@ void KalmanFilter::SetProcessEquation(
  * @return void
  */
 void KalmanFilter::UpdateProcessEquation(
-    const IMUData &imu_data, double &T
+    const Eigen::Vector3d &linear_acc_mid
 ) { 
-    // get process input:
-    Eigen::Matrix3d C_nb;
-    Eigen::Vector3d f_n;
-    GetProcessInput(imu_data, T, C_nb, f_n);
+    // set linearization point:
+    Eigen::Matrix3d C_nb = pose_.block<3, 3>(0, 0);
+    Eigen::Vector3d f_n = linear_acc_mid + g_;
 
     // set process equation:
     SetProcessEquation(C_nb, f_n);
@@ -543,23 +528,47 @@ void KalmanFilter::UpdateProcessEquation(
 
 /**
  * @brief  update error estimation
- * @param  imu_data, input IMU measurement
+ * @param  linear_acc_mid, input mid-value unbiased linear acc
  * @return void
  */
 void KalmanFilter::UpdateErrorEstimation(
-    const IMUData &imu_data
+    const double &T,
+    const Eigen::Vector3d &linear_acc_mid
 ) {
+    static int count = 0;
+
+    static MatrixF F_1st;
+    static MatrixF F_2nd;
+
     // update process equation:
-    double T;
-    UpdateProcessEquation(imu_data, T);
+    UpdateProcessEquation(linear_acc_mid);
 
     // get discretized process equations:
-    MatrixF F = MatrixF::Identity() + T*F_;
+    F_1st = T*F_;
+    F_2nd = 0.5*T*F_*F_1st;
+    MatrixF F = MatrixF::Identity() + F_1st + F_2nd;
     MatrixB B = T*B_;
 
     // perform Kalman prediction:
     X_ = F*X_;
     P_ = F*P_*F.transpose() + B*Q_*B.transpose();
+
+    if (
+        0 == (++count % 10) 
+    ) {
+        count = 0;
+        /*
+        // covariance monitor, update step:
+        LOG(INFO) << std::endl 
+                  << static_cast<int>(imu_data.time) << " Update" << std::endl
+                  << P_( 0,  0) << ", " << P_( 1,  1) << ", " << P_( 2,  2) << std::endl
+                  << P_( 3,  3) << ", " << P_( 4,  4) << ", " << P_( 5,  5) << std::endl
+                  << P_( 6,  6) << ", " << P_( 7,  7) << ", " << P_( 8,  8) << std::endl
+                  << P_( 9,  9) << ", " << P_(10, 10) << ", " << P_(11, 11) << std::endl
+                  << P_(12, 12) << ", " << P_(13, 13) << ", " << P_(14, 14) << std::endl
+                  << std::endl;
+        */
+    }
 }
 
 /**
@@ -600,7 +609,7 @@ void KalmanFilter::CorrectErrorEstimationPosition(
     YPosition_.block<3, 1>(0, 0) = P_nn_obs;
 
     // build Kalman gain:
-    MatrixRPosition R = GPosition_*P_*GPosition_.transpose() + CPosition_*RPosition_*CPosition_.transpose();
+    MatrixRPosition R = GPosition_*P_*GPosition_.transpose() + RPosition_;
     MatrixKPosition K = P_*GPosition_.transpose()*R.inverse();
 
     // perform Kalman correct:
@@ -611,6 +620,8 @@ void KalmanFilter::CorrectErrorEstimationPosition(
 void KalmanFilter::CorrectErrorEstimation(
     const MeasurementType &measurement_type, const Eigen::Matrix4d &T_nb
 ) {
+    static int count = 0;
+
     switch ( measurement_type ) {
         case MeasurementType::POSE:
             CorrectErrorEstimationPose(T_nb);
@@ -620,6 +631,23 @@ void KalmanFilter::CorrectErrorEstimation(
             break;
         default:
             break;
+    }
+
+    if (
+        0 == (++count % 10) 
+    ) {
+        count = 0;
+        /*
+        // covariance monitor, correct step
+        LOG(INFO) << std::endl 
+                  << "Correct" << std::endl
+                  << P_( 0,  0) << ", " << P_( 1,  1) << ", " << P_( 2,  2) << std::endl
+                  << P_( 3,  3) << ", " << P_( 4,  4) << ", " << P_( 5,  5) << std::endl
+                  << P_( 6,  6) << ", " << P_( 7,  7) << ", " << P_( 8,  8) << std::endl
+                  << P_( 9,  9) << ", " << P_(10, 10) << ", " << P_(11, 11) << std::endl
+                  << P_(12, 12) << ", " << P_(13, 13) << ", " << P_(14, 14) << std::endl
+                  << std::endl;
+        */
     }
 }
 
@@ -636,10 +664,35 @@ void KalmanFilter::EliminateError(void) {
     // c. orientation:
     Eigen::Matrix3d C_nn = Sophus::SO3d::exp(X_.block<3, 1>(INDEX_ERROR_ORI, 0)).matrix();
     pose_.block<3, 3>(0, 0) = C_nn*pose_.block<3, 3>(0, 0);
+
     // d. gyro bias:
-    gyro_bias_ += X_.block<3, 1>(INDEX_ERROR_GYRO, 0);
+    if ( IsCovStable(INDEX_ERROR_GYRO) ) {
+        gyro_bias_ += X_.block<3, 1>(INDEX_ERROR_GYRO, 0);
+    }
+    
     // e. accel bias:
-    accl_bias_ += X_.block<3, 1>(INDEX_ERROR_ACCEL, 0);
+    if ( IsCovStable(INDEX_ERROR_ACCEL) ) {
+        accl_bias_ += X_.block<3, 1>(INDEX_ERROR_ACCEL, 0);
+    }
+}
+
+/**
+ * @brief  is covariance stable
+ * @param  INDEX_OFSET, state index offset
+ * @param  THRESH, covariance threshold, defaults to 1.0e-5
+ * @return void
+ */
+bool KalmanFilter::IsCovStable(
+    const int INDEX_OFSET,
+    const double THRESH
+) {
+    for (int i = 0; i < 3; ++i) {
+        if ( P_(INDEX_OFSET + i, INDEX_OFSET + i) > THRESH ) {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 /**
@@ -648,10 +701,18 @@ void KalmanFilter::EliminateError(void) {
  * @return void
  */
 void KalmanFilter::ResetState(void) {
-    // a. set prior state:
+    // reset current state:
     X_ = VectorX::Zero();
-    // b. set prior covariance:
+}
+
+/**
+ * @brief  reset filter covariance
+ * @param  void
+ * @return void
+ */
+void KalmanFilter::ResetCovariance(void) {
     P_ = MatrixP::Zero();
+    
     P_.block<3, 3>(  INDEX_ERROR_POS,   INDEX_ERROR_POS) = COV.PRIOR.POS*Eigen::Matrix3d::Identity();
     P_.block<3, 3>(  INDEX_ERROR_VEL,   INDEX_ERROR_VEL) = COV.PRIOR.VEL*Eigen::Matrix3d::Identity();
     P_.block<3, 3>(  INDEX_ERROR_ORI,   INDEX_ERROR_ORI) = COV.PRIOR.ORIENTATION*Eigen::Matrix3d::Identity();

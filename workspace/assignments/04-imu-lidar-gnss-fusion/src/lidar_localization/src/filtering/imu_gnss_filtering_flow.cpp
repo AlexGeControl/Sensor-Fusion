@@ -195,8 +195,6 @@ bool IMUGNSSFilteringFlow::UpdateLocalization() {
         // publish new odom estimation:
         PublishFusionOdom();
 
-        LOG(INFO) << "Update" << std::endl;
-
         return true;
     }
 
@@ -223,8 +221,6 @@ bool IMUGNSSFilteringFlow::CorrectLocalization() {
         
         // add to odometry output for evo evaluation:
         UpdateOdometry(current_gnss_data_.time);
-        
-        LOG(INFO) << "Correct" << std::endl;
 
         return true;
     }
