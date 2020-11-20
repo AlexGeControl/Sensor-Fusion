@@ -53,11 +53,7 @@ class FilteringFlow {
       return false; 
     }
     bool HasLidarData(void) const { 
-      return (
-        !cloud_data_buff_.empty() && 
-        !gnss_data_buff_.empty() && 
-        !imu_synced_data_buff_.empty()
-       );
+      return ( !cloud_data_buff_.empty() && !imu_synced_data_buff_.empty() );
     }
     bool HasIMUComesFirst(void) const { return imu_raw_data_buff_.front().time < cloud_data_buff_.front().time; }
 
@@ -75,7 +71,7 @@ class FilteringFlow {
     bool PublishLidarOdom();
     bool PublishFusionOdom();
 
-    bool UpdateOdometry();
+    bool UpdateOdometry(const double &time);
     /**
      * @brief  save pose in KITTI format for evo evaluation
      * @param  pose, input pose
@@ -136,6 +132,7 @@ class FilteringFlow {
     struct {
       size_t N = 0;
 
+      std::deque<double> time_;
       std::deque<Eigen::Matrix4f> fused_;
       std::deque<Eigen::Matrix4f> lidar_;
       std::deque<Eigen::Matrix4f> ref_;

@@ -42,8 +42,6 @@ FilteringFlow::FilteringFlow(
     laser_odom_pub_ptr_ = std::make_shared<OdometryPublisher>(nh, "/laser_localization", "/map", "/lidar", 100);
     // e. fused pose in map frame:
     fused_odom_pub_ptr_ = std::make_shared<OdometryPublisher>(nh, "/fused_localization", "/map", "/lidar", 100);
-    // f. ground truth:
-    ref_odom_pub_ptr_ = std::make_shared<OdometryPublisher>(nh, "/ref_localization", "/map", "/lidar", 100);
 
     // f. tf:
     laser_tf_pub_ptr_ = std::make_shared<TFBroadCaster>("/map", "/vehicle_link");
@@ -117,9 +115,23 @@ bool FilteringFlow::SaveOdometry(void) {
 
     // write outputs:
     for (size_t i = 0; i < trajectory.N; ++i) {
+        // sync ref pose with gnss measurement:
+        while (
+            !gnss_data_buff_.empty() && 
+            (gnss_data_buff_.front().time - trajectory.time_.at(i) <= -0.05)
+        ) {
+            gnss_data_buff_.pop_front();
+        }
+    
+        if ( gnss_data_buff_.empty() ) {
+            break;
+        }
+        
+        current_gnss_data_ = gnss_data_buff_.front();
+
         SavePose(trajectory.fused_.at(i), fused_odom_ofs);
         SavePose(trajectory.lidar_.at(i), laser_odom_ofs);
-        SavePose(trajectory.ref_.at(i), ref_odom_ofs);
+        SavePose(current_gnss_data_.pose, ref_odom_ofs);
     }
 
     return true;
@@ -142,8 +154,8 @@ bool FilteringFlow::ReadData() {
     // pipe synced lidar-GNSS-IMU measurements into buffer:
     // 
     cloud_sub_ptr_->ParseData(cloud_data_buff_);
-    gnss_sub_ptr_->ParseData(gnss_data_buff_);
     imu_synced_sub_ptr_->ParseData(imu_synced_data_buff_);
+    gnss_sub_ptr_->ParseData(gnss_data_buff_);
 
     return true;
 }
@@ -176,19 +188,12 @@ bool FilteringFlow::ValidIMUData() {
 
 bool FilteringFlow::ValidLidarData() {
     current_cloud_data_ = cloud_data_buff_.front();
-    current_gnss_data_ = gnss_data_buff_.front();
     current_imu_synced_data_ = imu_synced_data_buff_.front();
 
-    double diff_gnss_time = current_cloud_data_.time - current_gnss_data_.time;
     double diff_imu_time = current_cloud_data_.time - current_imu_synced_data_.time;
 
-    if (diff_gnss_time < -0.05 || diff_imu_time < -0.05) {
+    if ( diff_imu_time < -0.05 ) {
         cloud_data_buff_.pop_front();
-        return false;
-    }
-
-    if (diff_gnss_time > 0.05) {
-        gnss_data_buff_.pop_front();
         return false;
     }
 
@@ -198,7 +203,6 @@ bool FilteringFlow::ValidLidarData() {
     }
 
     cloud_data_buff_.pop_front();
-    gnss_data_buff_.pop_front();
     imu_synced_data_buff_.pop_front();
 
     return true;
@@ -219,7 +223,7 @@ bool FilteringFlow::InitCalibration() {
 
 bool FilteringFlow::InitLocalization(void) {
     // geo ego vehicle velocity in navigation frame:
-    Eigen::Vector3f init_vel = current_gnss_data_.vel;
+    Eigen::Vector3f init_vel = gnss_data_buff_.front().vel;
 
     // first try to init using scan context query:
     if (
@@ -229,30 +233,10 @@ bool FilteringFlow::InitLocalization(void) {
             current_imu_synced_data_
         )
     ) {
-        Eigen::Matrix4f init_pose = filtering_ptr_->GetPose();
-
-        // evaluate deviation from GNSS/IMU:
-        float deviation = (
-            init_pose.block<3, 1>(0, 3) - current_gnss_data_.pose.block<3, 1>(0, 3)
-        ).norm();
-
         // prompt:
-        LOG(INFO) << "Scan Context Localization Init Succeeded. Deviation between GNSS/IMU: " 
-                  << deviation
-                  << std::endl;
+        LOG(INFO) << "Scan Context Localization Init Succeeded." << std::endl;
     } 
-    // if failed, fall back to GNSS/IMU init:
-    else {
-        filtering_ptr_->Init(
-            current_gnss_data_.pose,
-            init_vel,
-            current_imu_synced_data_
-        );
 
-        LOG(INFO) << "Scan Context Localization Init Failed. Fallback to GNSS/IMU." 
-                  << std::endl;
-    }
-    
     return true;
 }
 
@@ -275,8 +259,10 @@ bool FilteringFlow::CorrectLocalization() {
 
     if ( is_fusion_succeeded ) {
         PublishFusionOdom();
+        
         // add to odometry output for evo evaluation:
-        UpdateOdometry();
+        UpdateOdometry(current_cloud_data_.time);
+
         return true;
     }
 
@@ -310,8 +296,6 @@ bool FilteringFlow::PublishLidarOdom() {
     laser_odom_pub_ptr_->Publish(laser_pose_, current_cloud_data_.time);
     // b. publish current scan:
     current_scan_pub_ptr_->Publish(filtering_ptr_->GetCurrentScan());
-    // c. publish ref odometry:
-    ref_odom_pub_ptr_->Publish(current_gnss_data_.pose, current_gnss_data_.vel, current_gnss_data_.time);
 
     return true;
 }
@@ -327,10 +311,11 @@ bool FilteringFlow::PublishFusionOdom() {
     return true;
 }
 
-bool FilteringFlow::UpdateOdometry(void) {
+bool FilteringFlow::UpdateOdometry(const double &time) {
+    trajectory.time_.push_back(time);
+    
     trajectory.fused_.push_back(fused_pose_);
     trajectory.lidar_.push_back(laser_pose_);
-    trajectory.ref_.push_back(current_gnss_data_.pose);
 
     ++trajectory.N;
 

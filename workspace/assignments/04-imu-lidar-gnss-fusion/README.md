@@ -147,44 +147,6 @@ topics:      /kitti/camera_color_left/camera_info     4544 msgs    : sensor_msgs
 
 <img src="doc/images/01-IMU-lidar-fusion-micro.png" alt="IMU-Lidar Fusion v.s. GNSS Micro" width="100%">
 
-可通过如下`ROS Service Call`, 比较融合前后的Odometry: 
-
-```bash
-# set up session:
-source install/setup.bash
-# save odometry:
-rosservice call /save_odometry "{}"
-# run evo evaluation:
-# a. laser:
-evo_ape kitti ground_truth.txt laser.txt -r full --plot --plot_mode xy
-# b. fused:
-evo_ape kitti ground_truth.txt fused.txt -r full --plot --plot_mode xy
-```
-
-两者的KPI比较参照下表. 
-
-在`2011_10_03_drive_0027_extract`上, 两者的估计性能相近, `IMU-Lidar Fusion`的
-
-* 估计精度(Standard Deviation)
-
-* 误差的散布度
-
-略优, 相比Lidar Frontend直接估计的里程计有**4%**的提升.
-
-Lidar Only                 |IMU-Lidar Fusion
-:-------------------------:|:-------------------------:
-![EVO Lidar Only](doc/images/01-evo--lidar-only-map-plot.png)  |  ![EVO IMU-Lidar Fusion](doc/images/01-evo--imu-lidar-fusion-map-plot.png)
-
-|  Algo. |  Lidar Only   |  IMU-Lidar    |
-|:------:|:-------------:|:-------------:|
-|   max  |   2.633637    |    2.700011   |
-|  mean  |   1.747157    |    1.776031   |
-| median |   1.727711    |    1.753776   |
-|   min  |   1.236461    |    1.193656   |
-|  rmse  |   1.755847    |    1.789686   |
-|   sse  |  13528.196510 |  14054.661038 |
-| **std**| **0.174469**  |  **0.220658** |	
-
 ---
 
 ### 2. GNSS/IMU融合分析
@@ -288,14 +250,6 @@ Acc & Deacc, GNSS Only     |Acc & Deacc, IMU-GNSS
 
 * 使用Python工具链, 分析系统的`可观测性`与`可观测度`
 
-`可观测性`与`可观测度`的分析结果如下:
-
-* `IMU-GUSS ESKF Fusion`的`SOM`秩为`12`(Singular Value Threshold @ `1.0e-05`)
-
-* `静止`与`匀速运动`下, 模型的`可观测度`最低, 此时估计值的收敛速度为`最慢`
-
-* `旋转`与`加/减速`均可提升模型的`可观测度`, 且在这两种运动模式下, `运动越剧烈, 可观测度越高`
-
 四种典型运动模式的`可观测性`与`可观测度`测量数据如下表所示. 完整的测量数据请点击 [here](doc/results/observability)
 
 | Attribute |    **Static**    | **Const. Velocity** |    **Turning**   |  **Acc & Deacc** |
@@ -329,4 +283,22 @@ Acc & Deacc, GNSS Only     |Acc & Deacc, IMU-GNSS
 |    dGBz   |   1.254210e+17   |     2.609740e+17    |   2.909930e+16   |   1.782630e+17   |
 |    dABx   |   1.585440e+21   |     9.583680e+23    |   1.896390e+23   |   6.838070e+19   |
 |    dABy   |   4.756790e+20   |     2.708440e+20    |   8.967510e+18   |   3.227030e+20   |
-|    dABz   |   3.638080e+16   |     1.912320e+16    |   6.274590e+18   |   7.822130e+18   |    
+|    dABz   |   3.638080e+16   |     1.912320e+16    |   6.274590e+18   |   7.822130e+18   | 
+
+四种典型运动模式的`ESKF`方差收敛速度如下图所示. 
+
+Static                    |Const. Velocity
+:-------------------------:|:-------------------------:
+![Static](doc/images/02-eskf-cov--static.png)  |  ![Const. Velocity](doc/images/02-eskf-cov--const-velocity.png)
+
+Turning                    |Acc & Deacc
+:-------------------------:|:-------------------------:
+![Turning](doc/images/02-eskf-cov--turning.png)  |  ![Acc & Deacc](doc/images/02-eskf-cov--acc.png)
+
+`可观测性`与`可观测度`的分析结果如下:
+
+* `IMU-GUSS ESKF Fusion`的`SOM`秩为`12`(Singular Value Threshold @ `1.0e-05`)
+
+* `静止`与`匀速运动`下, 模型的`可观测度`最低, 此时估计值的收敛速度为`最慢`
+
+* `旋转`与`加/减速`均可提升模型的`可观测度`, 且在这两种运动模式下, `运动越剧烈, 可观测度越高`

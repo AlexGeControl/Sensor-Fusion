@@ -100,9 +100,6 @@ bool IMUGNSSFilteringFlow::SaveOdometry(void) {
 
     // write outputs:
     for (size_t i = 0; i < trajectory.N; ++i) {
-        SavePose(trajectory.fused_.at(i), fused_odom_ofs);
-        SavePose(trajectory.gnss_.at(i), gnss_odom_ofs);
-
         // sync ref pose with gnss measurement:
         while (
             !ref_pose_data_buff_.empty() && 
@@ -115,7 +112,9 @@ bool IMUGNSSFilteringFlow::SaveOdometry(void) {
             break;
         }
         current_ref_pose_data_ = ref_pose_data_buff_.front();
-        
+
+        SavePose(trajectory.fused_.at(i), fused_odom_ofs);
+        SavePose(trajectory.gnss_.at(i), gnss_odom_ofs);
         SavePose(current_ref_pose_data_.pose, ref_odom_ofs);
     }
 

@@ -7,6 +7,7 @@ Panels:
         - /Global Options1
         - /Status1
         - /trajectory1
+        - /trajectory1/gnss_pose1
         - /trajectory1/gnss_pose1/Shape1
         - /trajectory1/fused_odom1/Shape1
         - /trajectory1/laser_odom1/Shape1
@@ -102,7 +103,7 @@ Visualization Manager:
             Shaft Length: 1
             Shaft Radius: 0.30000001192092896
             Value: Arrow
-          Topic: /ref_localization
+          Topic: /synced_gnss
           Unreliable: false
           Value: true
         - Angle Tolerance: 0.10000000149011612
@@ -349,5 +350,5 @@ Window Geometry:
   Views:
     collapsed: true
   Width: 1235
-  X: -1
-  Y: -1
+  X: 0
+  Y: 0
