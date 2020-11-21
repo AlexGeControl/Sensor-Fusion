@@ -29,6 +29,8 @@ add_message_files(
     LidarMeasurement.msg
     # ESKF covariance monitor:
     ESKFStd.msg
+    # synced GNSS-odo measurement:
+    PosVel.msg
 )
 
 add_service_files(
@@ -42,6 +44,7 @@ add_service_files(
 generate_messages(
    DEPENDENCIES
    std_msgs
+   geometry_msgs
    sensor_msgs
    nav_msgs
 )
@@ -103,6 +106,14 @@ add_executable(imu_gnss_filtering_node src/apps/imu_gnss_filtering_node.cpp ${AL
 add_dependencies(imu_gnss_filtering_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(imu_gnss_filtering_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
 
+add_executable(imu_gnss_odo_preprocess_node src/apps/imu_gnss_odo_preprocess_node.cpp ${ALL_SRCS})
+add_dependencies(imu_gnss_odo_preprocess_node ${catkin_EXPORTED_TARGETS})
+target_link_libraries(imu_gnss_odo_preprocess_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
+
+add_executable(imu_gnss_odo_filtering_node src/apps/imu_gnss_odo_filtering_node.cpp ${ALL_SRCS})
+add_dependencies(imu_gnss_odo_filtering_node ${catkin_EXPORTED_TARGETS})
+target_link_libraries(imu_gnss_odo_filtering_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
+
 #############
 ## Install ##
 #############
@@ -125,6 +136,7 @@ install(TARGETS
         data_pretreat_node
         lidar_preprocess_node
         eskf_preprocess_node
+        imu_gnss_odo_preprocess_node
 
         front_end_node
         back_end_node
@@ -133,6 +145,7 @@ install(TARGETS
 
         filtering_node
         imu_gnss_filtering_node
+        imu_gnss_odo_filtering_node
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

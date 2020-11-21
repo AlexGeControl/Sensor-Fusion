@@ -23,6 +23,7 @@ public:
     enum MeasurementType {
         POSE = 0,
         POSITION,
+        POS_VEL,
         NUM_TYPES
     };
 
@@ -123,6 +124,18 @@ public:
     bool Correct(
         const IMUData &imu_data, 
         const double &time, const MeasurementType &measurement_type, const Eigen::Matrix4f &T_nb
+    );
+
+    /**
+     * @brief  Kalman correction, pose measurement and other measurement in body frame
+     * @param  T_nb, pose measurement
+     * @param  v_b, velocity or magnetometer measurement
+     * @return void                                   
+     */
+    bool Correct(
+        const IMUData &imu_data, 
+        const double &time, const MeasurementType &measurement_type, 
+        const Eigen::Matrix4f &T_nb, const Eigen::Vector3f &v_b
     );
 
     /**
@@ -282,11 +295,33 @@ private:
     /**
      * @brief  correct error estimation
      * @param  measurement_type, measurement type
-     * @param  T_nb, input measurement
+     * @param  T_nb, input measurement in navigation frame
      * @return void
      */
     void CorrectErrorEstimation(
         const MeasurementType &measurement_type, const Eigen::Matrix4d &T_nb
+    );
+
+    /**
+     * @brief  correct error estimation using navigation position and body velocity measurement
+     * @param  T_nb, input position measurement
+     * @param  v_b, input velocity measurement
+     * @return void
+     */
+    void CorrectErrorEstimationPosVel(
+        const Eigen::Matrix4d &T_nb, const Eigen::Vector3d &v_b
+    );
+
+    /**
+     * @brief  correct error estimation
+     * @param  measurement_type, measurement type
+     * @param  T_nb, input measurement in navigation frame
+     * @param  v_b, input measurement in body frame
+     * @return void
+     */
+    void CorrectErrorEstimation(
+        const MeasurementType &measurement_type, 
+        const Eigen::Matrix4d &T_nb, const Eigen::Vector3d &v_b
     );
 
     /**

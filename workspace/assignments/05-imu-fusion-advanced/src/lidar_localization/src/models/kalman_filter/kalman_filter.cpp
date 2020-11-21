@@ -231,7 +231,50 @@ bool KalmanFilter::Correct(
     
     return false;
 }
- 
+
+/**
+ * @brief  Kalman correction, pose measurement and other measurement in body frame
+ * @param  T_nb, pose measurement
+ * @param  v_b, velocity or magnetometer measurement
+ * @return void                                   
+ */
+bool KalmanFilter::Correct(
+    const IMUData &imu_data, 
+    const double &time, const MeasurementType &measurement_type, 
+    const Eigen::Matrix4f &T_nb, const Eigen::Vector3f &v_b
+) {
+    // get time delta:
+    double time_delta = time - time_;
+
+    if ( time_delta > -0.05 ) {
+        // perform Kalman prediction:
+        if ( time_ < time ) {
+            Update(imu_data);
+        }
+
+        // get observation in navigation frame:
+        Eigen::Matrix4d T_nb_double = init_pose_ * T_nb.cast<double>();
+        Eigen::Vector3d v_b_double = v_b.cast<double>();
+
+        // correct error estimation:
+        CorrectErrorEstimation(measurement_type, T_nb_double, v_b_double);
+
+        // eliminate error:
+        EliminateError();
+
+        // reset error state:
+        ResetState();
+
+        return true;
+    }
+
+    LOG(INFO) << "Kalman Correct: Observation is not synced with filter. Skip, " 
+              << (int)time << " <-- " << (int)time_ << " @ " << time_delta
+              << std::endl; 
+    
+    return false;
+}
+
 /**
  * @brief  get odometry estimation
  * @param  pose, init pose
@@ -628,6 +671,51 @@ void KalmanFilter::CorrectErrorEstimation(
             break;
         case MeasurementType::POSITION:
             CorrectErrorEstimationPosition(T_nb);
+            break;
+        default:
+            break;
+    }
+
+    if (
+        0 == (++count % 10) 
+    ) {
+        count = 0;
+        /*
+        // covariance monitor, correct step
+        LOG(INFO) << std::endl 
+                  << "Correct" << std::endl
+                  << P_( 0,  0) << ", " << P_( 1,  1) << ", " << P_( 2,  2) << std::endl
+                  << P_( 3,  3) << ", " << P_( 4,  4) << ", " << P_( 5,  5) << std::endl
+                  << P_( 6,  6) << ", " << P_( 7,  7) << ", " << P_( 8,  8) << std::endl
+                  << P_( 9,  9) << ", " << P_(10, 10) << ", " << P_(11, 11) << std::endl
+                  << P_(12, 12) << ", " << P_(13, 13) << ", " << P_(14, 14) << std::endl
+                  << std::endl;
+        */
+    }
+}
+
+/**
+ * @brief  correct error estimation using navigation position and body velocity measurement
+ * @param  T_nb, input position measurement
+ * @param  v_b, input velocity measurement
+ * @return void
+ */
+void KalmanFilter::CorrectErrorEstimationPosVel(
+    const Eigen::Matrix4d &T_nb, const Eigen::Vector3d &v_b
+) {
+    ;
+}
+
+
+void KalmanFilter::CorrectErrorEstimation(
+    const MeasurementType &measurement_type, 
+    const Eigen::Matrix4d &T_nb, const Eigen::Vector3d &v_b
+) {
+    static int count = 0;
+
+    switch ( measurement_type ) {
+        case MeasurementType::POS_VEL:
+            CorrectErrorEstimationPosVel(T_nb, v_b);
             break;
         default:
             break;
