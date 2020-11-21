@@ -1,5 +1,5 @@
 # motion def:
-motion_file: constant_velocity.csv
+motion_file: virtual_proving_ground.csv
 
 # sample frequency of simulated GNSS/IMU data:
 sample_frequency:
@@ -11,20 +11,25 @@ device_error_level:
     imu: high_accuracy
     mag: mid_accuracy
     gps: mid_accuracy
-    odo: no_error
+    odo: mid_accuracy
 
 # topic name:
 topic_name: 
-    init_pose: /init_pose
     # a. IMU:
     imu: /sim/sensor/imu
-    # b. GNSS:
+    # b. magnetometer:
+    mag: /sim/sensor/imu/mag
+    # c. GNSS:
     gps_pos: /sim/sensor/gps/fix
+    # d. GNSS/IMU:
     gps_vel: /sim/sensor/gps/vel
-    # d. reference trajectory:
+    # e. odometer:
+    odo: /sim/sensor/odo
+    # f. reference trajectory:
+    init_pose: /init_pose
     reference_trajectory: /reference_pose
     
 # output rosbag path:
-output_path: /workspace/data/gnss_ins_sim/eskf_analysis
+output_path: /workspace/data/gnss_ins_sim/advanced_topics
 # output name:
-output_name: constant_velocity.bag
+output_name: virtual_proving_ground.bag
