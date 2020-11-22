@@ -55,11 +55,14 @@ bool IMUGNSSFiltering::Correct(
 ) {
     static int count = 0;
 
+    // set GNSS measurement:
+    current_measurement_.time = gnss_pose_data.time;
+    current_measurement_.T_nb = (init_pose_.inverse() * gnss_pose_data.pose).cast<double>();
+
     if (
         kalman_filter_ptr_->Correct(
             imu_data,
-            gnss_pose_data.time, 
-            KalmanFilter::MeasurementType::POSITION, init_pose_.inverse() * gnss_pose_data.pose
+            ErrorStateKalmanFilter::MeasurementType::POSITION, current_measurement_
         )
     ) {
         kalman_filter_ptr_->GetOdometry(
@@ -75,7 +78,7 @@ bool IMUGNSSFiltering::Correct(
             // perform observability analysis:
             kalman_filter_ptr_->UpdateObservabilityAnalysis(
                 gnss_pose_data.time,
-                KalmanFilter::MeasurementType::POSITION
+                ErrorStateKalmanFilter::MeasurementType::POSITION
             );
             */
         }
@@ -119,7 +122,7 @@ void IMUGNSSFiltering::GetStandardDeviation(ESKFStd &eskf_std_msg) {
 
 void IMUGNSSFiltering::SaveObservabilityAnalysis(void) {
     kalman_filter_ptr_->SaveObservabilityAnalysis(
-        KalmanFilter::MeasurementType::POSITION
+        ErrorStateKalmanFilter::MeasurementType::POSITION
     );
 }
 
@@ -144,7 +147,7 @@ bool IMUGNSSFiltering::InitFusion(const YAML::Node& config_node) {
     std::cout << "\tIMU-GNSS Fusion Method: " << fusion_method << std::endl;
 
     if (fusion_method == "kalman_filter") {
-        kalman_filter_ptr_ = std::make_shared<KalmanFilter>(config_node[fusion_method]);
+        kalman_filter_ptr_ = std::make_shared<ErrorStateKalmanFilter>(config_node[fusion_method]);
     } else {
         LOG(ERROR) << "Fusion method " << fusion_method << " NOT FOUND!";
         return false;

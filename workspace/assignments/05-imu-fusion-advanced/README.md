@@ -57,7 +57,25 @@ topics:      /init_pose               1 msg     : nav_msgs/Odometry
 
 接着在框架中增加新的节点, 实现`GNSS`观测值的预处理, 以及融合节点对位置观测与速度观测的订阅.
 
+#### Results & Analysis
 
+测试数据如下图所示. 
+
+<img src="doc/images/02-virtual-test-drive.png" alt="Virtual Test Drive, IMU-GNSS-Odo Fusion" width="100%" />
+
+
+`GNSS Only`, `IMU-GNSS Fusion`与`IMU-GNSS-Odo Fusion`的误差对比如下:
+
+GNSS Only                  |IMU-GNSS Fusion            |IMU-GNSS-Odo Fusion
+:-------------------------:|:-------------------------:|:-------------------------:
+![GNSS Only, Time Series Plot](doc/images/02-evo--gnss-only--time-series-plot.png)  |  ![IMU-GNSS Fusion, Time Series Plot](doc/images/02-evo--imu-gnss--time-series-plot.png)  |  ![IMU-GNSS-Odo Fusion, Time Series Plot](doc/images/02-evo--imu-gnss-odo--time-series-plot.png)
+![GNSS Only, Map Plot](doc/images/02-evo--gnss-only--map-plot.png)  |  ![IMU-GNSS Fusion, Map Plot](doc/images/02-evo--imu-gnss--map-plot.png)  |  ![IMU-GNSS-Odo Fusion, Map Plot](doc/images/02-evo--imu-gnss-odo--map-plot.png)
+
+三者的估计精度如下. `IMU-GNSS-Odo Fusion`的精度, 相比`IMU-GNSS Fusion`有~40%的显著提升.
+
+|        Algo.       | GNSS Only | IMU-GNSS Fusion | IMU-GNSS-Odo Fusion |
+|:------------------:|:---------:|:---------------:|:-------------------:|
+| Standard Deviation |  0.841071 |     0.551382    |     **0.332923**    |
 
 ---
 

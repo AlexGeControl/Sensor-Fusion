@@ -26,7 +26,7 @@
 
 namespace lidar_localization {
 
-KalmanFilter::KalmanFilter(const YAML::Node& node) {
+ErrorStateKalmanFilter::ErrorStateKalmanFilter(const YAML::Node& node) {
     //
     // parse config:
     // 
@@ -46,6 +46,7 @@ KalmanFilter::KalmanFilter(const YAML::Node& node) {
     COV.PROCESS.ACCEL = node["covariance"]["process"]["accel"].as<double>();
     // d. measurement noise:
     COV.MEASUREMENT.POS = node["covariance"]["measurement"]["pos"].as<double>();
+    COV.MEASUREMENT.VEL = node["covariance"]["measurement"]["vel"].as<double>();
     COV.MEASUREMENT.ORIENTATION = node["covariance"]["measurement"]["orientation"].as<double>();
 
     // prompt:
@@ -65,6 +66,7 @@ KalmanFilter::KalmanFilter(const YAML::Node& node) {
               << "\tprocess noise accel.: " << COV.PROCESS.ACCEL << std::endl
               << std::endl
               << "\tmeasurement noise pos.: " << COV.MEASUREMENT.POS << std::endl
+              << "\tmeasurement noise vel.: " << COV.MEASUREMENT.VEL << std::endl
               << "\tmeasurement noise orientation.: " << COV.MEASUREMENT.ORIENTATION << std::endl
               << std::endl;
     
@@ -88,25 +90,40 @@ KalmanFilter::KalmanFilter(const YAML::Node& node) {
     // c. process noise:
     Q_.block<3, 3>(0, 0) = COV.PROCESS.GYRO*Eigen::Matrix3d::Identity();
     Q_.block<3, 3>(3, 3) = COV.PROCESS.ACCEL*Eigen::Matrix3d::Identity();
+
     // d. measurement noise:
     RPose_.block<3, 3>(0, 0) = COV.MEASUREMENT.POS*Eigen::Matrix3d::Identity();
     RPose_.block<3, 3>(3, 3) = COV.MEASUREMENT.ORIENTATION*Eigen::Matrix3d::Identity();
 
     RPosition_.block<3, 3>(0, 0) = COV.MEASUREMENT.POS*Eigen::Matrix3d::Identity();
+
+    RPosVel_.block<3, 3>(0, 0) = COV.MEASUREMENT.POS*Eigen::Matrix3d::Identity();
+    RPosVel_.block<3, 3>(3, 3) = COV.MEASUREMENT.VEL*Eigen::Matrix3d::Identity();
+    // RPosVel_.block<3, 3>(6, 6) = COV.MEASUREMENT.ORIENTATION*Eigen::Matrix3d::Identity();
+
     // e. process equation:
     F_.block<3, 3>(  INDEX_ERROR_POS,   INDEX_ERROR_VEL) = Eigen::Matrix3d::Identity();
     F_.block<3, 3>(  INDEX_ERROR_ORI,   INDEX_ERROR_ORI) = Sophus::SO3d::hat(-w_).matrix();
+
     // f. measurement equation:
     GPose_.block<3, 3>(0, INDEX_ERROR_POS) = Eigen::Matrix3d::Identity();
     GPose_.block<3, 3>(3, INDEX_ERROR_ORI) = Eigen::Matrix3d::Identity();
-    CPose_.block<3, 3>(0, 0) = CPose_.block<3, 3>(3, 3) = Eigen::Matrix3d::Identity();
+    CPose_.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
+    CPose_.block<3, 3>(3, 3) = Eigen::Matrix3d::Identity();
 
     GPosition_.block<3, 3>(0, INDEX_ERROR_POS) = Eigen::Matrix3d::Identity();
     CPosition_.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
 
+    GPosVel_.block<3, 3>(0, INDEX_ERROR_POS) = Eigen::Matrix3d::Identity();
+    // GPosVel_.block<3, 3>(6, INDEX_ERROR_ORI) = Eigen::Matrix3d::Identity();
+    CPosVel_.block<3, 3>(0, 0) = Eigen::Matrix3d::Identity();
+    CPosVel_.block<3, 3>(3, 3) = Eigen::Matrix3d::Identity();
+    // CPosVel_.block<3, 3>(6, 6) = Eigen::Matrix3d::Identity();
+
     // init soms:
     SOMPose_.block<DIM_MEASUREMENT_POSE, DIM_STATE>(0, 0) = GPose_;
     SOMPosition_.block<DIM_MEASUREMENT_POSITION, DIM_STATE>(0, 0) = GPosition_;
+    SOMPosVel_.block<DIM_MEASUREMENT_POSVEL, DIM_STATE>(0, 0) = GPosVel_;
 }
 
 /**
@@ -116,7 +133,7 @@ KalmanFilter::KalmanFilter(const YAML::Node& node) {
  * @param  imu_data, init IMU measurements
  * @return true if success false otherwise
  */
-void KalmanFilter::Init(
+void ErrorStateKalmanFilter::Init(
     const Eigen::Vector3d &vel,
     const IMUData &imu_data
 ) {
@@ -166,7 +183,7 @@ void KalmanFilter::Init(
  * @param  imu_data, input IMU measurements
  * @return true if success false otherwise
  */
-bool KalmanFilter::Update(const IMUData &imu_data) {
+bool ErrorStateKalmanFilter::Update(const IMUData &imu_data) {
     // update IMU buff:
     if (time_ < imu_data.time) {
         // update buffer:
@@ -193,71 +210,32 @@ bool KalmanFilter::Update(const IMUData &imu_data) {
 }
 
 /**
- * @brief  Kalman correction, pose measurement
- * @param  T_nb, odometry delta from lidar frontend
- * @return void
- */
-bool KalmanFilter::Correct(
-    const IMUData &imu_data,
-    const double &time, const MeasurementType &measurement_type, const Eigen::Matrix4f &T_nb
-) {
-    // get time delta:
-    double time_delta = time - time_;
-
-    if ( time_delta > -0.05 ) {
-        // perform Kalman prediction:
-        if ( time_ < time ) {
-            Update(imu_data);
-        }
-
-        // get observation in navigation frame:
-        Eigen::Matrix4d T_nb_double = init_pose_ * T_nb.cast<double>();
-
-        // correct error estimation:
-        CorrectErrorEstimation(measurement_type, T_nb_double);
-
-        // eliminate error:
-        EliminateError();
-
-        // reset error state:
-        ResetState();
-
-        return true;
-    }
-
-    LOG(INFO) << "Kalman Correct: Observation is not synced with filter. Skip, " 
-              << (int)time << " <-- " << (int)time_ << " @ " << time_delta
-              << std::endl; 
-    
-    return false;
-}
-
-/**
  * @brief  Kalman correction, pose measurement and other measurement in body frame
- * @param  T_nb, pose measurement
- * @param  v_b, velocity or magnetometer measurement
+ * @param  measurement_type, input measurement type
+ * @param  measurement, input measurement
  * @return void                                   
  */
-bool KalmanFilter::Correct(
+bool ErrorStateKalmanFilter::Correct(
     const IMUData &imu_data, 
-    const double &time, const MeasurementType &measurement_type, 
-    const Eigen::Matrix4f &T_nb, const Eigen::Vector3f &v_b
-) {
+    const MeasurementType &measurement_type, const Measurement &measurement
+) { 
+    static Measurement measurement_;
+
     // get time delta:
-    double time_delta = time - time_;
+    double time_delta = measurement.time - time_;
 
     if ( time_delta > -0.05 ) {
         // perform Kalman prediction:
-        if ( time_ < time ) {
+        if ( time_ < measurement.time ) {
             Update(imu_data);
         }
 
         // get observation in navigation frame:
-        Eigen::Matrix4d T_nb_double = init_pose_ * T_nb.cast<double>();
-        Eigen::Vector3d v_b_double = v_b.cast<double>();
+        measurement_ = measurement;
+        measurement_.T_nb = init_pose_ * measurement_.T_nb;
 
         // correct error estimation:
-        CorrectErrorEstimation(measurement_type, T_nb_double, v_b_double);
+        CorrectErrorEstimation(measurement_type, measurement);
 
         // eliminate error:
         EliminateError();
@@ -269,7 +247,7 @@ bool KalmanFilter::Correct(
     }
 
     LOG(INFO) << "Kalman Correct: Observation is not synced with filter. Skip, " 
-              << (int)time << " <-- " << (int)time_ << " @ " << time_delta
+              << (int)measurement.time << " <-- " << (int)time_ << " @ " << time_delta
               << std::endl; 
     
     return false;
@@ -281,7 +259,7 @@ bool KalmanFilter::Correct(
  * @param  vel, init vel
  * @return void
  */
-void KalmanFilter::GetOdometry(
+void ErrorStateKalmanFilter::GetOdometry(
     Eigen::Matrix4f &pose, Eigen::Vector3f &vel
 ) {
     // init:
@@ -310,7 +288,7 @@ void KalmanFilter::GetOdometry(
  * @param  cov, covariance output
  * @return void
  */
-void KalmanFilter::GetCovariance(ESKFCov &cov) {
+void ErrorStateKalmanFilter::GetCovariance(Cov &cov) {
     static int OFFSET_X = 0;
     static int OFFSET_Y = 1;
     static int OFFSET_Z = 2;
@@ -347,7 +325,7 @@ void KalmanFilter::GetCovariance(ESKFCov &cov) {
  * @param  R, corresponding orientation of measurement
  * @return unbiased angular velocity in body frame
  */
-inline Eigen::Vector3d KalmanFilter::GetUnbiasedAngularVel(
+inline Eigen::Vector3d ErrorStateKalmanFilter::GetUnbiasedAngularVel(
     const Eigen::Vector3d &angular_vel,
     const Eigen::Matrix3d &R
 ) {
@@ -360,7 +338,7 @@ inline Eigen::Vector3d KalmanFilter::GetUnbiasedAngularVel(
  * @param  R, corresponding orientation of measurement
  * @return unbiased linear acceleration in navigation frame
  */
-inline Eigen::Vector3d KalmanFilter::GetUnbiasedLinearAcc(
+inline Eigen::Vector3d ErrorStateKalmanFilter::GetUnbiasedLinearAcc(
     const Eigen::Vector3d &linear_acc,
     const Eigen::Matrix3d &R
 ) {
@@ -374,7 +352,7 @@ inline Eigen::Vector3d KalmanFilter::GetUnbiasedLinearAcc(
  * @param  angular_delta, angular delta output
  * @return true if success false otherwise
  */
-bool KalmanFilter::GetAngularDelta(
+bool ErrorStateKalmanFilter::GetAngularDelta(
     const size_t index_curr, const size_t index_prev,
     Eigen::Vector3d &angular_delta
 ) {
@@ -418,7 +396,7 @@ bool KalmanFilter::GetAngularDelta(
  * @param  R_prev, previous orientation
  * @return void
  */
-void KalmanFilter::UpdateOrientation(
+void ErrorStateKalmanFilter::UpdateOrientation(
     const Eigen::Vector3d &angular_delta,
     Eigen::Matrix3d &R_curr, Eigen::Matrix3d &R_prev
 ) {
@@ -457,7 +435,7 @@ void KalmanFilter::UpdateOrientation(
  * @param  linear_acc_mid, mid-value unbiased linear acc
  * @return true if success false otherwise
  */
-bool KalmanFilter::GetVelocityDelta(
+bool ErrorStateKalmanFilter::GetVelocityDelta(
     const size_t index_curr, const size_t index_prev,
     const Eigen::Matrix3d &R_curr, const Eigen::Matrix3d &R_prev, 
     double &T, 
@@ -502,7 +480,7 @@ bool KalmanFilter::GetVelocityDelta(
  * @param  velocity_delta, effective velocity change
  * @return void
  */
-void KalmanFilter::UpdatePosition(const double &T, const Eigen::Vector3d &velocity_delta) {
+void ErrorStateKalmanFilter::UpdatePosition(const double &T, const Eigen::Vector3d &velocity_delta) {
     pose_.block<3, 1>(0, 3) += T*vel_ + 0.5*T*velocity_delta;
     vel_ += velocity_delta;
 }
@@ -512,7 +490,7 @@ void KalmanFilter::UpdatePosition(const double &T, const Eigen::Vector3d &veloci
  * @param  linear_acc_mid, output mid-value unbiased linear acc
  * @return void
  */
-void KalmanFilter::UpdateOdomEstimation(Eigen::Vector3d &linear_acc_mid) {
+void ErrorStateKalmanFilter::UpdateOdomEstimation(Eigen::Vector3d &linear_acc_mid) {
     // get deltas:
     Eigen::Vector3d angular_delta; 
     GetAngularDelta(1, 0, angular_delta);
@@ -541,7 +519,7 @@ void KalmanFilter::UpdateOdomEstimation(Eigen::Vector3d &linear_acc_mid) {
  * @param  f_n, accel measurement in navigation frame
  * @return void
  */
-void KalmanFilter::SetProcessEquation(
+void ErrorStateKalmanFilter::SetProcessEquation(
     const Eigen::Matrix3d &C_nb, const Eigen::Vector3d &f_n
 ) {
     // a. set process equation for delta vel:
@@ -558,7 +536,7 @@ void KalmanFilter::SetProcessEquation(
  * @param  T, output time delta
  * @return void
  */
-void KalmanFilter::UpdateProcessEquation(
+void ErrorStateKalmanFilter::UpdateProcessEquation(
     const Eigen::Vector3d &linear_acc_mid
 ) { 
     // set linearization point:
@@ -574,7 +552,7 @@ void KalmanFilter::UpdateProcessEquation(
  * @param  linear_acc_mid, input mid-value unbiased linear acc
  * @return void
  */
-void KalmanFilter::UpdateErrorEstimation(
+void ErrorStateKalmanFilter::UpdateErrorEstimation(
     const double &T,
     const Eigen::Vector3d &linear_acc_mid
 ) {
@@ -589,6 +567,7 @@ void KalmanFilter::UpdateErrorEstimation(
     // get discretized process equations:
     F_1st = T*F_;
     F_2nd = 0.5*T*F_*F_1st;
+    // approximate to 2nd order:
     MatrixF F = MatrixF::Identity() + F_1st + F_2nd;
     MatrixB B = T*B_;
 
@@ -601,7 +580,7 @@ void KalmanFilter::UpdateErrorEstimation(
     ) {
         count = 0;
         /*
-        // covariance monitor, update step:
+        // covariance monitor, update step, debugging only:
         LOG(INFO) << std::endl 
                   << static_cast<int>(imu_data.time) << " Update" << std::endl
                   << P_( 0,  0) << ", " << P_( 1,  1) << ", " << P_( 2,  2) << std::endl
@@ -619,18 +598,18 @@ void KalmanFilter::UpdateErrorEstimation(
  * @param  T_nb, input pose measurement
  * @return void
  */
-void KalmanFilter::CorrectErrorEstimationPose(
+void ErrorStateKalmanFilter::CorrectErrorEstimationPose(
     const Eigen::Matrix4d &T_nb
 ) {
     // parse measurement:
     Eigen::Vector3d P_nn_obs = pose_.block<3, 1>(0,3) - T_nb.block<3, 1>(0,3);
-    Eigen::Matrix3d C_nn_obs = pose_.block<3, 3>(0,0) * T_nb.block<3, 3>(0,0).transpose();;
+    Eigen::Matrix3d C_nn_obs = pose_.block<3, 3>(0,0) * T_nb.block<3, 3>(0,0).transpose();
 
     YPose_.block<3, 1>(0, 0) = P_nn_obs;
     YPose_.block<3, 1>(3, 0) = Sophus::SO3d::vee(Eigen::Matrix3d::Identity() - C_nn_obs);
 
     // build Kalman gain:
-    MatrixRPose R = GPose_*P_*GPose_.transpose() + CPose_*RPose_*CPose_.transpose();
+    MatrixRPose R = GPose_*P_*GPose_.transpose() + RPose_;
     MatrixKPose K = P_*GPose_.transpose()*R.inverse();
 
     // perform Kalman correct:
@@ -643,7 +622,7 @@ void KalmanFilter::CorrectErrorEstimationPose(
  * @param  T_nb, input position measurement
  * @return void
  */
-void KalmanFilter::CorrectErrorEstimationPosition(
+void ErrorStateKalmanFilter::CorrectErrorEstimationPosition(
     const Eigen::Matrix4d &T_nb
 ) {
     // parse measurement:
@@ -660,63 +639,63 @@ void KalmanFilter::CorrectErrorEstimationPosition(
     X_ = X_ + K*(YPosition_ - GPosition_*X_);
 }
 
-void KalmanFilter::CorrectErrorEstimation(
-    const MeasurementType &measurement_type, const Eigen::Matrix4d &T_nb
-) {
-    static int count = 0;
-
-    switch ( measurement_type ) {
-        case MeasurementType::POSE:
-            CorrectErrorEstimationPose(T_nb);
-            break;
-        case MeasurementType::POSITION:
-            CorrectErrorEstimationPosition(T_nb);
-            break;
-        default:
-            break;
-    }
-
-    if (
-        0 == (++count % 10) 
-    ) {
-        count = 0;
-        /*
-        // covariance monitor, correct step
-        LOG(INFO) << std::endl 
-                  << "Correct" << std::endl
-                  << P_( 0,  0) << ", " << P_( 1,  1) << ", " << P_( 2,  2) << std::endl
-                  << P_( 3,  3) << ", " << P_( 4,  4) << ", " << P_( 5,  5) << std::endl
-                  << P_( 6,  6) << ", " << P_( 7,  7) << ", " << P_( 8,  8) << std::endl
-                  << P_( 9,  9) << ", " << P_(10, 10) << ", " << P_(11, 11) << std::endl
-                  << P_(12, 12) << ", " << P_(13, 13) << ", " << P_(14, 14) << std::endl
-                  << std::endl;
-        */
-    }
-}
-
 /**
  * @brief  correct error estimation using navigation position and body velocity measurement
  * @param  T_nb, input position measurement
  * @param  v_b, input velocity measurement
  * @return void
  */
-void KalmanFilter::CorrectErrorEstimationPosVel(
+void ErrorStateKalmanFilter::CorrectErrorEstimationPosVel(
     const Eigen::Matrix4d &T_nb, const Eigen::Vector3d &v_b
 ) {
-    ;
+    // parse measurement:
+    Eigen::Vector3d P_nn_obs = pose_.block<3, 1>(0,3) - T_nb.block<3, 1>(0,3);
+    Eigen::Vector3d v_bb_obs = pose_.block<3, 3>(0,0).transpose()*vel_ - v_b;
+    // apply motion constraint:
+    v_bb_obs.y() = v_bb_obs.z() = 0.0;
+    // Eigen::Matrix3d C_nn_obs = pose_.block<3, 3>(0,0) * T_nb.block<3, 3>(0,0).transpose();
+
+    YPosVel_.block<3, 1>(0, 0) = P_nn_obs;
+    YPosVel_.block<3, 1>(3, 0) = v_bb_obs ;
+    // YPosVel_.block<3, 1>(6, 0) = Sophus::SO3d::vee(Eigen::Matrix3d::Identity() - C_nn_obs);
+
+    // set measurement equation:
+    GPosVel_.block<3, 3>(3, INDEX_ERROR_VEL) =  pose_.block<3, 3>(0,0).transpose();
+    GPosVel_.block<3, 3>(3, INDEX_ERROR_ORI) = -pose_.block<3, 3>(0,0).transpose()*Sophus::SO3d::hat(vel_);
+
+    // build Kalman gain:
+    MatrixRPosVel R = GPosVel_*P_*GPosVel_.transpose() + RPosVel_;
+    MatrixKPosVel K = P_*GPosVel_.transpose()*R.inverse();
+
+    // perform Kalman correct:
+    P_ = (MatrixP::Identity() - K*GPosVel_)*P_;
+    X_ = X_ + K*(YPosVel_ - GPosVel_*X_);
 }
 
-
-void KalmanFilter::CorrectErrorEstimation(
+/**
+ * @brief  correct error estimation
+ * @param  measurement_type, measurement type
+ * @param  measurement, input measurement
+ * @return void
+ */
+void ErrorStateKalmanFilter::CorrectErrorEstimation(
     const MeasurementType &measurement_type, 
-    const Eigen::Matrix4d &T_nb, const Eigen::Vector3d &v_b
+    const Measurement &measurement
 ) {
     static int count = 0;
 
     switch ( measurement_type ) {
-        case MeasurementType::POS_VEL:
-            CorrectErrorEstimationPosVel(T_nb, v_b);
+        case MeasurementType::POSE:
+            CorrectErrorEstimationPose(measurement.T_nb);
             break;
+        case MeasurementType::POSITION:
+            CorrectErrorEstimationPosition(measurement.T_nb);
+            break;
+        case MeasurementType::POSITION_VELOCITY:
+            CorrectErrorEstimationPosVel(
+                measurement.T_nb,
+                measurement.v_b
+            );
         default:
             break;
     }
@@ -726,7 +705,7 @@ void KalmanFilter::CorrectErrorEstimation(
     ) {
         count = 0;
         /*
-        // covariance monitor, correct step
+        // covariance monitor, correct step, debugging only
         LOG(INFO) << std::endl 
                   << "Correct" << std::endl
                   << P_( 0,  0) << ", " << P_( 1,  1) << ", " << P_( 2,  2) << std::endl
@@ -744,11 +723,15 @@ void KalmanFilter::CorrectErrorEstimation(
  * @param  void
  * @return void
  */
-void KalmanFilter::EliminateError(void) {
+void ErrorStateKalmanFilter::EliminateError(void) {
     // a. position:
     pose_.block<3, 1>(0, 3) = pose_.block<3, 1>(0, 3) - X_.block<3, 1>(INDEX_ERROR_POS, 0);
     // b. velocity:
     vel_ = vel_ - X_.block<3, 1>(INDEX_ERROR_VEL, 0);
+
+    Eigen::Vector3d vel_b_ = pose_.block<3, 3>(0, 0).transpose() * vel_;
+    vel_b_.y() = vel_b_.z() = 0.0;
+    vel_ = pose_.block<3, 3>(0, 0) * vel_b_;
     // c. orientation:
     Eigen::Matrix3d C_nn = Sophus::SO3d::exp(X_.block<3, 1>(INDEX_ERROR_ORI, 0)).matrix();
     pose_.block<3, 3>(0, 0) = C_nn*pose_.block<3, 3>(0, 0);
@@ -770,7 +753,7 @@ void KalmanFilter::EliminateError(void) {
  * @param  THRESH, covariance threshold, defaults to 1.0e-5
  * @return void
  */
-bool KalmanFilter::IsCovStable(
+bool ErrorStateKalmanFilter::IsCovStable(
     const int INDEX_OFSET,
     const double THRESH
 ) {
@@ -788,7 +771,7 @@ bool KalmanFilter::IsCovStable(
  * @param  void
  * @return void
  */
-void KalmanFilter::ResetState(void) {
+void ErrorStateKalmanFilter::ResetState(void) {
     // reset current state:
     X_ = VectorX::Zero();
 }
@@ -798,7 +781,7 @@ void KalmanFilter::ResetState(void) {
  * @param  void
  * @return void
  */
-void KalmanFilter::ResetCovariance(void) {
+void ErrorStateKalmanFilter::ResetCovariance(void) {
     P_ = MatrixP::Zero();
     
     P_.block<3, 3>(  INDEX_ERROR_POS,   INDEX_ERROR_POS) = COV.PRIOR.POS*Eigen::Matrix3d::Identity();
@@ -813,7 +796,7 @@ void KalmanFilter::ResetCovariance(void) {
  * @param  void
  * @return void
  */
-void KalmanFilter::UpdateObservabilityAnalysisPose(
+void ErrorStateKalmanFilter::UpdateObservabilityAnalysisPose(
     const double &time, std::vector<double> &record
 ) {
     ;
@@ -824,7 +807,7 @@ void KalmanFilter::UpdateObservabilityAnalysisPose(
  * @param  void
  * @return void
  */
-void KalmanFilter::UpdateObservabilityAnalysisPosition(
+void ErrorStateKalmanFilter::UpdateObservabilityAnalysisPosition(
     const double &time, std::vector<double> &record
 ) {
     // build observability matrix for position measurement:
@@ -858,11 +841,50 @@ void KalmanFilter::UpdateObservabilityAnalysisPosition(
 }
 
 /**
+ * @brief  update observability analysis for navigation position & body velocity measurement
+ * @param  void
+ * @return void
+ */
+void ErrorStateKalmanFilter::UpdateObservabilityAnalysisPosVel(
+    const double &time, std::vector<double> &record
+) {
+    // build observability matrix for position measurement:
+    SOMPosVel_.block<DIM_MEASUREMENT_POSVEL, DIM_STATE>(0, 0) = GPosVel_;
+    for (int i = 1; i < DIM_STATE; ++i) {
+        SOMPosVel_.block<DIM_MEASUREMENT_POSVEL, DIM_STATE>(i*DIM_MEASUREMENT_POSVEL, 0) = (
+            SOMPosVel_.block<DIM_MEASUREMENT_POSVEL, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSVEL, 0) * F_
+        );
+    }
+
+    // perform SVD analysis:
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(SOMPosVel_, Eigen::ComputeThinU | Eigen::ComputeThinV);
+
+    // record timestamp:
+    record.push_back(time);
+
+    // record singular values:
+    for (int i = 0; i < DIM_STATE; ++i) {
+        record.push_back(svd.singularValues()(i, 0));
+    }
+
+    // record degree of observability:
+    Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSVEL, 1> Y = COV.MEASUREMENT.POS*Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSVEL, 1>::Ones();
+    VectorX X = (
+        svd.matrixV()*
+        svd.singularValues().asDiagonal().inverse()*
+        svd.matrixU().transpose()
+    )*Y;
+    for (int i = 0; i < DIM_STATE; ++i) {
+        record.push_back(X(i, 0));
+    }
+}
+
+/**
  * @brief  update observability analysis
  * @param  measurement_type, measurement type
  * @return void
  */
-void KalmanFilter::UpdateObservabilityAnalysis(
+void ErrorStateKalmanFilter::UpdateObservabilityAnalysis(
     const double &time,
     const MeasurementType &measurement_type
 ) {
@@ -878,12 +900,15 @@ void KalmanFilter::UpdateObservabilityAnalysis(
             UpdateObservabilityAnalysisPosition(time, record);
             observability.position_.push_back(record);
             break;
+        case MeasurementType::POSITION_VELOCITY:
+            observability.pos_vel_.push_back(record);
+            break;
         default:
             break;
     }
 }
 
-void KalmanFilter::SaveObservabilityAnalysis(
+void ErrorStateKalmanFilter::SaveObservabilityAnalysis(
     const MeasurementType &measurement_type
 ) {
     std::vector<std::vector<double>> *data = nullptr;
@@ -897,6 +922,10 @@ void KalmanFilter::SaveObservabilityAnalysis(
         case MeasurementType::POSITION:
             data = &(observability.position_);
             type = std::string("position");
+            break;
+        case MeasurementType::POSITION_VELOCITY:
+            data = &(observability.pos_vel_);
+            type = std::string("position_velocity");
             break;
         default:
             break;

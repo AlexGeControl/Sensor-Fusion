@@ -60,13 +60,14 @@ class IMUGNSSOdoFiltering {
     bool has_inited_ = false;
 
     // IMU-GNSS Kalman filter:
-    std::shared_ptr<KalmanFilter> kalman_filter_ptr_;
+    std::shared_ptr<ErrorStateKalmanFilter> kalman_filter_ptr_;
+    ErrorStateKalmanFilter::Measurement current_measurement_;
     
     Eigen::Matrix4f current_gnss_pose_ = Eigen::Matrix4f::Identity();
     Eigen::Matrix4f init_pose_ = Eigen::Matrix4f::Identity(); 
     Eigen::Matrix4f current_pose_ = Eigen::Matrix4f::Identity();
     Eigen::Vector3f current_vel_ = Eigen::Vector3f::Zero();
-    KalmanFilter::ESKFCov current_cov_;
+    ErrorStateKalmanFilter::Cov current_cov_;
 };
 
 } // namespace lidar_localization

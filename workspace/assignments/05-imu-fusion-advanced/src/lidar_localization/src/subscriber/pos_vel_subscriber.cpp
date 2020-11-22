@@ -30,9 +30,9 @@ void PosVelSubscriber::msg_callback(const PosVelConstPtr& pos_vel_msg_ptr) {
     pos_vel_data.pos.z() = pos_vel_msg_ptr->position.z;
 
     // b. set the body frame velocity:
-    pos_vel_data.pos.x() = pos_vel_msg_ptr->velocity.x;
-    pos_vel_data.pos.y() = pos_vel_msg_ptr->velocity.y;
-    pos_vel_data.pos.z() = pos_vel_msg_ptr->velocity.z;
+    pos_vel_data.vel.x() = pos_vel_msg_ptr->velocity.x;
+    pos_vel_data.vel.y() = pos_vel_msg_ptr->velocity.y;
+    pos_vel_data.vel.z() = pos_vel_msg_ptr->velocity.z;
 
     new_pos_vel_data_.push_back(pos_vel_data);
     

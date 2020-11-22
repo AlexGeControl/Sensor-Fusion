@@ -128,10 +128,15 @@ bool Filtering::Correct(
         break;
     }
 
+    // set lidar measurement:
+    current_measurement_.time = cloud_data.time;
+    current_measurement_.T_nb = (init_pose_.inverse() * cloud_pose).cast<double>();
+
+    // Kalman correction:
     if (
         kalman_filter_ptr_->Correct(
             imu_data,
-            cloud_data.time, KalmanFilter::MeasurementType::POSE, init_pose_.inverse() * cloud_pose
+            ErrorStateKalmanFilter::MeasurementType::POSE, current_measurement_
         )
     ) {
         kalman_filter_ptr_->GetOdometry(
@@ -271,7 +276,7 @@ bool Filtering::InitFusion(const YAML::Node& config_node) {
     std::cout << "\tIMU-Lidar-GNSS Fusion Method: " << fusion_method << std::endl;
 
     if (fusion_method == "kalman_filter") {
-        kalman_filter_ptr_ = std::make_shared<KalmanFilter>(config_node[fusion_method]);
+        kalman_filter_ptr_ = std::make_shared<ErrorStateKalmanFilter>(config_node[fusion_method]);
     } else {
         LOG(ERROR) << "Fusion method " << fusion_method << " NOT FOUND!";
         return false;

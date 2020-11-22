@@ -113,7 +113,8 @@ class Filtering {
     // frontend:
     std::shared_ptr<RegistrationInterface> registration_ptr_; 
     // IMU-lidar Kalman filter:
-    std::shared_ptr<KalmanFilter> kalman_filter_ptr_;
+    std::shared_ptr<ErrorStateKalmanFilter> kalman_filter_ptr_;
+    ErrorStateKalmanFilter::Measurement current_measurement_;
     
     CloudData::CLOUD_PTR global_map_ptr_;
     CloudData::CLOUD_PTR local_map_ptr_;

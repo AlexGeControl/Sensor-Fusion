@@ -23,4 +23,5 @@ kalman_filter:
             accel: 1.0e-9
         measurement:
             pos: 2.5e-1
+            vel: 2.5e-3
             orientation: 9.0e-2
