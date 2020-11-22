@@ -57,6 +57,10 @@ topics:      /init_pose               1 msg     : nav_msgs/Odometry
 
 接着在框架中增加新的节点, 实现`GNSS`观测值的预处理, 以及融合节点对位置观测与速度观测的订阅.
 
+#### ESKF for IMU-GNSS-Odo Fusion
+
+接着重构`ErrorStateKalmanFilter`, 实现基于`GNSS-Odo`观测值的校正. 代码实现参考 [here](src/lidar_localization/src/models/kalman_filter/kalman_filter.cpp#L648)
+
 #### Results & Analysis
 
 测试数据如下图所示. 
