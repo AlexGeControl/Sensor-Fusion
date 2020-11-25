@@ -16,6 +16,9 @@
 // SVD for observability analysis:
 #include <Eigen/SVD>
 
+// mag table lookup:
+#include "lidar_localization/models/mag_table/geo_mag_declination.hpp"
+
 #include "lidar_localization/models/kalman_filter/extended_kalman_filter.hpp"
 
 #include "lidar_localization/global_defination/global_defination.h"
@@ -33,8 +36,33 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(const YAML::Node& node) {
     // a. earth constants:
     EARTH.GRAVITY_MAGNITUDE = node["earth"]["gravity_magnitude"].as<double>();
     EARTH.ROTATION_SPEED = node["earth"]["rotation_speed"].as<double>();
+   
     EARTH.LATITUDE = node["earth"]["latitude"].as<double>();
+    EARTH.LONGITUDE = node["earth"]["longitude"].as<double>();
+    
+    /*
+    // TODO: fix missing dependency mathlib
+    double dec = get_mag_declination(
+        static_cast<float>(EARTH.LATITUDE), static_cast<float>(EARTH.LONGITUDE)
+    );
+    double inc = get_mag_inclination(
+        static_cast<float>(EARTH.LATITUDE), static_cast<float>(EARTH.LONGITUDE)
+    );
+    double mag = get_mag_strength(
+        static_cast<float>(EARTH.LATITUDE), static_cast<float>(EARTH.LONGITUDE)
+    );
+
+    EARTH.MAG.B_U = -mag*sin(inc/180.0*M_PI);
+    EARTH.MAG.B_N = +mag*cos(inc/180.0*M_PI)*cos(dec/180.0*M_PI);
+    EARTH.MAG.B_E = +mag*cos(inc/180.0*M_PI)*sin(dec/180.0*M_PI);
+    */
+
+    EARTH.MAG.B_E = node["earth"]["magneto"]["B_E"].as<double>();
+    EARTH.MAG.B_N = node["earth"]["magneto"]["B_N"].as<double>();
+    EARTH.MAG.B_U = node["earth"]["magneto"]["B_U"].as<double>();
+
     EARTH.LATITUDE *= M_PI / 180.0;
+
     // b. prior state covariance:
     COV.PRIOR.POS = node["covariance"]["prior"]["pos"].as<double>();
     COV.PRIOR.VEL = node["covariance"]["prior"]["vel"].as<double>();
@@ -47,6 +75,7 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(const YAML::Node& node) {
     COV.PROCESS.ACCEL = node["covariance"]["process"]["accel"].as<double>();
     // d. measurement noise:
     COV.MEASUREMENT.POSI = node["covariance"]["measurement"]["posi"].as<double>();
+    COV.MEASUREMENT.VEL = node["covariance"]["measurement"]["vel"].as<double>();
     COV.MEASUREMENT.MAG = node["covariance"]["measurement"]["mag"].as<double>();
 
     // prompt:
@@ -55,6 +84,11 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(const YAML::Node& node) {
               << "\tgravity magnitude: " << EARTH.GRAVITY_MAGNITUDE << std::endl
               << "\tearth rotation speed: " << EARTH.ROTATION_SPEED << std::endl
               << "\tlatitude: " << EARTH.LATITUDE << std::endl
+              << "\tlongitude: " << EARTH.LATITUDE << std::endl
+              << "\tmagneto: " << std::endl
+              << "\t\tB_E: " << EARTH.MAG.B_E << std::endl
+              << "\t\tB_N: " << EARTH.MAG.B_N << std::endl
+              << "\t\tB_U: " << EARTH.MAG.B_U << std::endl
               << std::endl
               << "\tprior cov. pos.: " << COV.PRIOR.POS  << std::endl
               << "\tprior cov. vel.: " << COV.PRIOR.VEL << std::endl
@@ -66,6 +100,7 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(const YAML::Node& node) {
               << "\tprocess noise accel.: " << COV.PROCESS.ACCEL << std::endl
               << std::endl
               << "\tmeasurement noise posi.: " << COV.MEASUREMENT.POSI << std::endl
+              << "\tmeasurement noise vel.: " << COV.MEASUREMENT.VEL << std::endl
               << "\tmeasurement noise mag.: " << COV.MEASUREMENT.MAG << std::endl
               << std::endl;
     
@@ -93,6 +128,9 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(const YAML::Node& node) {
     // d. measurement noise:
     RPosi_.block<3, 3>(0, 0) = COV.MEASUREMENT.POSI*Eigen::Matrix3d::Identity();
 
+    RPosiVel_.block<3, 3>(0, 0) = COV.MEASUREMENT.POSI*Eigen::Matrix3d::Identity();
+    RPosiVel_.block<3, 3>(3, 3) = COV.MEASUREMENT.VEL*Eigen::Matrix3d::Identity();
+
     RPosiMag_.block<3, 3>(0, 0) = COV.MEASUREMENT.POSI*Eigen::Matrix3d::Identity();
     RPosiMag_.block<3, 3>(3, 3) = COV.MEASUREMENT.MAG*Eigen::Matrix3d::Identity();
 
@@ -102,10 +140,13 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(const YAML::Node& node) {
     // f. measurement equation:
     GPosi_.block<3, 3>( 0, INDEX_POS ) = Eigen::Matrix3d::Identity();
 
+    GPosiVel_.block<3, 3>( 0, INDEX_POS ) = Eigen::Matrix3d::Identity();
+
     GPosiMag_.block<3, 3>( 0, INDEX_POS ) = Eigen::Matrix3d::Identity();
 
     // init soms:
     SOMPosi_.block<DIM_MEASUREMENT_POSI, DIM_STATE>(0, 0) = GPosi_;
+    SOMPosiVel_.block<DIM_MEASUREMENT_POSI_VEL, DIM_STATE>(0, 0) = GPosiVel_;
     SOMPosiMag_.block<DIM_MEASUREMENT_POSI_MAG, DIM_STATE>(0, 0) = GPosiMag_;
 }
 
@@ -151,19 +192,16 @@ void ExtendedKalmanFilter::Init(
     // init filter time:
     time_ = imu_data.time;
 
-    // init process equation, in case of direct correct step:
-    UpdateProcessEquation(linear_acc_init);
-
     LOG(INFO) << std::endl 
-              << "Iterative Extended Kalman Filter Inited at " << static_cast<int>(time_) << std::endl
+              << "IEKF Inited at " << static_cast<int>(time_) << std::endl
               << "Init Position: " 
-              << pose_(0, 3) << ", "
-              << pose_(1, 3) << ", "
-              << pose_(2, 3) << std::endl
+              << init_pose_(0, 3) << ", "
+              << init_pose_(1, 3) << ", "
+              << init_pose_(2, 3) << std::endl
               << "Init Velocity: "
-              << vel_.x() << ", "
-              << vel_.y() << ", "
-              << vel_.z() << std::endl;
+              << init_vel_.x() << ", "
+              << init_vel_.y() << ", "
+              << init_vel_.z() << std::endl;
 }
 
 /**
@@ -174,12 +212,13 @@ void ExtendedKalmanFilter::Init(
 bool ExtendedKalmanFilter::Update(const IMUData &imu_data) {
     // update IMU buff:
     if (time_ < imu_data.time) {
-        // update buffer:
-        imu_data_buff_.pop_front();
-        imu_data_buff_.push_back(imu_data);
+        // Kalman prediction for covariance:
+        UpdateCovarianceEstimation(imu_data);
 
-        // update prediction:
+        // Kalman prediction for state:
+        imu_data_buff_.push_back(imu_data);
         UpdateStateEstimation();
+        imu_data_buff_.pop_front();
         
         // move forward:
         time_ = imu_data.time;
@@ -216,18 +255,12 @@ bool ExtendedKalmanFilter::Correct(
         measurement_.T_nb = init_pose_ * measurement_.T_nb;
 
         // correct error estimation:
-        CorrectErrorEstimation(measurement_type, measurement);
-
-        // eliminate error:
-        EliminateError();
-
-        // reset error state:
-        ResetState();
+        CorrectStateEstimation(measurement_type, measurement);
 
         return true;
     }
 
-    LOG(INFO) << "Kalman Correct: Observation is not synced with filter. Skip, " 
+    LOG(INFO) << "IEKF Correct: Observation is not synced with filter. Skip, " 
               << (int)measurement.time << " <-- " << (int)time_ << " @ " << time_delta
               << std::endl; 
     
@@ -244,17 +277,22 @@ void ExtendedKalmanFilter::GetOdometry(
     Eigen::Matrix4f &pose, Eigen::Vector3f &vel
 ) {
     // init:
-    Eigen::Matrix4d pose_double = pose_;
-    Eigen::Vector3d vel_double = vel_;
+    Eigen::Matrix4d pose_double = Eigen::Matrix4d::Identity();
+    Eigen::Vector3d vel_double = Eigen::Vector3d::Zero();
 
     // eliminate error:
     // a. position:
-    pose_double.block<3, 1>(0, 3) = pose_double.block<3, 1>(0, 3) - X_.block<3, 1>(INDEX_ERROR_POS, 0);
+    pose_double.block<3, 1>(0, 3) = X_.block<3, 1>(INDEX_POS, 0);
     // b. velocity:
-    vel_double = vel_double - X_.block<3, 1>(INDEX_ERROR_VEL, 0);
+    vel_double = X_.block<3, 1>(INDEX_VEL, 0);
     // c. orientation:
-    Eigen::Matrix3d C_nn = Sophus::SO3d::exp(X_.block<3, 1>(INDEX_ERROR_ORI, 0)).matrix();
-    pose_double.block<3, 3>(0, 0) = C_nn*pose_double.block<3, 3>(0, 0);
+    Eigen::Quaterniond q_nb(
+        X_(INDEX_ORI + 0, 0),
+        X_(INDEX_ORI + 1, 0),
+        X_(INDEX_ORI + 2, 0),
+        X_(INDEX_ORI + 3, 0)
+    );
+    pose_double.block<3, 3>(0, 0) = q_nb.toRotationMatrix();
 
     // finally:
     pose_double = init_pose_.inverse() * pose_double;
@@ -275,29 +313,56 @@ void ExtendedKalmanFilter::GetCovariance(Cov &cov) {
     static int OFFSET_Z = 2;
 
     // a. delta position:
-    cov.delta_pos.x = P_(INDEX_ERROR_POS + OFFSET_X, INDEX_ERROR_POS + OFFSET_X);
-    cov.delta_pos.y = P_(INDEX_ERROR_POS + OFFSET_Y, INDEX_ERROR_POS + OFFSET_Y);
-    cov.delta_pos.z = P_(INDEX_ERROR_POS + OFFSET_Z, INDEX_ERROR_POS + OFFSET_Z);
+    cov.pos.x = P_(INDEX_POS + OFFSET_X, INDEX_POS + OFFSET_X);
+    cov.pos.y = P_(INDEX_POS + OFFSET_Y, INDEX_POS + OFFSET_Y);
+    cov.pos.z = P_(INDEX_POS + OFFSET_Z, INDEX_POS + OFFSET_Z);
 
     // b. delta velocity:
-    cov.delta_vel.x = P_(INDEX_ERROR_VEL + OFFSET_X, INDEX_ERROR_VEL + OFFSET_X);
-    cov.delta_vel.y = P_(INDEX_ERROR_VEL + OFFSET_Y, INDEX_ERROR_VEL + OFFSET_Y);
-    cov.delta_vel.z = P_(INDEX_ERROR_VEL + OFFSET_Z, INDEX_ERROR_VEL + OFFSET_Z);
+    cov.vel.x = P_(INDEX_VEL + OFFSET_X, INDEX_VEL + OFFSET_X);
+    cov.vel.y = P_(INDEX_VEL + OFFSET_Y, INDEX_VEL + OFFSET_Y);
+    cov.vel.z = P_(INDEX_VEL + OFFSET_Z, INDEX_VEL + OFFSET_Z);
 
     // c. delta orientation:
-    cov.delta_ori.x = P_(INDEX_ERROR_ORI + OFFSET_X, INDEX_ERROR_ORI + OFFSET_X);
-    cov.delta_ori.y = P_(INDEX_ERROR_ORI + OFFSET_Y, INDEX_ERROR_ORI + OFFSET_Y);
-    cov.delta_ori.z = P_(INDEX_ERROR_ORI + OFFSET_Z, INDEX_ERROR_ORI + OFFSET_Z);
+    cov.ori.w = P_(INDEX_ORI + 0, INDEX_ORI + 0);
+    cov.ori.x = P_(INDEX_ORI + 1, INDEX_ORI + 1);
+    cov.ori.y = P_(INDEX_ORI + 2, INDEX_ORI + 2);
+    cov.ori.z = P_(INDEX_ORI + 3, INDEX_ORI + 3);
 
     // d. gyro. bias:
-    cov.gyro_bias.x = P_(INDEX_ERROR_GYRO + OFFSET_X, INDEX_ERROR_GYRO + OFFSET_X);
-    cov.gyro_bias.y = P_(INDEX_ERROR_GYRO + OFFSET_Y, INDEX_ERROR_GYRO + OFFSET_Y);
-    cov.gyro_bias.z = P_(INDEX_ERROR_GYRO + OFFSET_Z, INDEX_ERROR_GYRO + OFFSET_Z);
+    cov.gyro_bias.x = P_(INDEX_GYRO_BIAS + OFFSET_X, INDEX_GYRO_BIAS + OFFSET_X);
+    cov.gyro_bias.y = P_(INDEX_GYRO_BIAS + OFFSET_Y, INDEX_GYRO_BIAS + OFFSET_Y);
+    cov.gyro_bias.z = P_(INDEX_GYRO_BIAS + OFFSET_Z, INDEX_GYRO_BIAS + OFFSET_Z);
 
     // e. accel bias:
-    cov.accel_bias.x = P_(INDEX_ERROR_ACCEL + OFFSET_X, INDEX_ERROR_ACCEL + OFFSET_X);
-    cov.accel_bias.y = P_(INDEX_ERROR_ACCEL + OFFSET_Y, INDEX_ERROR_ACCEL + OFFSET_Y);
-    cov.accel_bias.z = P_(INDEX_ERROR_ACCEL + OFFSET_Z, INDEX_ERROR_ACCEL + OFFSET_Z);
+    cov.accel_bias.x = P_(INDEX_ACCEL_BIAS + OFFSET_X, INDEX_ACCEL_BIAS + OFFSET_X);
+    cov.accel_bias.y = P_(INDEX_ACCEL_BIAS + OFFSET_Y, INDEX_ACCEL_BIAS + OFFSET_Y);
+    cov.accel_bias.z = P_(INDEX_ACCEL_BIAS + OFFSET_Z, INDEX_ACCEL_BIAS + OFFSET_Z);
+}
+
+/**
+ * @brief  get unbiased angular velocity in body frame
+ * @param  angular_vel, angular velocity measurement
+ * @param  C_nb, corresponding orientation of measurement
+ * @return unbiased angular velocity in body frame
+ */
+inline Eigen::Vector3d ExtendedKalmanFilter::GetUnbiasedAngularVel(
+    const Eigen::Vector3d &angular_vel,
+    const Eigen::Matrix3d &C_nb
+) {
+    return angular_vel - gyro_bias_;
+}
+
+/**
+ * @brief  get unbiased linear acceleration in navigation frame
+ * @param  linear_acc, linear acceleration measurement
+ * @param  C_nb, corresponding orientation of measurement
+ * @return unbiased linear acceleration in navigation frame
+ */
+inline Eigen::Vector3d ExtendedKalmanFilter::GetUnbiasedLinearAcc(
+    const Eigen::Vector3d &linear_acc,
+    const Eigen::Matrix3d &C_nb
+) {
+    return C_nb*(linear_acc - accel_bias_) - g_;
 }
 
 /**
@@ -306,11 +371,207 @@ void ExtendedKalmanFilter::GetCovariance(Cov &cov) {
  * @param  C_nb, orientation matrix
  * @return f_b
  */
-Eigen::Vector3d ExtendedKalmanFilter::RemoveGravity(
+inline Eigen::Vector3d ExtendedKalmanFilter::RemoveGravity (
     const Eigen::Vector3d &f_b,
     const Eigen::Matrix3d &C_nb
 ) {
     return f_b - C_nb.transpose()*g_;
+}
+
+/**
+ * @brief  apply motion constraint on velocity estimation
+ * @param  void
+ * @return void
+ */
+void ExtendedKalmanFilter::ApplyMotionConstraint(void) {
+    const Eigen::Quaterniond q_nb(
+        X_( INDEX_ORI + 0, 0),
+        X_( INDEX_ORI + 1, 0),
+        X_( INDEX_ORI + 2, 0),
+        X_( INDEX_ORI + 3, 0)
+    );
+    const Eigen::Matrix3d C_nb = q_nb.toRotationMatrix();
+
+    Eigen::Vector3d v_b = C_nb.transpose() * X_.block<3, 1>( INDEX_VEL, 0 );
+    v_b.y() = v_b.z() = 0.0;
+    X_.block<3, 1>( INDEX_VEL, 0 ) = C_nb * v_b;
+}
+
+/**
+ * @brief  get angular delta
+ * @param  index_curr, current imu measurement buffer index
+ * @param  index_prev, previous imu measurement buffer index
+ * @param  angular_delta, angular delta output
+ * @return true if success false otherwise
+ */
+bool ExtendedKalmanFilter::GetAngularDelta(
+    const size_t index_curr, const size_t index_prev,
+    Eigen::Vector3d &angular_delta
+) {
+    if (
+        index_curr <= index_prev ||
+        imu_data_buff_.size() <= index_curr
+    ) {
+        return false;
+    }
+
+    const IMUData &imu_data_curr = imu_data_buff_.at(index_curr);
+    const IMUData &imu_data_prev = imu_data_buff_.at(index_prev);
+
+    double delta_t = imu_data_curr.time - imu_data_prev.time;
+
+    Eigen::Vector3d angular_vel_curr = Eigen::Vector3d(
+        imu_data_curr.angular_velocity.x,
+        imu_data_curr.angular_velocity.y,
+        imu_data_curr.angular_velocity.z
+    );
+    Eigen::Matrix3d R_curr = imu_data_curr.GetOrientationMatrix().cast<double>();
+    angular_vel_curr = GetUnbiasedAngularVel(angular_vel_curr, R_curr);
+
+    Eigen::Vector3d angular_vel_prev = Eigen::Vector3d(
+        imu_data_prev.angular_velocity.x,
+        imu_data_prev.angular_velocity.y,
+        imu_data_prev.angular_velocity.z
+    );
+    Eigen::Matrix3d R_prev = imu_data_prev.GetOrientationMatrix().cast<double>();
+    angular_vel_prev = GetUnbiasedAngularVel(angular_vel_prev, R_prev);
+
+    angular_delta = 0.5*delta_t*(angular_vel_curr + angular_vel_prev);
+
+    return true;
+}
+
+/**
+ * @brief  update orientation with effective rotation angular_delta
+ * @param  angular_delta, effective rotation
+ * @param  R_curr, current orientation
+ * @param  R_prev, previous orientation
+ * @return void
+ */
+void ExtendedKalmanFilter::UpdateOrientation(
+    const Eigen::Vector3d &angular_delta,
+    Eigen::Matrix3d &R_curr, Eigen::Matrix3d &R_prev
+) {
+    // magnitude:
+    double angular_delta_mag = angular_delta.norm();
+    // direction:
+    Eigen::Vector3d angular_delta_dir = angular_delta.normalized();
+
+    // build delta q:
+    double angular_delta_cos = cos(angular_delta_mag/2.0);
+    double angular_delta_sin = sin(angular_delta_mag/2.0);
+
+    Eigen::Quaterniond q(
+        X_(INDEX_ORI + 0, 0),
+        X_(INDEX_ORI + 1, 0),
+        X_(INDEX_ORI + 2, 0),
+        X_(INDEX_ORI + 3, 0)
+    );
+    Eigen::Quaterniond dq(
+        angular_delta_cos, 
+        angular_delta_sin*angular_delta_dir.x(), 
+        angular_delta_sin*angular_delta_dir.y(), 
+        angular_delta_sin*angular_delta_dir.z()
+    );
+
+    // update:
+    R_prev = q.toRotationMatrix();
+
+    q = q*dq;
+    q.normalize();
+
+    R_curr = q.toRotationMatrix();
+
+    // write back:
+    X_(INDEX_ORI + 0, 0) = q.w();
+    X_(INDEX_ORI + 1, 0) = q.x();
+    X_(INDEX_ORI + 2, 0) = q.y();
+    X_(INDEX_ORI + 3, 0) = q.z();
+}
+
+/**
+ * @brief  get velocity delta
+ * @param  index_curr, current imu measurement buffer index
+ * @param  index_prev, previous imu measurement buffer index
+ * @param  R_curr, corresponding orientation of current imu measurement
+ * @param  R_prev, corresponding orientation of previous imu measurement
+ * @param  velocity_delta, velocity delta output
+ * @param  linear_acc_mid, mid-value unbiased linear acc
+ * @return true if success false otherwise
+ */
+bool ExtendedKalmanFilter::GetVelocityDelta(
+    const size_t index_curr, const size_t index_prev,
+    const Eigen::Matrix3d &R_curr, const Eigen::Matrix3d &R_prev, 
+    double &T, 
+    Eigen::Vector3d &velocity_delta
+) {
+    if (
+        index_curr <= index_prev ||
+        imu_data_buff_.size() <= index_curr
+    ) {
+        return false;
+    }
+
+    const IMUData &imu_data_curr = imu_data_buff_.at(index_curr);
+    const IMUData &imu_data_prev = imu_data_buff_.at(index_prev);
+
+    T = imu_data_curr.time - imu_data_prev.time;
+
+    Eigen::Vector3d linear_acc_curr = Eigen::Vector3d(
+        imu_data_curr.linear_acceleration.x,
+        imu_data_curr.linear_acceleration.y,
+        imu_data_curr.linear_acceleration.z
+    );
+    linear_acc_curr = GetUnbiasedLinearAcc(linear_acc_curr, R_curr);
+    Eigen::Vector3d linear_acc_prev = Eigen::Vector3d(
+        imu_data_prev.linear_acceleration.x,
+        imu_data_prev.linear_acceleration.y,
+        imu_data_prev.linear_acceleration.z
+    );
+    linear_acc_prev = GetUnbiasedLinearAcc(linear_acc_prev, R_prev);
+    
+    // mid-value acc can improve error state prediction accuracy:
+    velocity_delta = 0.5*T*(linear_acc_curr + linear_acc_prev);
+
+    return true;
+}
+
+/**
+ * @brief  update orientation with effective velocity change velocity_delta
+ * @param  T, timestamp delta 
+ * @param  velocity_delta, effective velocity change
+ * @return void
+ */
+void ExtendedKalmanFilter::UpdatePosition(const double &T, const Eigen::Vector3d &velocity_delta) {
+    X_.block<3, 1>(INDEX_POS, 0) += T*X_.block<3, 1>(INDEX_VEL, 0) + 0.5*T*velocity_delta;
+    X_.block<3, 1>(INDEX_VEL, 0) += velocity_delta;
+}
+
+/**
+ * @brief  update state estimation
+ * @param  void
+ * @return void
+ */
+void ExtendedKalmanFilter::UpdateStateEstimation(void) {
+    // get deltas:
+    Eigen::Vector3d angular_delta; 
+    GetAngularDelta(1, 0, angular_delta);
+
+    // update orientation:
+    Eigen::Matrix3d R_curr, R_prev;
+    UpdateOrientation(angular_delta, R_curr, R_prev);
+
+    // get velocity delta:
+    double T;
+    Eigen::Vector3d velocity_delta;
+    // save mid-value unbiased linear acc for error-state update:
+    GetVelocityDelta(1, 0, R_curr, R_prev, T, velocity_delta);
+
+    // update position:
+    UpdatePosition(T, velocity_delta);
+
+    // apply motion constraint:
+    // ApplyMotionConstraint();
 }
 
 /**
@@ -381,10 +642,8 @@ Eigen::Matrix<double, 4, 3> ExtendedKalmanFilter::GetFOriEps(
  * @param  void
  * @return void
  */
-void ExtendedKalmanFilter::SetProcessEquation(void) {
+void ExtendedKalmanFilter::SetProcessEquation(const IMUData &imu_data) {
     // parse IMU measurement:
-    const IMUData &imu_data = imu_data_buff_.front();
-
     const Eigen::Vector3d f_b(
         imu_data.linear_acceleration.x,
         imu_data.linear_acceleration.y,
@@ -409,41 +668,39 @@ void ExtendedKalmanFilter::SetProcessEquation(void) {
     // EKF is linearized around VectorX::Zero
     //
     // a. set equation for velocity:
-    f_b = RemoveGravity(f_b, C_nb);
     F_.block<3, 4>(INDEX_VEL,         INDEX_ORI) = GetFVelOri(f_b, q_nb);
     F_.block<3, 3>(INDEX_VEL,  INDEX_ACCEL_BIAS) = B_.block<3, 3>(INDEX_VEL, 3) = C_nb;
     
     // b. set equation for orientation quaternion:
     F_.block<4, 4>(INDEX_ORI,         INDEX_ORI) = GetFOriOri(w_b);
-    F_.block<4, 3>(INDEX_ORI, INDEX_ERROR_ACCEL) = B_.block<4, 3>(INDEX_ORI, 0) = GetFOriEps(q_nb);
+    F_.block<4, 3>(INDEX_ORI,   INDEX_GYRO_BIAS) = B_.block<4, 3>(INDEX_ORI, 0) = GetFOriEps(q_nb);
 }
 
 /**
- * @brief  update state estimation
+ * @brief  update covariance estimation
  * @param  void
  * @return void
  */
-void ExtendedKalmanFilter::UpdateStateEstimation(void) {
+void ExtendedKalmanFilter::UpdateCovarianceEstimation(
+    const IMUData &imu_data
+) {
     static int count = 0;
 
     static MatrixF F_1st;
     static MatrixF F_2nd;
 
     // update process equation:
-    SetProcessEquation();
+    SetProcessEquation(imu_data);
 
     // get discretized process equations:
-    double T = imu_data_buff_.front().time - time_;
+    double T = imu_data.time - time_;
 
-    // approximate to 2nd order:
-    F_1st = T*F_;
-    F_2nd = 0.5*T*F_*F_1st;
-    MatrixF F = MatrixF::Identity() + F_1st + F_2nd;
+    // approximate to 1st order:
+    MatrixF F = MatrixF::Identity() + T*F_;
 
     MatrixB B = T*B_;
 
-    // perform Kalman prediction:
-    X_ = F*X_;
+    // perform Kalman prediction for covariance:
     P_ = F*P_*F.transpose() + B*Q_*B.transpose();
 
     if (
@@ -465,58 +722,140 @@ void ExtendedKalmanFilter::UpdateStateEstimation(void) {
 }
 
 /**
- * @brief  correct error estimation using position measurement
- * @param  T_nb, input position measurement
+ * @brief  correct state estimation using GNSS position
+ * @param  T_nb, input GNSS position
  * @return void
  */
-void ExtendedKalmanFilter::CorrectErrorEstimationPosition(
+void ExtendedKalmanFilter::CorrectStateEstimationPosi(
     const Eigen::Matrix4d &T_nb
 ) {
     // parse measurement:
-    Eigen::Vector3d P_nn_obs = pose_.block<3, 1>(0,3) - T_nb.block<3, 1>(0,3);
-
-    YPosition_.block<3, 1>(0, 0) = P_nn_obs;
+    YPosi_.block<3, 1>(0, 0) = T_nb.block<3, 1>(0,3);
 
     // build Kalman gain:
-    MatrixRPosition R = GPosition_*P_*GPosition_.transpose() + RPosition_;
-    MatrixKPosition K = P_*GPosition_.transpose()*R.inverse();
+    MatrixRPosi R = GPosi_*P_*GPosi_.transpose() + RPosi_;
+    MatrixKPosi K = P_*GPosi_.transpose()*R.inverse();
 
     // perform Kalman correct:
-    P_ = (MatrixP::Identity() - K*GPosition_)*P_;
-    X_ = X_ + K*(YPosition_ - GPosition_*X_);
+    P_ = (MatrixP::Identity() - K*GPosi_)*P_;
+    X_ = X_ + K*(YPosi_ - GPosi_*X_);
+
+    // normalize quaternion:
+    X_.block<4, 1>( INDEX_ORI, 0 ).normalize();
+
+    // apply motion constraint:
+    ApplyMotionConstraint();
 }
 
 /**
- * @brief  correct error estimation using navigation position and body velocity measurement
- * @param  T_nb, input position measurement
- * @param  v_b, input velocity measurement
+ * @brief  get block matrix for observation by orientation quaternion
+ * @param  m_n, measurement in navigation frame
+ * @param  q_nb, orientation quaternion
+ * @return block matrix Gq
+ */
+Eigen::Matrix<double, 3, 4> ExtendedKalmanFilter::GetGMOri(
+    const Eigen::Vector3d &m_n,
+    const Eigen::Quaterniond &q_nb
+) {
+    // get F:
+    Eigen::Matrix<double, 4, 3> T_Gm;
+    T_Gm << +q_nb.w(), +q_nb.z(), -q_nb.y(),
+            +q_nb.x(), +q_nb.y(), +q_nb.z(),
+            -q_nb.y(), +q_nb.x(), -q_nb.w(),
+            -q_nb.z(), +q_nb.w(), +q_nb.x();
+    Eigen::Vector4d G = 2 * T_Gm * m_n;
+
+    // get Fvq:
+    Eigen::Matrix<double, 3, 4> Gq;
+    Gq << +G(0), +G(1), +G(2), +G(3),
+          +G(3), -G(2), +G(1), -G(0),
+          -G(2), -G(3), +G(0), +G(1);
+
+    return Gq;
+}
+
+/**
+ * @brief  correct state estimation using GNSS position and odometer measurement
+ * @param  T_nb, input GNSS position 
+ * @param  v_b, input odo
  * @return void
  */
-void ExtendedKalmanFilter::CorrectErrorEstimationPosVel(
+void ExtendedKalmanFilter::CorrectStateEstimationPosiVel(
     const Eigen::Matrix4d &T_nb, const Eigen::Vector3d &v_b
 ) {
     // parse measurement:
-    Eigen::Vector3d P_nn_obs = pose_.block<3, 1>(0,3) - T_nb.block<3, 1>(0,3);
-    Eigen::Vector3d v_bb_obs = pose_.block<3, 3>(0,0).transpose()*vel_ - v_b;
-    // apply motion constraint:
-    v_bb_obs.y() = v_bb_obs.z() = 0.0;
-    // Eigen::Matrix3d C_nn_obs = pose_.block<3, 3>(0,0) * T_nb.block<3, 3>(0,0).transpose();
+    YPosiVel_.block<3, 1>(0, 0) = T_nb.block<3, 1>(0,3);
+    YPosiVel_.block<3, 1>(3, 0) = v_b;
 
-    YPosVel_.block<3, 1>(0, 0) = P_nn_obs;
-    YPosVel_.block<3, 1>(3, 0) = v_bb_obs ;
-    // YPosVel_.block<3, 1>(6, 0) = Sophus::SO3d::vee(Eigen::Matrix3d::Identity() - C_nn_obs);
+    // iterative observation:
+    for (size_t i = 0; i < 3; ++i) {
+        // set observation equation:
+        Eigen::Quaterniond q_nb(
+            X_(INDEX_ORI + 0, 0),
+            X_(INDEX_ORI + 1, 0),
+            X_(INDEX_ORI + 2, 0),
+            X_(INDEX_ORI + 3, 0)
+        );
+        Eigen::Matrix3d C_nb = q_nb.toRotationMatrix();
+        GPosiVel_.block<3, 3>( 3, INDEX_VEL ) = C_nb.transpose();
+        GPosiVel_.block<3, 4>( 3, INDEX_ORI ) = GetGMOri(X_.block<3, 1>(INDEX_VEL, 0), q_nb);
 
-    // set measurement equation:
-    GPosVel_.block<3, 3>(3, INDEX_ERROR_VEL) =  pose_.block<3, 3>(0,0).transpose();
-    GPosVel_.block<3, 3>(3, INDEX_ERROR_ORI) = -pose_.block<3, 3>(0,0).transpose()*Sophus::SO3d::hat(vel_);
+        // build Kalman gain:
+        MatrixRPosiVel R = GPosiVel_*P_*GPosiVel_.transpose() + RPosiVel_;
+        MatrixKPosiVel K = P_*GPosiVel_.transpose()*R.inverse();
+        VectorYPosiVel Y = X_.block<6, 1>(0, 0);
+        Y.block<3, 1>(3, 0) = C_nb.transpose() * Y.block<3, 1>(3, 0);
 
-    // build Kalman gain:
-    MatrixRPosVel R = GPosVel_*P_*GPosVel_.transpose() + RPosVel_;
-    MatrixKPosVel K = P_*GPosVel_.transpose()*R.inverse();
+        // perform Kalman correct:
+        P_ = (MatrixP::Identity() - K*GPosiVel_)*P_;
+        X_ = X_ + K*(YPosiVel_ - Y);
+        
+        // normalize quaternion:
+        X_.block<4, 1>( INDEX_ORI, 0 ).normalize();
 
-    // perform Kalman correct:
-    P_ = (MatrixP::Identity() - K*GPosVel_)*P_;
-    X_ = X_ + K*(YPosVel_ - GPosVel_*X_);
+        // apply motion constraint:
+        ApplyMotionConstraint();
+    }
+}
+
+/**
+ * @brief  correct state estimation using GNSS position and magneto measurement
+ * @param  T_nb, input GNSS position 
+ * @param  B_b, input magneto
+ * @return void
+ */
+void ExtendedKalmanFilter::CorrectStateEstimationPosiMag(
+    const Eigen::Matrix4d &T_nb, const Eigen::Vector3d &B_b
+) {
+    // parse measurement:
+    YPosiMag_.block<3, 1>(0, 0) = T_nb.block<3, 1>(0,3);
+    YPosiMag_.block<3, 1>(3, 0) = B_b;
+
+    // iterative observation:
+    for (size_t i = 0; i < 3; ++i) {
+        // set observation equation:
+        const Eigen::Quaterniond q_nb(
+            X_(INDEX_ORI + 0, 0),
+            X_(INDEX_ORI + 1, 0),
+            X_(INDEX_ORI + 2, 0),
+            X_(INDEX_ORI + 3, 0)
+        );
+        // TODO: generate reference B_n
+        const Eigen::Vector3d B_n = X_.block<3, 1>(INDEX_VEL, 0);
+        GPosiMag_.block<3, 4>( 3, INDEX_ORI ) = GetGMOri(B_n, q_nb);
+
+        // build Kalman gain:
+        MatrixRPosiVel R = GPosiMag_*P_*GPosiMag_.transpose() + RPosiMag_;
+        MatrixKPosiVel K = P_*GPosiMag_.transpose()*R.inverse();
+
+        // perform Kalman correct:
+        P_ = (MatrixP::Identity() - K*GPosiMag_)*P_;
+        X_ = X_ + K*(YPosiMag_ - GPosiMag_*X_);
+    }
+
+    // update bias:
+    // gyro_bias_ = X_.block<3, 1>(INDEX_GYRO_BIAS, 0);
+    // accel_bias_ = X_.block<3, 1>(INDEX_ACCEL_BIAS, 0);
 }
 
 /**
@@ -525,7 +864,7 @@ void ExtendedKalmanFilter::CorrectErrorEstimationPosVel(
  * @param  measurement, input measurement
  * @return void
  */
-void ExtendedKalmanFilter::CorrectErrorEstimation(
+void ExtendedKalmanFilter::CorrectStateEstimation(
     const MeasurementType &measurement_type, 
     const Measurement &measurement
 ) {
@@ -533,16 +872,18 @@ void ExtendedKalmanFilter::CorrectErrorEstimation(
 
     switch ( measurement_type ) {
         case MeasurementType::POSE:
-            CorrectErrorEstimationPose(measurement.T_nb);
             break;
-        case MeasurementType::POSITION:
-            CorrectErrorEstimationPosition(measurement.T_nb);
+        case MeasurementType::POSI:
+            CorrectStateEstimationPosi(measurement.T_nb);
             break;
-        case MeasurementType::POSITION_VELOCITY:
-            CorrectErrorEstimationPosVel(
-                measurement.T_nb,
-                measurement.v_b
-            );
+        case MeasurementType::POSI_VEL:
+            CorrectStateEstimationPosiVel(measurement.T_nb, measurement.v_b);
+            break;
+        case MeasurementType::POSI_MAG:
+            CorrectStateEstimationPosiMag(measurement.T_nb, measurement.B_b);
+            break;
+        case MeasurementType::POSI_VEL_MAG:
+            break;
         default:
             break;
     }
@@ -558,39 +899,10 @@ void ExtendedKalmanFilter::CorrectErrorEstimation(
                   << P_( 0,  0) << ", " << P_( 1,  1) << ", " << P_( 2,  2) << std::endl
                   << P_( 3,  3) << ", " << P_( 4,  4) << ", " << P_( 5,  5) << std::endl
                   << P_( 6,  6) << ", " << P_( 7,  7) << ", " << P_( 8,  8) << std::endl
-                  << P_( 9,  9) << ", " << P_(10, 10) << ", " << P_(11, 11) << std::endl
-                  << P_(12, 12) << ", " << P_(13, 13) << ", " << P_(14, 14) << std::endl
+                  << P_(10, 10) << ", " << P_(11, 11) << ", " << P_(12, 12) << P_(13, 13) << std::endl
+                  << P_(13, 13) << ", " << P_(14, 14) << ", " << P_(15, 15) << std::endl
                   << std::endl;
         */
-    }
-}
-
-/**
- * @brief  eliminate error
- * @param  void
- * @return void
- */
-void ExtendedKalmanFilter::EliminateError(void) {
-    // a. position:
-    pose_.block<3, 1>(0, 3) = pose_.block<3, 1>(0, 3) - X_.block<3, 1>(INDEX_ERROR_POS, 0);
-    // b. velocity:
-    vel_ = vel_ - X_.block<3, 1>(INDEX_ERROR_VEL, 0);
-
-    Eigen::Vector3d vel_b_ = pose_.block<3, 3>(0, 0).transpose() * vel_;
-    vel_b_.y() = vel_b_.z() = 0.0;
-    vel_ = pose_.block<3, 3>(0, 0) * vel_b_;
-    // c. orientation:
-    Eigen::Matrix3d C_nn = Sophus::SO3d::exp(X_.block<3, 1>(INDEX_ERROR_ORI, 0)).matrix();
-    pose_.block<3, 3>(0, 0) = C_nn*pose_.block<3, 3>(0, 0);
-
-    // d. gyro bias:
-    if ( IsCovStable(INDEX_ERROR_GYRO) ) {
-        gyro_bias_ += X_.block<3, 1>(INDEX_ERROR_GYRO, 0);
-    }
-    
-    // e. accel bias:
-    if ( IsCovStable(INDEX_ERROR_ACCEL) ) {
-        accl_bias_ += X_.block<3, 1>(INDEX_ERROR_ACCEL, 0);
     }
 }
 
@@ -604,9 +916,17 @@ bool ExtendedKalmanFilter::IsCovStable(
     const int INDEX_OFSET,
     const double THRESH
 ) {
-    for (int i = 0; i < 3; ++i) {
-        if ( P_(INDEX_OFSET + i, INDEX_OFSET + i) > THRESH ) {
-            return false;
+    if ( INDEX_ORI == INDEX_OFSET ) {
+        for (int i = 0; i < 4; ++i) {
+            if ( P_(INDEX_OFSET + i, INDEX_OFSET + i) > THRESH ) {
+                return false;
+            }
+        }
+    } else {
+        for (int i = 0; i < 3; ++i) {
+            if ( P_(INDEX_OFSET + i, INDEX_OFSET + i) > THRESH ) {
+                return false;
+            }
         }
     }
 
@@ -634,7 +954,7 @@ void ExtendedKalmanFilter::ResetCovariance(void) {
     P_.block<3, 3>(       INDEX_POS,        INDEX_POS) = COV.PRIOR.POS*Eigen::Matrix3d::Identity();
     P_.block<3, 3>(       INDEX_VEL,        INDEX_VEL) = COV.PRIOR.VEL*Eigen::Matrix3d::Identity();
     // TODO: find a better way for quaternion orientation prior covariance assignment
-    P_.block<4, 4>(       INDEX_ORI,        INDEX_ORI) = COV.PRIOR.ORI*Eigen::Matrix3d::Identity();
+    P_.block<4, 4>(       INDEX_ORI,        INDEX_ORI) = COV.PRIOR.ORI*Eigen::Matrix4d::Identity();
     P_.block<3, 3>( INDEX_GYRO_BIAS,  INDEX_GYRO_BIAS) = COV.PRIOR.EPSILON*Eigen::Matrix3d::Identity();
     P_.block<3, 3>(INDEX_ACCEL_BIAS, INDEX_ACCEL_BIAS) = COV.PRIOR.DELTA*Eigen::Matrix3d::Identity();
 }
@@ -651,22 +971,22 @@ void ExtendedKalmanFilter::UpdateObservabilityAnalysisPose(
 }
 
 /**
- * @brief  update observability analysis for position measurement
+ * @brief  update observability analysis for GNSS position
  * @param  void
  * @return void
  */
-void ExtendedKalmanFilter::UpdateObservabilityAnalysisPosition(
+void ExtendedKalmanFilter::UpdateObservabilityAnalysisPosi(
     const double &time, std::vector<double> &record
 ) {
     // build observability matrix for position measurement:
     for (int i = 1; i < DIM_STATE; ++i) {
-        SOMPosition_.block<DIM_MEASUREMENT_POSITION, DIM_STATE>(i*DIM_MEASUREMENT_POSITION, 0) = (
-            SOMPosition_.block<DIM_MEASUREMENT_POSITION, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSITION, 0) * F_
+        SOMPosi_.block<DIM_MEASUREMENT_POSI, DIM_STATE>(i*DIM_MEASUREMENT_POSI, 0) = (
+            SOMPosi_.block<DIM_MEASUREMENT_POSI, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSI, 0) * F_
         );
     }
 
     // perform SVD analysis:
-    Eigen::JacobiSVD<Eigen::MatrixXd> svd(SOMPosition_, Eigen::ComputeThinU | Eigen::ComputeThinV);
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(SOMPosi_, Eigen::ComputeThinU | Eigen::ComputeThinV);
 
     // record timestamp:
     record.push_back(time);
@@ -677,7 +997,7 @@ void ExtendedKalmanFilter::UpdateObservabilityAnalysisPosition(
     }
 
     // record degree of observability:
-    Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSITION, 1> Y = COV.MEASUREMENT.POS*Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSITION, 1>::Ones();
+    Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSI, 1> Y = COV.MEASUREMENT.POSI*Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSI, 1>::Ones();
     VectorX X = (
         svd.matrixV()*
         svd.singularValues().asDiagonal().inverse()*
@@ -689,23 +1009,23 @@ void ExtendedKalmanFilter::UpdateObservabilityAnalysisPosition(
 }
 
 /**
- * @brief  update observability analysis for navigation position & body velocity measurement
+ * @brief  update observability analysis for GNSS position & magneto measurement
  * @param  void
  * @return void
  */
-void ExtendedKalmanFilter::UpdateObservabilityAnalysisPosVel(
+void ExtendedKalmanFilter::UpdateObservabilityAnalysisPosiMag(
     const double &time, std::vector<double> &record
 ) {
     // build observability matrix for position measurement:
-    SOMPosVel_.block<DIM_MEASUREMENT_POSVEL, DIM_STATE>(0, 0) = GPosVel_;
+    SOMPosiMag_.block<DIM_MEASUREMENT_POSI_MAG, DIM_STATE>(0, 0) = GPosiMag_;
     for (int i = 1; i < DIM_STATE; ++i) {
-        SOMPosVel_.block<DIM_MEASUREMENT_POSVEL, DIM_STATE>(i*DIM_MEASUREMENT_POSVEL, 0) = (
-            SOMPosVel_.block<DIM_MEASUREMENT_POSVEL, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSVEL, 0) * F_
+        SOMPosiMag_.block<DIM_MEASUREMENT_POSI_MAG, DIM_STATE>(i*DIM_MEASUREMENT_POSI_MAG, 0) = (
+            SOMPosiMag_.block<DIM_MEASUREMENT_POSI_MAG, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSI_MAG, 0) * F_
         );
     }
 
     // perform SVD analysis:
-    Eigen::JacobiSVD<Eigen::MatrixXd> svd(SOMPosVel_, Eigen::ComputeThinU | Eigen::ComputeThinV);
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(SOMPosiMag_, Eigen::ComputeThinU | Eigen::ComputeThinV);
 
     // record timestamp:
     record.push_back(time);
@@ -716,7 +1036,46 @@ void ExtendedKalmanFilter::UpdateObservabilityAnalysisPosVel(
     }
 
     // record degree of observability:
-    Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSVEL, 1> Y = COV.MEASUREMENT.POS*Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSVEL, 1>::Ones();
+    Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSI_MAG, 1> Y = COV.MEASUREMENT.POSI*Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSI_MAG, 1>::Ones();
+    VectorX X = (
+        svd.matrixV()*
+        svd.singularValues().asDiagonal().inverse()*
+        svd.matrixU().transpose()
+    )*Y;
+    for (int i = 0; i < DIM_STATE; ++i) {
+        record.push_back(X(i, 0));
+    }
+}
+
+/**
+ * @brief  update observability analysis for GNSS position & magneto measurement
+ * @param  void
+ * @return void
+ */
+void ExtendedKalmanFilter::UpdateObservabilityAnalysisPosiVel(
+    const double &time, std::vector<double> &record
+) {
+    // build observability matrix for position & velocity measurement:
+    SOMPosiVel_.block<DIM_MEASUREMENT_POSI_VEL, DIM_STATE>(0, 0) = GPosiVel_;
+    for (int i = 1; i < DIM_STATE; ++i) {
+        SOMPosiVel_.block<DIM_MEASUREMENT_POSI_VEL, DIM_STATE>(i*DIM_MEASUREMENT_POSI_VEL, 0) = (
+            SOMPosiVel_.block<DIM_MEASUREMENT_POSI_VEL, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSI_VEL, 0) * F_
+        );
+    }
+
+    // perform SVD analysis:
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(SOMPosiVel_, Eigen::ComputeThinU | Eigen::ComputeThinV);
+
+    // record timestamp:
+    record.push_back(time);
+
+    // record singular values:
+    for (int i = 0; i < DIM_STATE; ++i) {
+        record.push_back(svd.singularValues()(i, 0));
+    }
+
+    // record degree of observability:
+    Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSI_VEL, 1> Y = COV.MEASUREMENT.POSI*Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSI_VEL, 1>::Ones();
     VectorX X = (
         svd.matrixV()*
         svd.singularValues().asDiagonal().inverse()*
@@ -741,15 +1100,20 @@ void ExtendedKalmanFilter::UpdateObservabilityAnalysis(
 
     switch ( measurement_type ) {
         case MeasurementType::POSE:
-            UpdateObservabilityAnalysisPose(time, record);
-            observability.pose_.push_back(record);
             break;
-        case MeasurementType::POSITION:
-            UpdateObservabilityAnalysisPosition(time, record);
-            observability.position_.push_back(record);
+        case MeasurementType::POSI:
+            UpdateObservabilityAnalysisPosi(time, record);
+            observability.posi_.push_back(record);
             break;
-        case MeasurementType::POSITION_VELOCITY:
-            observability.pos_vel_.push_back(record);
+        case MeasurementType::POSI_VEL:
+            UpdateObservabilityAnalysisPosiVel(time, record);
+            observability.posi_vel_.push_back(record);
+            break;
+        case MeasurementType::POSI_MAG:
+            UpdateObservabilityAnalysisPosiMag(time, record);
+            observability.posi_mag_.push_back(record);
+            break;
+        case MeasurementType::POSI_VEL_MAG:
             break;
         default:
             break;
@@ -764,16 +1128,18 @@ void ExtendedKalmanFilter::SaveObservabilityAnalysis(
 
     switch ( measurement_type ) {
         case MeasurementType::POSE:
-            data = &(observability.pose_);
-            type = std::string("pose");
             break;
-        case MeasurementType::POSITION:
-            data = &(observability.position_);
+        case MeasurementType::POSI:
+            data = &(observability.posi_);
             type = std::string("position");
             break;
-        case MeasurementType::POSITION_VELOCITY:
-            data = &(observability.pos_vel_);
+        case MeasurementType::POSI_VEL:
+            data = &(observability.posi_vel_);
             type = std::string("position_velocity");
+            break;
+        case MeasurementType::POSI_MAG:
+            data = &(observability.posi_mag_);
+            type = std::string("position_magneto");
             break;
         default:
             break;

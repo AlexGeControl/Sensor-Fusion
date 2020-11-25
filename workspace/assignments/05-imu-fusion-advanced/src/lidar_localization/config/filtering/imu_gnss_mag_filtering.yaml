@@ -10,17 +10,25 @@ extended_kalman_filter:
         # rotation speed, rad/s:
         rotation_speed: 7.292115e-5
         # latitude:
-        latitude: 31.224361
+        latitude:   31.224361
+        # longitude:
+        longitude: 121.469170
+        # magneto:
+        magneto:
+            B_E:   0.676937818461
+            B_N:  36.676775319000
+            B_U: -27.647856205800
     covariance:
         prior:
-            pos: 1.0e-8
-            vel: 1.0e-6
-            ori: 1.0e-8
-            epsilon: 1.0e-6
-            delta: 1.0e-6
+            pos: 2.5e-1
+            vel: 2.5e-3
+            ori: 1.0e-6
+            epsilon: 1.0e-8
+            delta: 1.0e-8
         process:
-            gyro: 1.0e-9
-            accel: 1.0e-9
+            gyro: 1.0e-8
+            accel: 1.0e-8
         measurement:
             posi: 2.5e-1
-            mag: 2.5e-3
+            vel: 2.5e-3
+            mag: 1.0e-4

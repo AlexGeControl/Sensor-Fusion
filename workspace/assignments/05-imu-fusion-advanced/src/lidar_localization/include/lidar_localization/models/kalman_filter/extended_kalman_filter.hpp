@@ -22,10 +22,10 @@ class ExtendedKalmanFilter {
 public:
     enum MeasurementType {
         POSE = 0,
-        POSITION,
-        POSITION_VELOCITY,
-        POSITION_MAG,
-        POSITION_VELOCITY_MAG,
+        POSI,
+        POSI_VEL,
+        POSI_MAG,
+        POSI_VEL_MAG,
         NUM_TYPES
     };
 
@@ -37,7 +37,7 @@ public:
         // b. body frame velocity observation, odometer:
         Eigen::Vector3d v_b;
         // c. magnetometer:
-        Eigen::Vector3d m_b;
+        Eigen::Vector3d B_b;
     };
 
     struct Cov {
@@ -76,6 +76,8 @@ public:
 
     static const int DIM_MEASUREMENT_POSI = 3;
     static const int DIM_MEASUREMENT_POSI_NOISE = 3;
+    static const int DIM_MEASUREMENT_POSI_VEL = 6;
+    static const int DIM_MEASUREMENT_POSI_VEL_NOISE = 6;
     static const int DIM_MEASUREMENT_POSI_MAG = 6;
     static const int DIM_MEASUREMENT_POSI_MAG_NOISE = 6;
 
@@ -95,24 +97,31 @@ public:
     typedef Eigen::Matrix<double,              DIM_PROCESS_NOISE,              DIM_PROCESS_NOISE> MatrixQ;
     // measurement equation:
     typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSI,                      DIM_STATE> MatrixGPosi;
+    typedef Eigen::Matrix<double,       DIM_MEASUREMENT_POSI_VEL,                      DIM_STATE> MatrixGPosiVel;
     typedef Eigen::Matrix<double,       DIM_MEASUREMENT_POSI_MAG,                      DIM_STATE> MatrixGPosiMag;
 
     typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSI,     DIM_MEASUREMENT_POSI_NOISE> MatrixCPosi;
+    typedef Eigen::Matrix<double,       DIM_MEASUREMENT_POSI_VEL, DIM_MEASUREMENT_POSI_VEL_NOISE> MatrixCPosiVel;
     typedef Eigen::Matrix<double,       DIM_MEASUREMENT_POSI_MAG, DIM_MEASUREMENT_POSI_MAG_NOISE> MatrixCPosiMag;
 
     typedef Eigen::Matrix<double,     DIM_MEASUREMENT_POSI_NOISE,     DIM_MEASUREMENT_POSI_NOISE> MatrixRPosi;
+    typedef Eigen::Matrix<double, DIM_MEASUREMENT_POSI_VEL_NOISE, DIM_MEASUREMENT_POSI_VEL_NOISE> MatrixRPosiVel;
     typedef Eigen::Matrix<double, DIM_MEASUREMENT_POSI_MAG_NOISE, DIM_MEASUREMENT_POSI_MAG_NOISE> MatrixRPosiMag;
 
     // measurement:
     typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSI,                              1> VectorYPosi;
+    typedef Eigen::Matrix<double,       DIM_MEASUREMENT_POSI_VEL,                              1> VectorYPosiVel;
     typedef Eigen::Matrix<double,       DIM_MEASUREMENT_POSI_MAG,                              1> VectorYPosiMag;
+
     // Kalman gain:
     typedef Eigen::Matrix<double,                      DIM_STATE,           DIM_MEASUREMENT_POSI> MatrixKPosi;
+    typedef Eigen::Matrix<double,                      DIM_STATE,       DIM_MEASUREMENT_POSI_VEL> MatrixKPosiVel;
     typedef Eigen::Matrix<double,                      DIM_STATE,       DIM_MEASUREMENT_POSI_MAG> MatrixKPosiMag;
 
     // state observality matrix:
     typedef Eigen::Matrix<double, DIM_STATE*    DIM_MEASUREMENT_POSI, DIM_STATE> MatrixSOMPosi;
-    typedef Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSI_MAG, DIM_STATE> MatrixSOMPosi;
+    typedef Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSI_VEL, DIM_STATE> MatrixSOMPosiVel;
+    typedef Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSI_MAG, DIM_STATE> MatrixSOMPosiMag;
 
     ExtendedKalmanFilter(const YAML::Node& node);
 
@@ -189,16 +198,6 @@ public:
 
 private:
     /**
-     * @brief  remove gravity component from accel measurement
-     * @param  f_b, accel measurement measurement
-     * @param  C_nb, orientation matrix
-     * @return f_b
-     */
-    Eigen::Vector3d RemoveGravity(
-        const Eigen::Vector3d &f_b,
-        const Eigen::Matrix3d &C_nb
-    );
-    /**
      * @brief  get block matrix for velocity update by orientation quaternion
      * @param  f_b, accel measurement
      * @param  q_nb, orientation quaternion
@@ -229,7 +228,97 @@ private:
      * @param  void
      * @return void
      */
-    void SetProcessEquation(void);
+    void SetProcessEquation(const IMUData &imu_data);
+    /**
+     * @brief  update covariance estimation
+     * @param  void
+     * @return void
+     */
+    void UpdateCovarianceEstimation(const IMUData &imu_data);
+
+    /**
+     * @brief  get unbiased angular velocity in body frame
+     * @param  angular_vel, angular velocity measurement
+     * @param  C_nb, corresponding orientation of measurement
+     * @return unbiased angular velocity in body frame
+     */
+    inline Eigen::Vector3d GetUnbiasedAngularVel(
+        const Eigen::Vector3d &angular_vel,
+        const Eigen::Matrix3d &C_nb
+    );
+    /**
+     * @brief  get unbiased linear acceleration in navigation frame
+     * @param  linear_acc, linear acceleration measurement
+     * @param  C_nb, corresponding orientation of measurement
+     * @return unbiased linear acceleration in navigation frame
+     */
+    inline Eigen::Vector3d GetUnbiasedLinearAcc(
+        const Eigen::Vector3d &linear_acc,
+        const Eigen::Matrix3d &C_nb
+    );
+    /**
+     * @brief  remove gravity component from accel measurement
+     * @param  f_b, accel measurement measurement
+     * @param  C_nb, orientation matrix
+     * @return f_b
+     */
+    inline Eigen::Vector3d RemoveGravity(
+        const Eigen::Vector3d &f_b,
+        const Eigen::Matrix3d &C_nb
+    );
+
+    /**
+     * @brief  apply motion constraint on velocity estimation
+     * @param  void
+     * @return void
+     */
+    void ApplyMotionConstraint(void);
+    
+    /**
+     * @brief  get angular delta
+     * @param  index_curr, current imu measurement buffer index
+     * @param  index_prev, previous imu measurement buffer index
+     * @param  angular_delta, angular delta output
+     * @return true if success false otherwise
+     */
+    bool GetAngularDelta(
+        const size_t index_curr, const size_t index_prev,
+        Eigen::Vector3d &angular_delta
+    );
+    /**
+     * @brief  update orientation with effective rotation angular_delta
+     * @param  angular_delta, effective rotation
+     * @param  R_curr, current orientation
+     * @param  R_prev, previous orientation
+     * @return void
+     */
+    void UpdateOrientation(
+        const Eigen::Vector3d &angular_delta,
+        Eigen::Matrix3d &R_curr, Eigen::Matrix3d &R_prev
+    );
+    /**
+     * @brief  get velocity delta
+     * @param  index_curr, current imu measurement buffer index
+     * @param  index_prev, previous imu measurement buffer index
+     * @param  R_curr, corresponding orientation of current imu measurement
+     * @param  R_prev, corresponding orientation of previous imu measurement
+     * @param  velocity_delta, velocity delta output
+     * @param  linear_acc_mid, mid-value unbiased linear acc
+     * @return true if success false otherwise
+     */
+    bool GetVelocityDelta(
+        const size_t index_curr, const size_t index_prev,
+        const Eigen::Matrix3d &R_curr, const Eigen::Matrix3d &R_prev, 
+        double &T, 
+        Eigen::Vector3d &velocity_delta
+    );
+    /**
+     * @brief  update orientation with effective velocity change velocity_delta
+     * @param  T, timestamp delta 
+     * @param  velocity_delta, effective velocity change
+     * @return void
+     */
+    void UpdatePosition(const double &T, const Eigen::Vector3d &velocity_delta);
     /**
      * @brief  update state estimation
      * @param  void
@@ -242,7 +331,28 @@ private:
      * @param  T_nb, input GNSS position
      * @return void
      */
-    void CorrectErrorEstimationPosi(const Eigen::Matrix4d &T_nb);
+    void CorrectStateEstimationPosi(const Eigen::Matrix4d &T_nb);
+
+    /**
+     * @brief  get block matrix for observation by orientation quaternion
+     * @param  m_n, measurement in navigation frame
+     * @param  q_nb, orientation quaternion
+     * @return block matrix Gq
+     */
+    Eigen::Matrix<double, 3, 4> GetGMOri(
+        const Eigen::Vector3d &m_n,
+        const Eigen::Quaterniond &q_nb
+    );
+
+    /**
+     * @brief  correct state estimation using GNSS position and odometer measurement
+     * @param  T_nb, input GNSS position 
+     * @param  v_b, input odo
+     * @return void
+     */
+    void CorrectStateEstimationPosiVel(
+        const Eigen::Matrix4d &T_nb, const Eigen::Vector3d &v_b
+    );
 
     /**
      * @brief  correct state estimation using GNSS position and magneto measurement
@@ -258,17 +368,10 @@ private:
      * @param  measurement, input measurement
      * @return void
      */
-    void CorrectErrorEstimation(
+    void CorrectStateEstimation(
         const MeasurementType &measurement_type, 
         const Measurement &measurement
     );
-
-    /**
-     * @brief  eliminate error
-     * @param  void
-     * @return void
-     */
-    void EliminateError(void);
 
     /**
      * @brief  is covariance stable
@@ -300,20 +403,29 @@ private:
     );
 
     /**
-     * @brief  update observability analysis for position measurement
+     * @brief  update observability analysis for GNSS position
      * @param  void
      * @return void
      */
-    void UpdateObservabilityAnalysisPosition(
+    void UpdateObservabilityAnalysisPosi(
         const double &time, std::vector<double> &record
     );
 
     /**
-     * @brief  update observability analysis for navigation position & body velocity measurement
+     * @brief  update observability analysis for GNSS position & magneto measurement
      * @param  void
      * @return void
      */
-    void UpdateObservabilityAnalysisPosVel(
+    void UpdateObservabilityAnalysisPosiVel(
+        const double &time, std::vector<double> &record
+    );
+
+    /**
+     * @brief  update observability analysis for GNSS position & magneto measurement
+     * @param  void
+     * @return void
+     */
+    void UpdateObservabilityAnalysisPosiMag(
         const double &time, std::vector<double> &record
     );
 
@@ -337,20 +449,25 @@ private:
     MatrixB B_ = MatrixB::Zero();
     MatrixQ Q_ = MatrixQ::Zero();
 
-    MatrixGPosition GPosi_ = MatrixGPosi::Zero();
+    MatrixGPosi GPosi_ = MatrixGPosi::Zero();
+    MatrixGPosiVel GPosiVel_ = MatrixGPosiVel::Zero();
     MatrixGPosiMag GPosiMag_ = MatrixGPosiMag::Zero();
 
-    MatrixCPosition CPosi_ = MatrixCPosi::Zero();
+    MatrixCPosi CPosi_ = MatrixCPosi::Zero();
+    MatrixCPosiMag CPosiVel_ = MatrixCPosiVel::Zero();
     MatrixCPosiMag CPosiMag_ = MatrixCPosiMag::Zero();
 
-    MatrixRPosition RPosi_ = MatrixRPosi::Zero();
+    MatrixRPosi RPosi_ = MatrixRPosi::Zero();
+    MatrixRPosiVel RPosiVel_ = MatrixRPosiVel::Zero();
     MatrixRPosiMag RPosiMag_ = MatrixRPosiMag::Zero();
 
     MatrixSOMPosi SOMPosi_ = MatrixSOMPosi::Zero();
+    MatrixSOMPosiVel SOMPosiVel_ = MatrixSOMPosiVel::Zero();
     MatrixSOMPosiMag SOMPosiMag_ = MatrixSOMPosiMag::Zero();
 
     // measurement:
     VectorYPosi YPosi_;
+    VectorYPosiVel YPosiVel_;
     VectorYPosiMag YPosiMag_;
 
     // earth constants:
@@ -359,8 +476,8 @@ private:
 
     // observability analysis:
     struct {
-        std::vector<std::vector<double>> pose_;
         std::vector<std::vector<double>> posi_;
+        std::vector<std::vector<double>> posi_vel_;
         std::vector<std::vector<double>> posi_mag_;
     } observability;
 
@@ -370,6 +487,12 @@ private:
         double GRAVITY_MAGNITUDE;
         double ROTATION_SPEED;
         double LATITUDE;
+        double LONGITUDE;
+        struct {
+            double B_E;
+            double B_N;
+            double B_U;
+        } MAG;
     } EARTH;
     // b. prior state covariance, process & measurement noise:
     struct {
@@ -386,6 +509,7 @@ private:
         } PROCESS;
         struct {
             double POSI;
+            double VEL;
             double MAG;
         } MEASUREMENT;
     } COV;

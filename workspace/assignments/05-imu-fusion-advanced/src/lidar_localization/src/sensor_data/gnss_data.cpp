@@ -28,10 +28,21 @@ void GNSSData::InitOriginPosition() {
 
 void GNSSData::UpdateXYZ() {
     if (!origin_position_inited) {
-        LOG(WARNING) << "GeoConverter has not set origin position";
+        LOG(WARNING) << "WARNING: GeoConverter is NOT initialized.";
     }
 
     geo_converter.Forward(latitude, longitude, altitude, local_E, local_N, local_U);
+}
+
+void GNSSData::Reverse(
+    const double &local_E, const double &local_N, const double &local_U,
+    double &lat, double &lon, double &alt
+) {
+    if (!origin_position_inited) {
+        LOG(WARNING) << "WARNING: GeoConverter is NOT initialized.";
+    }
+
+    geo_converter.Reverse(local_E, local_N, local_U, lat, lon, alt);
 }
 
 bool GNSSData::SyncData(std::deque<GNSSData>& UnsyncedData, std::deque<GNSSData>& SyncedData, double sync_time) {
@@ -77,4 +88,5 @@ bool GNSSData::SyncData(std::deque<GNSSData>& UnsyncedData, std::deque<GNSSData>
     
     return true;
 }
+
 }

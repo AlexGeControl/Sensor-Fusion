@@ -11,6 +11,7 @@ import numpy as np
 import pandas as pd
 
 from gnss_ins_sim.geoparams import geoparams
+from gnss_ins_sim.geoparams import geomag
 from gnss_ins_sim.attitude import attitude
 
 from gnss_ins_sim.sim import imu_model
@@ -165,6 +166,14 @@ def get_init_pose(stamp, motion_def_file):
         np.array([lat, lon, alt])
     )
 
+    gm = geomag.GeoMag("WMM.COF")
+    # units in nT and deg:
+    geo_mag = gm.GeoMag(lat/D2R, lon/D2R, alt) 
+    # nT to uT:
+    (
+        B_E, B_N, B_U
+    ) = np.array([geo_mag.bx, geo_mag.by, geo_mag.bz]) / 1000.0
+          
     rospy.logwarn(
         """
         Earth Params:
@@ -174,11 +183,16 @@ def get_init_pose(stamp, motion_def_file):
         \tsin(Lat): {}
         \tcos(Lat): {}
         \tw_ie: {}
+        \tMag:
+        \t\tB_E:{}
+        \t\tB_N:{}
+        \t\tB_U:{}
         """.format(
             rm, rn,
             g,
             sl, cl,
-            w_ie
+            w_ie,
+            B_E, B_N, B_U
         )
     )
 

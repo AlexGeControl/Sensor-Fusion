@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
     );
 
     // pre-process IMU, GNSS & odo measurements at 100Hz:
-    ros::Rate rate(100);
+    ros::Rate rate(400);
     while (ros::ok()) {
         ros::spinOnce();
 

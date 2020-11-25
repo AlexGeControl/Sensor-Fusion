@@ -91,3 +91,26 @@ GNSS Only                  |IMU-GNSS Fusion            |IMU-GNSS-Odo Fusion
 此处选择`Iterative Extended Kalman Filter`进行`IMU-GNSS-Mag`观测值的融合定位. 解决方案架构图如下, 此处使用课程中的`Loosely-Coupled Lidar`为例进行说明:
 
 <img src="doc/images/03-extended-kalman-filtering--architect.png" alt="Extended Kalman Filter for Localization" width="100%" />
+
+#### EKF for IMU-GNSS-Odo Fusion
+
+接着实现`IterativeExtendedKalmanFilter`, 实现基于`GNSS-Odo`观测值的校正. 代码实现参考 [here](src/lidar_localization/src/models/kalman_filter/extended_kalman_filter.cpp#L783)
+
+#### Results & Analysis
+
+测试数据如下图所示. 
+
+<img src="doc/images/02-virtual-test-drive.png" alt="Virtual Test Drive, IMU-GNSS-Odo Fusion" width="100%" />
+
+`GNSS Only`, `IMU-GNSS-Odo Fusion`与`IMU-GNSS-Odo-Mag Fusion`的误差对比如下:
+
+GNSS Only                  |IMU-GNSS-Odo Fusion        |IMU-GNSS-Odo-Mag Fusion
+:-------------------------:|:-------------------------:|:-------------------------:
+![GNSS Only, Time Series Plot](doc/images/03-evo--gnss-only--time-series-plot.png)  |  ![IMU-GNSS-Odo Fusion, Time Series Plot](doc/images/03-evo--imu-gnss-odo--time-series-plot.png)  |  ![IMU-GNSS-Odo-Mag Fusion, Time Series Plot](doc/images/03-evo--imu-gnss-odo--time-series-plot.png)
+![GNSS Only, Map Plot](doc/images/03-evo--gnss-only--map-plot.png)  |  ![IMU-GNSS-Odo Fusion, Map Plot](doc/images/03-evo--imu-gnss-odo--map-plot.png)  |  ![IMU-GNSS-Odo-Mag Fusion, Map Plot](doc/images/03-evo--imu-gnss-odo--map-plot.png)
+
+三者的估计精度如下. `IMU-GNSS-Odo Fusion`的精度, 相比`IMU-GNSS Fusion`有~40%的显著提升.
+
+|        Algo.       | GNSS Only | IMU-GNSS-Odo Fusion | IMU-GNSS-Odo-Mag Fusion |
+|:------------------:|:---------:|:-------------------:|:-----------------------:|
+| Standard Deviation |  0.809887 |        0.149349     |       **0.149349**     |

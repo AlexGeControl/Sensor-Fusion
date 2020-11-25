@@ -29,8 +29,12 @@ add_message_files(
     LidarMeasurement.msg
     # ESKF covariance monitor:
     ESKFStd.msg
+    # EKF covariance monitor:
+    EKFStd.msg
     # synced GNSS-odo measurement:
     PosVel.msg
+    # synced GNSS-odo-mag measurement:
+    PosVelMag.msg
 )
 
 add_service_files(
@@ -114,6 +118,10 @@ add_executable(imu_gnss_odo_filtering_node src/apps/imu_gnss_odo_filtering_node.
 add_dependencies(imu_gnss_odo_filtering_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(imu_gnss_odo_filtering_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
 
+add_executable(imu_gnss_mag_filtering_node src/apps/imu_gnss_mag_filtering_node.cpp ${ALL_SRCS})
+add_dependencies(imu_gnss_mag_filtering_node ${catkin_EXPORTED_TARGETS})
+target_link_libraries(imu_gnss_mag_filtering_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
+
 #############
 ## Install ##
 #############
@@ -146,6 +154,7 @@ install(TARGETS
         filtering_node
         imu_gnss_filtering_node
         imu_gnss_odo_filtering_node
+        imu_gnss_mag_filtering_node
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

@@ -1,5 +1,5 @@
 # motion def:
-motion_file: virtual_proving_ground.csv
+motion_file: acc.csv
 
 # sample frequency of simulated GNSS/IMU data:
 sample_frequency:
@@ -32,4 +32,4 @@ topic_name:
 # output rosbag path:
 output_path: /workspace/data/gnss_ins_sim/advanced_topics
 # output name:
-output_name: virtual_proving_ground.bag
+output_name: acc.bag
