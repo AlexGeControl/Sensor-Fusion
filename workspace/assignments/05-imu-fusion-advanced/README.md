@@ -104,10 +104,10 @@ GNSS Only                  |IMU-GNSS Fusion            |IMU-GNSS-Odo Fusion
 
 `GNSS Only`, `IMU-GNSS-Odo Fusion`与`IMU-GNSS-Odo-Mag Fusion`的误差对比如下:
 
-GNSS Only                  |IMU-GNSS-Odo Fusion        |IMU-GNSS-Odo-Mag Fusion
+GNSS Only                  |IMU-GNSS Fusion            |IMU-GNSS-Odo Fusion
 :-------------------------:|:-------------------------:|:-------------------------:
-![GNSS Only, Time Series Plot](doc/images/03-evo--gnss-only--time-series-plot.png)  |  ![IMU-GNSS-Odo Fusion, Time Series Plot](doc/images/03-evo--imu-gnss-odo--time-series-plot.png)  |  ![IMU-GNSS-Odo-Mag Fusion, Time Series Plot](doc/images/03-evo--imu-gnss-odo--time-series-plot.png)
-![GNSS Only, Map Plot](doc/images/03-evo--gnss-only--map-plot.png)  |  ![IMU-GNSS-Odo Fusion, Map Plot](doc/images/03-evo--imu-gnss-odo--map-plot.png)  |  ![IMU-GNSS-Odo-Mag Fusion, Map Plot](doc/images/03-evo--imu-gnss-odo--map-plot.png)
+![GNSS Only, Time Series Plot](doc/images/03-evo--gnss-only--time-series-plot.png)  |  ![IMU-GNSS Fusion, Time Series Plot](doc/images/03-evo--imu-gnss-odo--time-series-plot.png)  |  ![IMU-GNSS-Odo Fusion, Time Series Plot](doc/images/03-evo--imu-gnss-odo--time-series-plot.png)
+![GNSS Only, Map Plot](doc/images/03-evo--gnss-only--map-plot.png)  |  ![IMU-GNSS Fusion, Map Plot](doc/images/03-evo--imu-gnss-odo--map-plot.png)  |  ![IMU-GNSS-Odo Fusion, Map Plot](doc/images/03-evo--imu-gnss-odo--map-plot.png)
 
 三者的估计精度如下. `IMU-GNSS-Odo Fusion`的精度, 相比`IMU-GNSS Fusion`有~40%的显著提升.
 
