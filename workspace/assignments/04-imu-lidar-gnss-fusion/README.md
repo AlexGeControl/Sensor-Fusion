@@ -18,7 +18,7 @@ This is the solution of Assignment 04 of Sensor Fusion from [深蓝学院](https
 
 此处选用`基于误差信息的Kalman Filtering`进行融合定位. 解决方案的架构图如下:
 
-<img src="doc/images/01-error-based-kalman-filtering--architect.png" alt="Trajectory Estimation using Scan Context" width="100%" />
+<img src="doc/images/01-error-state-kalman-filtering--architect.png" alt="Error State Kalman Filter for Localization" width="100%" />
 
 算法的`理论推导`以及`针对KITTI Road Test Data`的`伪代码实现`参考 [here](doc/derivations)
 

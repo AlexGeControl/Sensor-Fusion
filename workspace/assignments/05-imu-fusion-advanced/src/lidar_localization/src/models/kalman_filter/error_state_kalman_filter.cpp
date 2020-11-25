@@ -1,5 +1,5 @@
 /*
- * @Description: IMU-lidar-GNSS fusion using Kalman filter for localization
+ * @Description: Error-State Kalman Filter for IMU-Lidar-GNSS-Odo fusion
  * @Author: Ge Yao
  * @Date: 2020-11-12 15:14:07
  */
@@ -16,7 +16,7 @@
 // SVD for observability analysis:
 #include <Eigen/SVD>
 
-#include "lidar_localization/models/kalman_filter/kalman_filter.hpp"
+#include "lidar_localization/models/kalman_filter/error_state_kalman_filter.hpp"
 
 #include "lidar_localization/global_defination/global_defination.h"
 

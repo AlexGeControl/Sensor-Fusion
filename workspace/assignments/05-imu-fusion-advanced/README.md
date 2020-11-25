@@ -59,14 +59,13 @@ topics:      /init_pose               1 msg     : nav_msgs/Odometry
 
 #### ESKF for IMU-GNSS-Odo Fusion
 
-接着重构`ErrorStateKalmanFilter`, 实现基于`GNSS-Odo`观测值的校正. 代码实现参考 [here](src/lidar_localization/src/models/kalman_filter/kalman_filter.cpp#L648)
+接着重构`ErrorStateKalmanFilter`, 实现基于`GNSS-Odo`观测值的校正. 代码实现参考 [here](src/lidar_localization/src/models/kalman_filter/error_state_kalman_filter.cpp#L648)
 
 #### Results & Analysis
 
 测试数据如下图所示. 
 
 <img src="doc/images/02-virtual-test-drive.png" alt="Virtual Test Drive, IMU-GNSS-Odo Fusion" width="100%" />
-
 
 `GNSS Only`, `IMU-GNSS Fusion`与`IMU-GNSS-Odo Fusion`的误差对比如下:
 
@@ -88,3 +87,7 @@ GNSS Only                  |IMU-GNSS Fusion            |IMU-GNSS-Odo Fusion
 基于`GNSS-INS-Sim`仿真数据, 实现`IMU-GNSS-Mag`滤波融合算法
 
 #### ANS
+
+此处选择`Iterative Extended Kalman Filter`进行`IMU-GNSS-Mag`观测值的融合定位. 解决方案架构图如下, 此处使用课程中的`Loosely-Coupled Lidar`为例进行说明:
+
+<img src="doc/images/03-extended-kalman-filtering--architect.png" alt="Extended Kalman Filter for Localization" width="100%" />

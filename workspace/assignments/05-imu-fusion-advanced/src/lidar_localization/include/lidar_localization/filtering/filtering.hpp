@@ -21,7 +21,7 @@
 
 #include "lidar_localization/models/registration/registration_interface.hpp"
 
-#include "lidar_localization/models/kalman_filter/kalman_filter.hpp"
+#include "lidar_localization/models/kalman_filter/error_state_kalman_filter.hpp"
 
 namespace lidar_localization {
 

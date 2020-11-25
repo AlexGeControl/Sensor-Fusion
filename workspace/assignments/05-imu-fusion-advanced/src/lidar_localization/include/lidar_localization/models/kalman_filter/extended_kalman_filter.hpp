@@ -1,11 +1,11 @@
 /*
- * @Description: IMU-lidar-GNSS fusion using Kalman filter for localization
+ * @Description: Extended Kalman Filter for IMU-Lidar-GNSS-Odo-Mag fusion
  * @Author: Ge Yao
  * @Date: 2020-11-12 15:14:07
  */
 
-#ifndef LIDAR_LOCALIZATION_MODELS_KALMAN_FILTER_HPP_
-#define LIDAR_LOCALIZATION_MODELS_KALMAN_FILTER_HPP_
+#ifndef LIDAR_LOCALIZATION_MODELS_KALMAN_FILTER_EXTENDED_KALMAN_FILTER_HPP_
+#define LIDAR_LOCALIZATION_MODELS_KALMAN_FILTER_EXTENDED_KALMAN_FILTER_HPP_
 
 #include <yaml-cpp/yaml.h>
 
@@ -18,7 +18,7 @@
 
 namespace lidar_localization {
 
-class ErrorStateKalmanFilter {
+class ExtendedKalmanFilter {
 public:
     enum MeasurementType {
         POSE = 0,
@@ -118,7 +118,7 @@ public:
     typedef Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSITION, DIM_STATE> MatrixSOMPosition;
     typedef Eigen::Matrix<double,   DIM_STATE*DIM_MEASUREMENT_POSVEL, DIM_STATE> MatrixSOMPosVel;
 
-    ErrorStateKalmanFilter(const YAML::Node& node);
+    ExtendedKalmanFilter(const YAML::Node& node);
 
     /**
      * @brief  init filter
@@ -473,4 +473,4 @@ private:
 
 } // namespace lidar_localization
 
-#endif // LIDAR_LOCALIZATION_MODELS_KALMAN_FILTER_HPP_
+#endif // LIDAR_LOCALIZATION_MODELS_KALMAN_FILTER_EXTENDED_KALMAN_FILTER_HPP_
