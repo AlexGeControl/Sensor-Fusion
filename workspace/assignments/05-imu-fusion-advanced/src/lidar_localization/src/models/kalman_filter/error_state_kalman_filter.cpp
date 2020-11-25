@@ -51,7 +51,7 @@ ErrorStateKalmanFilter::ErrorStateKalmanFilter(const YAML::Node& node) {
 
     // prompt:
     LOG(INFO) << std::endl 
-              << "IMU-Lidar Kalman Filter params:" << std::endl
+              << "Error-State Kalman Filter params:" << std::endl
               << "\tgravity magnitude: " << EARTH.GRAVITY_MAGNITUDE << std::endl
               << "\tearth rotation speed: " << EARTH.ROTATION_SPEED << std::endl
               << "\tlatitude: " << EARTH.LATITUDE << std::endl

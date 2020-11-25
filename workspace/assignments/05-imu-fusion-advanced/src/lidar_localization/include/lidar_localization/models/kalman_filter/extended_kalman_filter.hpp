@@ -24,6 +24,8 @@ public:
         POSE = 0,
         POSITION,
         POSITION_VELOCITY,
+        POSITION_MAG,
+        POSITION_VELOCITY_MAG,
         NUM_TYPES
     };
 
@@ -43,18 +45,20 @@ public:
             double x;
             double y;
             double z;
-        } delta_pos;
+        } pos;
         struct {
             double x;
             double y;
             double z;
-        } delta_vel;
+        } vel;
+        // here quaternion is used for orientation representation:
         struct {
+            double w;
             double x;
             double y;
             double z;
-        } delta_ori;
-            struct {
+        } ori;
+        struct {
             double x;
             double y;
             double z;
@@ -67,22 +71,20 @@ public:
     };
 
     // dimensions:
-    static const int DIM_STATE = 15;
+    static const int DIM_STATE = 16;
     static const int DIM_PROCESS_NOISE = 6;
 
-    static const int DIM_MEASUREMENT_POSE = 6;
-    static const int DIM_MEASUREMENT_POSE_NOISE = 6;
-    static const int DIM_MEASUREMENT_POSITION = 3;
-    static const int DIM_MEASUREMENT_POSITION_NOISE = 3;
-    static const int DIM_MEASUREMENT_POSVEL = 6;
-    static const int DIM_MEASUREMENT_POSVEL_NOISE = 6;
+    static const int DIM_MEASUREMENT_POSI = 3;
+    static const int DIM_MEASUREMENT_POSI_NOISE = 3;
+    static const int DIM_MEASUREMENT_POSI_MAG = 6;
+    static const int DIM_MEASUREMENT_POSI_MAG_NOISE = 6;
 
     // indices:
-    static const int INDEX_ERROR_POS = 0;
-    static const int INDEX_ERROR_VEL = 3;
-    static const int INDEX_ERROR_ORI = 6;
-    static const int INDEX_ERROR_GYRO = 9;
-    static const int INDEX_ERROR_ACCEL = 12;
+    static const int INDEX_POS = 0;
+    static const int INDEX_VEL = 3;
+    static const int INDEX_ORI = 6;
+    static const int INDEX_GYRO_BIAS = 10;
+    static const int INDEX_ACCEL_BIAS = 13;
     
     // state:
     typedef Eigen::Matrix<double,                      DIM_STATE,                              1> VectorX;
@@ -92,31 +94,25 @@ public:
     typedef Eigen::Matrix<double,                      DIM_STATE,              DIM_PROCESS_NOISE> MatrixB;
     typedef Eigen::Matrix<double,              DIM_PROCESS_NOISE,              DIM_PROCESS_NOISE> MatrixQ;
     // measurement equation:
-    typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSE,                      DIM_STATE> MatrixGPose;
-    typedef Eigen::Matrix<double,       DIM_MEASUREMENT_POSITION,                      DIM_STATE> MatrixGPosition;
-    typedef Eigen::Matrix<double,         DIM_MEASUREMENT_POSVEL,                      DIM_STATE> MatrixGPosVel;
+    typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSI,                      DIM_STATE> MatrixGPosi;
+    typedef Eigen::Matrix<double,       DIM_MEASUREMENT_POSI_MAG,                      DIM_STATE> MatrixGPosiMag;
 
-    typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSE,     DIM_MEASUREMENT_POSE_NOISE> MatrixCPose;
-    typedef Eigen::Matrix<double,       DIM_MEASUREMENT_POSITION, DIM_MEASUREMENT_POSITION_NOISE> MatrixCPosition;
-    typedef Eigen::Matrix<double,         DIM_MEASUREMENT_POSVEL,   DIM_MEASUREMENT_POSVEL_NOISE> MatrixCPosVel;
+    typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSI,     DIM_MEASUREMENT_POSI_NOISE> MatrixCPosi;
+    typedef Eigen::Matrix<double,       DIM_MEASUREMENT_POSI_MAG, DIM_MEASUREMENT_POSI_MAG_NOISE> MatrixCPosiMag;
 
-    typedef Eigen::Matrix<double,     DIM_MEASUREMENT_POSE_NOISE,     DIM_MEASUREMENT_POSE_NOISE> MatrixRPose;
-    typedef Eigen::Matrix<double, DIM_MEASUREMENT_POSITION_NOISE, DIM_MEASUREMENT_POSITION_NOISE> MatrixRPosition;
-    typedef Eigen::Matrix<double,   DIM_MEASUREMENT_POSVEL_NOISE,   DIM_MEASUREMENT_POSVEL_NOISE> MatrixRPosVel;
+    typedef Eigen::Matrix<double,     DIM_MEASUREMENT_POSI_NOISE,     DIM_MEASUREMENT_POSI_NOISE> MatrixRPosi;
+    typedef Eigen::Matrix<double, DIM_MEASUREMENT_POSI_MAG_NOISE, DIM_MEASUREMENT_POSI_MAG_NOISE> MatrixRPosiMag;
 
     // measurement:
-    typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSE,                              1> VectorYPose;
-    typedef Eigen::Matrix<double,       DIM_MEASUREMENT_POSITION,                              1> VectorYPosition;
-    typedef Eigen::Matrix<double,         DIM_MEASUREMENT_POSVEL,                              1> VectorYPosVel;
+    typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSI,                              1> VectorYPosi;
+    typedef Eigen::Matrix<double,       DIM_MEASUREMENT_POSI_MAG,                              1> VectorYPosiMag;
     // Kalman gain:
-    typedef Eigen::Matrix<double,                      DIM_STATE,           DIM_MEASUREMENT_POSE> MatrixKPose;
-    typedef Eigen::Matrix<double,                      DIM_STATE,       DIM_MEASUREMENT_POSITION> MatrixKPosition;
-    typedef Eigen::Matrix<double,                      DIM_STATE,         DIM_MEASUREMENT_POSVEL> MatrixKPosVel;
+    typedef Eigen::Matrix<double,                      DIM_STATE,           DIM_MEASUREMENT_POSI> MatrixKPosi;
+    typedef Eigen::Matrix<double,                      DIM_STATE,       DIM_MEASUREMENT_POSI_MAG> MatrixKPosiMag;
 
     // state observality matrix:
-    typedef Eigen::Matrix<double,     DIM_STATE*DIM_MEASUREMENT_POSE, DIM_STATE> MatrixSOMPose;
-    typedef Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSITION, DIM_STATE> MatrixSOMPosition;
-    typedef Eigen::Matrix<double,   DIM_STATE*DIM_MEASUREMENT_POSVEL, DIM_STATE> MatrixSOMPosVel;
+    typedef Eigen::Matrix<double, DIM_STATE*    DIM_MEASUREMENT_POSI, DIM_STATE> MatrixSOMPosi;
+    typedef Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSI_MAG, DIM_STATE> MatrixSOMPosi;
 
     ExtendedKalmanFilter(const YAML::Node& node);
 
@@ -148,18 +144,6 @@ public:
     bool Correct(
         const IMUData &imu_data, 
         const MeasurementType &measurement_type, const Measurement &measurement
-    );
-
-    /**
-     * @brief  Kalman correction, pose measurement and other measurement in body frame
-     * @param  T_nb, pose measurement
-     * @param  v_b, velocity or magnetometer measurement
-     * @return void                                   
-     */
-    bool Correct(
-        const IMUData &imu_data, 
-        const double &time, const MeasurementType &measurement_type, 
-        const Eigen::Matrix4f &T_nb, const Eigen::Vector3f &v_b
     );
 
     /**
@@ -205,127 +189,71 @@ public:
 
 private:
     /**
-     * @brief  get unbiased angular velocity in body frame
-     * @param  angular_vel, angular velocity measurement
-     * @param  R, corresponding orientation of measurement
-     * @return unbiased angular velocity in body frame
+     * @brief  remove gravity component from accel measurement
+     * @param  f_b, accel measurement measurement
+     * @param  C_nb, orientation matrix
+     * @return f_b
      */
-    Eigen::Vector3d GetUnbiasedAngularVel(
-        const Eigen::Vector3d &angular_vel,
-        const Eigen::Matrix3d &R
+    Eigen::Vector3d RemoveGravity(
+        const Eigen::Vector3d &f_b,
+        const Eigen::Matrix3d &C_nb
     );
     /**
-     * @brief  get unbiased linear acceleration in navigation frame
-     * @param  linear_acc, linear acceleration measurement
-     * @param  R, corresponding orientation of measurement
-     * @return unbiased linear acceleration in navigation frame
+     * @brief  get block matrix for velocity update by orientation quaternion
+     * @param  f_b, accel measurement
+     * @param  q_nb, orientation quaternion
+     * @return block matrix Fvq
      */
-    Eigen::Vector3d GetUnbiasedLinearAcc(
-        const Eigen::Vector3d &linear_acc,
-        const Eigen::Matrix3d &R
+    Eigen::Matrix<double, 3, 4> GetFVelOri(
+        const Eigen::Vector3d &f_b,
+        const Eigen::Quaterniond &q_nb
     );
     /**
-     * @brief  get angular delta
-     * @param  index_curr, current imu measurement buffer index
-     * @param  index_prev, previous imu measurement buffer index
-     * @param  angular_delta, angular delta output
-     * @return true if success false otherwise
+     * @brief  get block matrix for orientation quaternion update by orientation quaternion
+     * @param  w_b, gyro measurement
+     * @return block matrix Fqq
      */
-    bool GetAngularDelta(
-        const size_t index_curr, const size_t index_prev,
-        Eigen::Vector3d &angular_delta
+    Eigen::Matrix<double, 4, 4> GetFOriOri(
+        const Eigen::Vector3d &w_b
     );
     /**
-     * @brief  get velocity delta
-     * @param  index_curr, current imu measurement buffer index
-     * @param  index_prev, previous imu measurement buffer index
-     * @param  R_curr, corresponding orientation of current imu measurement
-     * @param  R_prev, corresponding orientation of previous imu measurement
-     * @param  velocity_delta, velocity delta output
-     * @param  linear_acc_mid, mid-value unbiased linear acc
-     * @return true if success false otherwise
+     * @brief  get block matrix for orientation quaternion update by epsilon, angular velocity bias
+     * @param  q_nb, orientation quaternion
+     * @return block matrix Fqe
      */
-    bool GetVelocityDelta(
-        const size_t index_curr, const size_t index_prev,
-        const Eigen::Matrix3d &R_curr, const Eigen::Matrix3d &R_prev, 
-        double &T, 
-        Eigen::Vector3d &velocity_delta,
-        Eigen::Vector3d &linear_acc_mid
+    Eigen::Matrix<double, 4, 3> GetFOriEps(
+        const Eigen::Quaterniond &q_nb
     );
-    /**
-     * @brief  update orientation with effective rotation angular_delta
-     * @param  angular_delta, effective rotation
-     * @param  R_curr, current orientation
-     * @param  R_prev, previous orientation
-     * @return void
-     */
-    void UpdateOrientation(
-        const Eigen::Vector3d &angular_delta,
-        Eigen::Matrix3d &R_curr, Eigen::Matrix3d &R_prev
-    );
-    /**
-     * @brief  update orientation with effective velocity change velocity_delta
-     * @param  velocity_delta, effective velocity change
-     * @return void
-     */
-    void UpdatePosition(const double &T, const Eigen::Vector3d &velocity_delta);
-    /**
-     * @brief  update IMU odometry estimation
-     * @param  linear_acc_mid, output mid-value unbiased linear acc
-     * @return void
-     */
-    void UpdateOdomEstimation(Eigen::Vector3d &linear_acc_mid);
-
     /**
      * @brief  set process equation
-     * @param  C_nb, rotation matrix, body frame -> navigation frame
-     * @param  f_n, accel measurement in navigation frame
+     * @param  void
      * @return void
      */
-    void SetProcessEquation(
-        const Eigen::Matrix3d &C_nb, const Eigen::Vector3d &f_n
-    );
+    void SetProcessEquation(void);
     /**
-     * @brief  update process equation
-     * @param  linear_acc_mid, input mid-value unbiased linear acc
+     * @brief  update state estimation
+     * @param  void
      * @return void
      */
-    void UpdateProcessEquation(const Eigen::Vector3d &linear_acc_mid);
+    void UpdateStateEstimation(void);
 
     /**
-     * @brief  update error estimation
-     * @param  linear_acc_mid, input mid-value unbiased linear acc
+     * @brief  correct state estimation using GNSS position
+     * @param  T_nb, input GNSS position
      * @return void
      */
-    void UpdateErrorEstimation(
-        const double &T,
-        const Eigen::Vector3d &linear_acc_mid
-    );
+    void CorrectErrorEstimationPosi(const Eigen::Matrix4d &T_nb);
 
     /**
-     * @brief  correct error estimation using pose measurement
-     * @param  T_nb, input pose measurement
+     * @brief  correct state estimation using GNSS position and magneto measurement
+     * @param  T_nb, input GNSS position 
+     * @param  B_b, input magneto
      * @return void
      */
-    void CorrectErrorEstimationPose(const Eigen::Matrix4d &T_nb);
+    void CorrectStateEstimationPosiMag(const Eigen::Matrix4d &T_nb, const Eigen::Vector3d &B_b);
 
     /**
-     * @brief  correct error estimation using position measurement
-     * @param  T_nb, input position measurement
-     * @return void
-     */
-    void CorrectErrorEstimationPosition(const Eigen::Matrix4d &T_nb);
-
-    /**
-     * @brief  correct error estimation using navigation position and body velocity measurement
-     * @param  T_nb, input position measurement
-     * @param  v_b, input velocity measurement
-     * @return void
-     */
-    void CorrectErrorEstimationPosVel(const Eigen::Matrix4d &T_nb, const Eigen::Vector3d &v_b);
-
-    /**
-     * @brief  correct error estimation
+     * @brief  correct state estimation
      * @param  measurement_type, measurement type
      * @param  measurement, input measurement
      * @return void
@@ -395,13 +323,11 @@ private:
     // time:
     double time_;
 
-    // odometry estimation from IMU integration:
+    // init pose, vel, gyro & accel bias:
     Eigen::Matrix4d init_pose_ = Eigen::Matrix4d::Identity();
-    
-    Eigen::Matrix4d pose_ = Eigen::Matrix4d::Identity();
-    Eigen::Vector3d vel_ = Eigen::Vector3d::Zero();
+    Eigen::Vector3d init_vel_ = Eigen::Vector3d::Zero();
     Eigen::Vector3d gyro_bias_ = Eigen::Vector3d::Zero();
-    Eigen::Vector3d accl_bias_ = Eigen::Vector3d::Zero();
+    Eigen::Vector3d accel_bias_ = Eigen::Vector3d::Zero();
 
     // state:
     VectorX X_ = VectorX::Zero();
@@ -411,26 +337,21 @@ private:
     MatrixB B_ = MatrixB::Zero();
     MatrixQ Q_ = MatrixQ::Zero();
 
-    MatrixGPose GPose_ = MatrixGPose::Zero();
-    MatrixGPosition GPosition_ = MatrixGPosition::Zero();
-    MatrixGPosVel GPosVel_ = MatrixGPosVel::Zero();
+    MatrixGPosition GPosi_ = MatrixGPosi::Zero();
+    MatrixGPosiMag GPosiMag_ = MatrixGPosiMag::Zero();
 
-    MatrixCPose CPose_ = MatrixCPose::Zero();
-    MatrixCPosition CPosition_ = MatrixCPosition::Zero();
-    MatrixCPosVel CPosVel_ = MatrixCPosVel::Zero();
+    MatrixCPosition CPosi_ = MatrixCPosi::Zero();
+    MatrixCPosiMag CPosiMag_ = MatrixCPosiMag::Zero();
 
-    MatrixRPose RPose_ = MatrixRPose::Zero();
-    MatrixRPosition RPosition_ = MatrixRPosition::Zero();
-    MatrixRPosVel RPosVel_ = MatrixRPosVel::Zero();
+    MatrixRPosition RPosi_ = MatrixRPosi::Zero();
+    MatrixRPosiMag RPosiMag_ = MatrixRPosiMag::Zero();
 
-    MatrixSOMPose SOMPose_ = MatrixSOMPose::Zero();
-    MatrixSOMPosition SOMPosition_ = MatrixSOMPosition::Zero();
-    MatrixSOMPosVel SOMPosVel_ = MatrixSOMPosVel::Zero();
+    MatrixSOMPosi SOMPosi_ = MatrixSOMPosi::Zero();
+    MatrixSOMPosiMag SOMPosiMag_ = MatrixSOMPosiMag::Zero();
 
     // measurement:
-    VectorYPose YPose_;
-    VectorYPosition YPosition_;
-    VectorYPosVel YPosVel_;
+    VectorYPosi YPosi_;
+    VectorYPosiMag YPosiMag_;
 
     // earth constants:
     Eigen::Vector3d g_;
@@ -439,8 +360,8 @@ private:
     // observability analysis:
     struct {
         std::vector<std::vector<double>> pose_;
-        std::vector<std::vector<double>> position_;
-        std::vector<std::vector<double>> pos_vel_;
+        std::vector<std::vector<double>> posi_;
+        std::vector<std::vector<double>> posi_mag_;
     } observability;
 
     // hyper-params:
@@ -455,7 +376,7 @@ private:
         struct {
             double POS;
             double VEL;
-            double ORIENTATION;
+            double ORI;
             double EPSILON;
             double DELTA;
         } PRIOR;
@@ -464,9 +385,8 @@ private:
             double ACCEL;
         } PROCESS;
         struct {
-            double POS;
-            double VEL;
-            double ORIENTATION;
+            double POSI;
+            double MAG;
         } MEASUREMENT;
     } COV;
 };
