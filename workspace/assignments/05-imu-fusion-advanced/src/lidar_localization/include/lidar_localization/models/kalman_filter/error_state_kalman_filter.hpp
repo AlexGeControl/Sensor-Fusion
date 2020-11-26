@@ -370,7 +370,6 @@ private:
     MatrixRPosi RPosi_ = MatrixRPosi::Zero();
     MatrixRPosiVel RPosiVel_ = MatrixRPosiVel::Zero();
 
-    MatrixF FSOM_;
     MatrixSOMPose SOMPose_ = MatrixSOMPose::Zero();
     MatrixSOMPosi SOMPosi_ = MatrixSOMPosi::Zero();
     MatrixSOMPosiVel SOMPosiVel_ = MatrixSOMPosiVel::Zero();

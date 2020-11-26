@@ -424,7 +424,6 @@ private:
     MatrixRPosiMag RPosiMag_ = MatrixRPosiMag::Zero();
     MatrixRPosiVelMag RPosiVelMag_ = MatrixRPosiVelMag::Zero();
 
-    MatrixF FSOM_;
     MatrixSOMPosi SOMPosi_ = MatrixSOMPosi::Zero();
     MatrixSOMPosiVel SOMPosiVel_ = MatrixSOMPosiVel::Zero();
     MatrixSOMPosiMag SOMPosiMag_ = MatrixSOMPosiMag::Zero();

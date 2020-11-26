@@ -593,9 +593,6 @@ void ErrorStateKalmanFilter::UpdateErrorEstimation(
     X_ = F*X_;
     P_ = F*P_*F.transpose() + B*Q_*B.transpose();
 
-    // save discretized F for observability analysis:
-    FSOM_ = F;
-
     // update counter:
     if (
         0 == (++count % 10) 
@@ -822,7 +819,7 @@ void ErrorStateKalmanFilter::UpdateObservabilityAnalysisPose(
     // build observability matrix for position measurement:
     for (int i = 1; i < DIM_STATE; ++i) {
         SOMPose_.block<DIM_MEASUREMENT_POSE, DIM_STATE>(i*DIM_MEASUREMENT_POSE, 0) = (
-            SOMPose_.block<DIM_MEASUREMENT_POSE, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSE, 0) * FSOM_
+            SOMPose_.block<DIM_MEASUREMENT_POSE, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSE, 0) * F_
         );
     }
 
@@ -861,7 +858,7 @@ void ErrorStateKalmanFilter::UpdateObservabilityAnalysisPosi(
     // build observability matrix for position measurement:
     for (int i = 1; i < DIM_STATE; ++i) {
         SOMPosi_.block<DIM_MEASUREMENT_POSI, DIM_STATE>(i*DIM_MEASUREMENT_POSI, 0) = (
-            SOMPosi_.block<DIM_MEASUREMENT_POSI, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSI, 0) * FSOM_
+            SOMPosi_.block<DIM_MEASUREMENT_POSI, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSI, 0) * F_
         );
     }
 
@@ -901,7 +898,7 @@ void ErrorStateKalmanFilter::UpdateObservabilityAnalysisPosiVel(
     SOMPosiVel_.block<DIM_MEASUREMENT_POSI_VEL, DIM_STATE>(0, 0) = GPosiVel_;
     for (int i = 1; i < DIM_STATE; ++i) {
         SOMPosiVel_.block<DIM_MEASUREMENT_POSI_VEL, DIM_STATE>(i*DIM_MEASUREMENT_POSI_VEL, 0) = (
-            SOMPosiVel_.block<DIM_MEASUREMENT_POSI_VEL, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSI_VEL, 0) * FSOM_
+            SOMPosiVel_.block<DIM_MEASUREMENT_POSI_VEL, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSI_VEL, 0) * F_
         );
     }
 

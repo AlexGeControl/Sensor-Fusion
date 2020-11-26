@@ -1,14 +1,14 @@
 # select fusion method for IMU-GNSS-Odo-Mag, available methods are:
 #     1. extended_kalman_filter
 #     2. error_state_kalman_filter
-fusion_method: error_state_kalman_filter
+fusion_method: extended_kalman_filter
 # select fusion strategy for IMU-GNSS-Odo-Mag, available methods are:
 #     1. pose
 #     2. position
 #     3. position_velocity
 #     4. position_magnetic_field
 #     5. position_velocity_magnetic_field
-fusion_strategy: position_velocity
+fusion_strategy: position_velocity_magnetic_field
 
 ## a. Iterative Extended Kalman filter for IMU-GNSS-Odo-Mag fusion:
 extended_kalman_filter:
