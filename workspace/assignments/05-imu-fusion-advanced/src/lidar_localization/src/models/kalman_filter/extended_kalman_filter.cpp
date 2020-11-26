@@ -64,7 +64,7 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(const YAML::Node& node) {
     EARTH.LATITUDE *= M_PI / 180.0;
 
     // b. prior state covariance:
-    COV.PRIOR.POS = node["covariance"]["prior"]["pos"].as<double>();
+    COV.PRIOR.POSI = node["covariance"]["prior"]["pos"].as<double>();
     COV.PRIOR.VEL = node["covariance"]["prior"]["vel"].as<double>();
     // TODO: find a better way for quaternion orientation prior covariance assignment
     COV.PRIOR.ORI = node["covariance"]["prior"]["ori"].as<double>();
@@ -74,7 +74,7 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(const YAML::Node& node) {
     COV.PROCESS.GYRO = node["covariance"]["process"]["gyro"].as<double>();
     COV.PROCESS.ACCEL = node["covariance"]["process"]["accel"].as<double>();
     // d. measurement noise:
-    COV.MEASUREMENT.POSI = node["covariance"]["measurement"]["posi"].as<double>();
+    COV.MEASUREMENT.POSI = node["covariance"]["measurement"]["pos"].as<double>();
     COV.MEASUREMENT.VEL = node["covariance"]["measurement"]["vel"].as<double>();
     COV.MEASUREMENT.MAG = node["covariance"]["measurement"]["mag"].as<double>();
 
@@ -90,7 +90,7 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(const YAML::Node& node) {
               << "\t\tB_N: " << EARTH.MAG.B_N << std::endl
               << "\t\tB_U: " << EARTH.MAG.B_U << std::endl
               << std::endl
-              << "\tprior cov. pos.: " << COV.PRIOR.POS  << std::endl
+              << "\tprior cov. pos.: " << COV.PRIOR.POSI  << std::endl
               << "\tprior cov. vel.: " << COV.PRIOR.VEL << std::endl
               << "\tprior cov. ori: " << COV.PRIOR.ORI << std::endl
               << "\tprior cov. epsilon.: " << COV.PRIOR.EPSILON  << std::endl
@@ -717,6 +717,10 @@ void ExtendedKalmanFilter::UpdateCovarianceEstimation(
     // perform Kalman prediction for covariance:
     P_ = F*P_*F.transpose() + B*Q_*B.transpose();
 
+    // save discretized F for observability analysis:
+    FSOM_ = F;
+
+    // update counter:
     if (
         0 == (++count % 10) 
     ) {
@@ -1045,7 +1049,7 @@ void ExtendedKalmanFilter::ResetState(void) {
 void ExtendedKalmanFilter::ResetCovariance(void) {
     P_ = MatrixP::Zero();
     
-    P_.block<3, 3>(       INDEX_POS,        INDEX_POS) = COV.PRIOR.POS*Eigen::Matrix3d::Identity();
+    P_.block<3, 3>(       INDEX_POS,        INDEX_POS) = COV.PRIOR.POSI*Eigen::Matrix3d::Identity();
     P_.block<3, 3>(       INDEX_VEL,        INDEX_VEL) = COV.PRIOR.VEL*Eigen::Matrix3d::Identity();
     // TODO: find a better way for quaternion orientation prior covariance assignment
     P_.block<4, 4>(       INDEX_ORI,        INDEX_ORI) = COV.PRIOR.ORI*Eigen::Matrix4d::Identity();
@@ -1075,7 +1079,7 @@ void ExtendedKalmanFilter::UpdateObservabilityAnalysisPosi(
     // build observability matrix for position measurement:
     for (int i = 1; i < DIM_STATE; ++i) {
         SOMPosi_.block<DIM_MEASUREMENT_POSI, DIM_STATE>(i*DIM_MEASUREMENT_POSI, 0) = (
-            SOMPosi_.block<DIM_MEASUREMENT_POSI, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSI, 0) * F_
+            SOMPosi_.block<DIM_MEASUREMENT_POSI, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSI, 0) * FSOM_
         );
     }
 
@@ -1114,7 +1118,7 @@ void ExtendedKalmanFilter::UpdateObservabilityAnalysisPosiMag(
     SOMPosiMag_.block<DIM_MEASUREMENT_POSI_MAG, DIM_STATE>(0, 0) = GPosiMag_;
     for (int i = 1; i < DIM_STATE; ++i) {
         SOMPosiMag_.block<DIM_MEASUREMENT_POSI_MAG, DIM_STATE>(i*DIM_MEASUREMENT_POSI_MAG, 0) = (
-            SOMPosiMag_.block<DIM_MEASUREMENT_POSI_MAG, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSI_MAG, 0) * F_
+            SOMPosiMag_.block<DIM_MEASUREMENT_POSI_MAG, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSI_MAG, 0) * FSOM_
         );
     }
 
@@ -1153,7 +1157,7 @@ void ExtendedKalmanFilter::UpdateObservabilityAnalysisPosiVel(
     SOMPosiVel_.block<DIM_MEASUREMENT_POSI_VEL, DIM_STATE>(0, 0) = GPosiVel_;
     for (int i = 1; i < DIM_STATE; ++i) {
         SOMPosiVel_.block<DIM_MEASUREMENT_POSI_VEL, DIM_STATE>(i*DIM_MEASUREMENT_POSI_VEL, 0) = (
-            SOMPosiVel_.block<DIM_MEASUREMENT_POSI_VEL, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSI_VEL, 0) * F_
+            SOMPosiVel_.block<DIM_MEASUREMENT_POSI_VEL, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSI_VEL, 0) * FSOM_
         );
     }
 
@@ -1170,6 +1174,45 @@ void ExtendedKalmanFilter::UpdateObservabilityAnalysisPosiVel(
 
     // record degree of observability:
     Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSI_VEL, 1> Y = COV.MEASUREMENT.POSI*Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSI_VEL, 1>::Ones();
+    VectorX X = (
+        svd.matrixV()*
+        svd.singularValues().asDiagonal().inverse()*
+        svd.matrixU().transpose()
+    )*Y;
+    for (int i = 0; i < DIM_STATE; ++i) {
+        record.push_back(X(i, 0));
+    }
+}
+
+/**
+ * @brief  update observability analysis for GNSS position, body velocity & magneto measurement
+ * @param  void
+ * @return void
+ */
+void ExtendedKalmanFilter::UpdateObservabilityAnalysisPosiVelMag(
+    const double &time, std::vector<double> &record
+) {
+    // build observability matrix for position & velocity measurement:
+    SOMPosiVelMag_.block<DIM_MEASUREMENT_POSI_VEL_MAG, DIM_STATE>(0, 0) = GPosiVelMag_;
+    for (int i = 1; i < DIM_STATE; ++i) {
+        SOMPosiVelMag_.block<DIM_MEASUREMENT_POSI_VEL_MAG, DIM_STATE>(i*DIM_MEASUREMENT_POSI_VEL_MAG, 0) = (
+            SOMPosiVelMag_.block<DIM_MEASUREMENT_POSI_VEL_MAG, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSI_VEL_MAG, 0) * FSOM_
+        );
+    }
+
+    // perform SVD analysis:
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(SOMPosiVelMag_, Eigen::ComputeThinU | Eigen::ComputeThinV);
+
+    // record timestamp:
+    record.push_back(time);
+
+    // record singular values:
+    for (int i = 0; i < DIM_STATE; ++i) {
+        record.push_back(svd.singularValues()(i, 0));
+    }
+
+    // record degree of observability:
+    Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSI_VEL_MAG, 1> Y = COV.MEASUREMENT.POSI*Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSI_VEL_MAG, 1>::Ones();
     VectorX X = (
         svd.matrixV()*
         svd.singularValues().asDiagonal().inverse()*
@@ -1208,6 +1251,8 @@ void ExtendedKalmanFilter::UpdateObservabilityAnalysis(
             observability.posi_mag_.push_back(record);
             break;
         case MeasurementType::POSI_VEL_MAG:
+            UpdateObservabilityAnalysisPosiVelMag(time, record);
+            observability.posi_vel_mag_.push_back(record);
             break;
         default:
             break;
@@ -1235,7 +1280,13 @@ void ExtendedKalmanFilter::SaveObservabilityAnalysis(
             data = &(observability.posi_mag_);
             type = std::string("position_magneto");
             break;
+        case MeasurementType::POSI_VEL_MAG:
+            data = &(observability.posi_vel_mag_);
+            type = std::string("position_velocity_magneto");
+            break;
         default:
+            data = &(observability.posi_vel_mag_);
+            type = std::string("position_velocity_magneto");
             break;
     }
 

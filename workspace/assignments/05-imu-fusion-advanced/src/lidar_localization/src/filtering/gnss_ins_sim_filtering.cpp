@@ -6,6 +6,9 @@
 
 #include "lidar_localization/filtering/gnss_ins_sim_filtering.hpp"
 
+#include "lidar_localization/models/kalman_filter/extended_kalman_filter.hpp"
+#include "lidar_localization/models/kalman_filter/error_state_kalman_filter.hpp"
+
 #include "glog/logging.h"
 
 #include "lidar_localization/global_defination/global_defination.h"
@@ -87,7 +90,7 @@ bool GNSSINSSimFiltering::Correct(
             // perform observability analysis:
             kalman_filter_ptr_->UpdateObservabilityAnalysis(
                 gnss_pose_data.time,
-                ExtendedKalmanFilter::MeasurementType::POSITION
+                KalmanFilter::MeasurementType::POSITION
             );
             */
         }
@@ -142,7 +145,7 @@ bool GNSSINSSimFiltering::InitWithConfig(void) {
     YAML::Node config_node = YAML::LoadFile(config_file_path);
 
     LOG(INFO) << std::endl
-              << "-----------------Init IMU-GNSS-Odo-Mag Fusion for Localization-------------------" 
+              << "-----------------Init Kalman Filter Fusion for Localization-------------------" 
               << std::endl;
     
     // a. init fusion:
@@ -152,23 +155,12 @@ bool GNSSINSSimFiltering::InitWithConfig(void) {
 }
 
 bool GNSSINSSimFiltering::InitFusion(const YAML::Node& config_node) {
-    CONFIG.FUSION_METHOD = config_node["fusion_method"].as<std::string>();
-
-    // set up fusion method:
-    if (CONFIG.FUSION_METHOD == "extended_kalman_filter") {
-        kalman_filter_ptr_ = std::make_shared<ExtendedKalmanFilter>(config_node[CONFIG.FUSION_METHOD]);
-        std::cout << "\tIMU-GNSS-Odo-Mag Fusion Method: " << CONFIG.FUSION_METHOD << std::endl;
-    } else {
-        LOG(ERROR) << "Fusion method " << CONFIG.FUSION_METHOD << " NOT FOUND!";
-        return false;
-    }
-
     // set up fusion strategy:
-    CONFIG.FUSION_STRATEGY_ID["pose"] = ExtendedKalmanFilter::MeasurementType::POSE;
-    CONFIG.FUSION_STRATEGY_ID["position"] = ExtendedKalmanFilter::MeasurementType::POSI;
-    CONFIG.FUSION_STRATEGY_ID["position_velocity"] = ExtendedKalmanFilter::MeasurementType::POSI_VEL;
-    CONFIG.FUSION_STRATEGY_ID["position_magnetic_field"] = ExtendedKalmanFilter::MeasurementType::POSI_MAG;
-    CONFIG.FUSION_STRATEGY_ID["position_velocity_magnetic_field"] = ExtendedKalmanFilter::MeasurementType::POSI_VEL_MAG;
+    CONFIG.FUSION_STRATEGY_ID["pose"] = KalmanFilter::MeasurementType::POSE;
+    CONFIG.FUSION_STRATEGY_ID["position"] = KalmanFilter::MeasurementType::POSI;
+    CONFIG.FUSION_STRATEGY_ID["position_velocity"] = KalmanFilter::MeasurementType::POSI_VEL;
+    CONFIG.FUSION_STRATEGY_ID["position_magnetic_field"] = KalmanFilter::MeasurementType::POSI_MAG;
+    CONFIG.FUSION_STRATEGY_ID["position_velocity_magnetic_field"] = KalmanFilter::MeasurementType::POSI_VEL_MAG;
 
     std::string fusion_strategy = config_node["fusion_strategy"].as<std::string>();
 
@@ -177,6 +169,27 @@ bool GNSSINSSimFiltering::InitFusion(const YAML::Node& config_node) {
         std::cout << "\tIMU-GNSS-Odo-Mag Fusion Strategy: " << fusion_strategy << std::endl;
     } else {
         LOG(ERROR) << "Fusion strategy " << fusion_strategy << " NOT FOUND!";
+        return false;
+    }
+
+    if (
+        "position_magnetic_field" == fusion_strategy ||
+        "position_velocity_magnetic_field" == fusion_strategy
+    ) {
+        CONFIG.FUSION_METHOD = "extended_kalman_filter";
+    } else {
+        CONFIG.FUSION_METHOD = config_node["fusion_method"].as<std::string>();
+    }
+
+    // set up fusion method:
+    if (CONFIG.FUSION_METHOD == "extended_kalman_filter") {
+        kalman_filter_ptr_ = std::make_shared<ExtendedKalmanFilter>(config_node[CONFIG.FUSION_METHOD]);
+        std::cout << "\tIMU-GNSS-Odo-Mag Fusion Method: " << CONFIG.FUSION_METHOD << std::endl;
+    } else if (CONFIG.FUSION_METHOD == "error_state_kalman_filter") {
+        kalman_filter_ptr_ = std::make_shared<ErrorStateKalmanFilter>(config_node[CONFIG.FUSION_METHOD]);
+        std::cout << "\tIMU-GNSS-Odo-Mag Fusion Method: " << CONFIG.FUSION_METHOD << std::endl;
+    } else {
+        LOG(ERROR) << "Fusion method " << CONFIG.FUSION_METHOD << " NOT FOUND!";
         return false;
     }
 

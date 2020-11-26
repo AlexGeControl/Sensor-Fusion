@@ -20,8 +20,7 @@
 #include "lidar_localization/sensor_data/pos_vel_mag_data.hpp"
 #include "lidar_localization/sensor_data/pose_data.hpp"
 
-#include "lidar_localization/models/kalman_filter/error_state_kalman_filter.hpp"
-#include "lidar_localization/models/kalman_filter/extended_kalman_filter.hpp"
+#include "lidar_localization/models/kalman_filter/kalman_filter.hpp"
 
 namespace lidar_localization {
 
@@ -68,17 +67,17 @@ class GNSSINSSimFiltering {
     struct {
       std::string FUSION_METHOD;
 
-      std::unordered_map<std::string, ExtendedKalmanFilter::MeasurementType> FUSION_STRATEGY_ID;
-      ExtendedKalmanFilter::MeasurementType FUSION_STRATEGY;
+      std::unordered_map<std::string, KalmanFilter::MeasurementType> FUSION_STRATEGY_ID;
+      KalmanFilter::MeasurementType FUSION_STRATEGY;
     } CONFIG;
-    std::shared_ptr<ExtendedKalmanFilter> kalman_filter_ptr_;
-    ExtendedKalmanFilter::Measurement current_measurement_;
+    std::shared_ptr<KalmanFilter> kalman_filter_ptr_;
+    KalmanFilter::Measurement current_measurement_;
     
     Eigen::Matrix4f current_gnss_pose_ = Eigen::Matrix4f::Identity();
     Eigen::Matrix4f init_pose_ = Eigen::Matrix4f::Identity(); 
     Eigen::Matrix4f current_pose_ = Eigen::Matrix4f::Identity();
     Eigen::Vector3f current_vel_ = Eigen::Vector3f::Zero();
-    ExtendedKalmanFilter::Cov current_cov_;
+    KalmanFilter::Cov current_cov_;
 };
 
 } // namespace lidar_localization

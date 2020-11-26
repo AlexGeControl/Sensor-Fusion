@@ -1,38 +1,105 @@
 /*
- * @Description: Extended Kalman Filter for IMU-Lidar-GNSS-Odo-Mag fusion
+ * @Description: Kalman Filter interface.
  * @Author: Ge Yao
  * @Date: 2020-11-12 15:14:07
  */
 
-#ifndef LIDAR_LOCALIZATION_MODELS_KALMAN_FILTER_EXTENDED_KALMAN_FILTER_HPP_
-#define LIDAR_LOCALIZATION_MODELS_KALMAN_FILTER_EXTENDED_KALMAN_FILTER_HPP_
+#ifndef LIDAR_LOCALIZATION_MODELS_KALMAN_FILTER_KALMAN_FILTER_HPP_
+#define LIDAR_LOCALIZATION_MODELS_KALMAN_FILTER_KALMAN_FILTER_HPP_
 
-#include "lidar_localization/models/kalman_filter/kalman_filter.hpp"
+#include <yaml-cpp/yaml.h>
+
+#include <deque>
+
+#include <Eigen/Core>
+#include <Eigen/Dense>
+
+#include "lidar_localization/sensor_data/imu_data.hpp"
 
 namespace lidar_localization {
 
-class ExtendedKalmanFilter : public KalmanFilter {
+class KalmanFilter {
 public:
-    ExtendedKalmanFilter(const YAML::Node& node);
-    
+    /**
+     * @class MeasurementType
+     * @brief enum for observation type
+     */
+    enum MeasurementType {
+        POSE = 0,
+        POSI,
+        POSI_VEL,
+        POSI_MAG,
+        POSI_VEL_MAG,
+        NUM_TYPES
+    };
+
+    /**
+     * @class Measurement
+     * @brief Kalman filter measurement data
+     */
+    struct Measurement {
+        // timestamp:
+        double time;
+        // a. pose observation, lidar/visual frontend:
+        Eigen::Matrix4d T_nb;
+        // b. body frame velocity observation, odometer:
+        Eigen::Vector3d v_b;
+        // c. magnetometer:
+        Eigen::Vector3d B_b;
+    };
+
+    /**
+     * @class Cov
+     * @brief Kalman filter process covariance data
+     */
+    struct Cov {
+        struct {
+            double x;
+            double y;
+            double z;
+        } pos;
+        struct {
+            double x;
+            double y;
+            double z;
+        } vel;
+        // here quaternion is used for orientation representation:
+        struct {
+            double w;
+            double x;
+            double y;
+            double z;
+        } ori;
+        struct {
+            double x;
+            double y;
+            double z;
+        } gyro_bias;
+        struct {
+            double x;
+            double y;
+            double z;
+        } accel_bias;
+    };
+
     /**
      * @brief  init filter
      * @param  imu_data, input IMU measurements
      * @return true if success false otherwise
      */
-    void Init(
+    virtual void Init(
         const Eigen::Vector3d &vel, 
         const IMUData &imu_data
-    );
+    ) = 0;
 
     /**
      * @brief  update state & covariance estimation, Kalman prediction
      * @param  imu_data, input IMU measurements
      * @return true if success false otherwise
      */
-    bool Update(
+    virtual bool Update(
         const IMUData &imu_data
-    );
+    ) = 0;
 
     /**
      * @brief  correct state & covariance estimation, Kalman correction
@@ -40,25 +107,31 @@ public:
      * @param  measurement, input measurement
      * @return void                                   
      */
-    bool Correct(
+    virtual bool Correct(
         const IMUData &imu_data, 
         const MeasurementType &measurement_type, const Measurement &measurement
-    );
+    ) = 0;
 
+    /**
+     * @brief  get filter time
+     * @return filter time as double    
+     */
+    double GetTime(void) const { return time_; }
+    
     /**
      * @brief  get odometry estimation
      * @param  pose, output pose
      * @param  vel, output vel
      * @return void
      */
-    void GetOdometry(Eigen::Matrix4f &pose, Eigen::Vector3f &vel);
+    virtual void GetOdometry(Eigen::Matrix4f &pose, Eigen::Vector3f &vel) = 0;
 
     /**
      * @brief  get covariance estimation
      * @param  cov, output covariance 
      * @return void
      */
-    void GetCovariance(Cov &cov);
+    virtual void GetCovariance(Cov &cov) = 0;
     
     /**
      * @brief  update observability analysis
@@ -66,82 +139,21 @@ public:
      * @param  measurement_type, measurement type
      * @return void
      */
-    void UpdateObservabilityAnalysis(
+    virtual void UpdateObservabilityAnalysis(
         const double &time,
         const MeasurementType &measurement_type
-    );
+    ) = 0;
 
     /**
      * @brief  save observability analysis to persistent storage
      * @param  measurement_type, measurement type
      * @return void
      */
-    void SaveObservabilityAnalysis(
+    virtual void SaveObservabilityAnalysis(
         const MeasurementType &measurement_type
-    );
-    
-private:
-    // dimensions:
-    static const int DIM_STATE = 16;
-    static const int DIM_PROCESS_NOISE = 6;
+    ) = 0;
 
-    static const int DIM_MEASUREMENT_POSI = 3;
-    static const int DIM_MEASUREMENT_POSI_NOISE = 3;
-    static const int DIM_MEASUREMENT_POSI_VEL = 6;
-    static const int DIM_MEASUREMENT_POSI_VEL_NOISE = 6;
-    static const int DIM_MEASUREMENT_POSI_MAG = 6;
-    static const int DIM_MEASUREMENT_POSI_MAG_NOISE = 6;
-    static const int DIM_MEASUREMENT_POSI_VEL_MAG = 9;
-    static const int DIM_MEASUREMENT_POSI_VEL_MAG_NOISE = 9;
-
-    // indices:
-    static const int INDEX_POS = 0;
-    static const int INDEX_VEL = 3;
-    static const int INDEX_ORI = 6;
-    static const int INDEX_GYRO_BIAS = 10;
-    static const int INDEX_ACCEL_BIAS = 13;
-    
-    // state:
-    typedef Eigen::Matrix<double,                          DIM_STATE,                                  1> VectorX;
-    typedef Eigen::Matrix<double,                          DIM_STATE,                          DIM_STATE> MatrixP;
-    // process equation:
-    typedef Eigen::Matrix<double,                          DIM_STATE,                          DIM_STATE> MatrixF;
-    typedef Eigen::Matrix<double,                          DIM_STATE,                  DIM_PROCESS_NOISE> MatrixB;
-    typedef Eigen::Matrix<double,                  DIM_PROCESS_NOISE,                  DIM_PROCESS_NOISE> MatrixQ;
-    // measurement equation:
-    typedef Eigen::Matrix<double,               DIM_MEASUREMENT_POSI,                          DIM_STATE> MatrixGPosi;
-    typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSI_VEL,                          DIM_STATE> MatrixGPosiVel;
-    typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSI_MAG,                          DIM_STATE> MatrixGPosiMag;
-    typedef Eigen::Matrix<double,       DIM_MEASUREMENT_POSI_VEL_MAG,                          DIM_STATE> MatrixGPosiVelMag;
-
-    typedef Eigen::Matrix<double,               DIM_MEASUREMENT_POSI,         DIM_MEASUREMENT_POSI_NOISE> MatrixCPosi;
-    typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSI_VEL,     DIM_MEASUREMENT_POSI_VEL_NOISE> MatrixCPosiVel;
-    typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSI_MAG,     DIM_MEASUREMENT_POSI_MAG_NOISE> MatrixCPosiMag;
-    typedef Eigen::Matrix<double,       DIM_MEASUREMENT_POSI_VEL_MAG, DIM_MEASUREMENT_POSI_VEL_MAG_NOISE> MatrixCPosiVelMag;
-
-    typedef Eigen::Matrix<double,         DIM_MEASUREMENT_POSI_NOISE,         DIM_MEASUREMENT_POSI_NOISE> MatrixRPosi;
-    typedef Eigen::Matrix<double,     DIM_MEASUREMENT_POSI_VEL_NOISE,     DIM_MEASUREMENT_POSI_VEL_NOISE> MatrixRPosiVel;
-    typedef Eigen::Matrix<double,     DIM_MEASUREMENT_POSI_MAG_NOISE,     DIM_MEASUREMENT_POSI_MAG_NOISE> MatrixRPosiMag;
-    typedef Eigen::Matrix<double, DIM_MEASUREMENT_POSI_VEL_MAG_NOISE, DIM_MEASUREMENT_POSI_VEL_MAG_NOISE> MatrixRPosiVelMag;
-
-    // measurement:
-    typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSI,                              1> VectorYPosi;
-    typedef Eigen::Matrix<double,       DIM_MEASUREMENT_POSI_VEL,                              1> VectorYPosiVel;
-    typedef Eigen::Matrix<double,       DIM_MEASUREMENT_POSI_MAG,                              1> VectorYPosiMag;
-    typedef Eigen::Matrix<double,   DIM_MEASUREMENT_POSI_VEL_MAG,                              1> VectorYPosiVelMag;
-
-    // Kalman gain:
-    typedef Eigen::Matrix<double,                      DIM_STATE,           DIM_MEASUREMENT_POSI> MatrixKPosi;
-    typedef Eigen::Matrix<double,                      DIM_STATE,       DIM_MEASUREMENT_POSI_VEL> MatrixKPosiVel;
-    typedef Eigen::Matrix<double,                      DIM_STATE,       DIM_MEASUREMENT_POSI_MAG> MatrixKPosiMag;
-    typedef Eigen::Matrix<double,                      DIM_STATE,   DIM_MEASUREMENT_POSI_VEL_MAG> MatrixKPosiVelMag;
-
-    // state observality matrix:
-    typedef Eigen::Matrix<double, DIM_STATE*        DIM_MEASUREMENT_POSI, DIM_STATE> MatrixSOMPosi;
-    typedef Eigen::Matrix<double, DIM_STATE*    DIM_MEASUREMENT_POSI_VEL, DIM_STATE> MatrixSOMPosiVel;
-    typedef Eigen::Matrix<double, DIM_STATE*    DIM_MEASUREMENT_POSI_MAG, DIM_STATE> MatrixSOMPosiMag;
-    typedef Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSI_VEL_MAG, DIM_STATE> MatrixSOMPosiVelMag;
-
+protected:
     /**
      * @brief  get block matrix for velocity update by orientation quaternion
      * @param  f_b, accel measurement
@@ -386,57 +398,64 @@ private:
         const double &time, std::vector<double> &record
     );
 
-    /**
-     * @brief  update observability analysis for GNSS position, body velocity & magneto measurement
-     * @param  void
-     * @return void
-     */
-    void UpdateObservabilityAnalysisPosiVelMag(
-        const double &time, std::vector<double> &record
-    );
-     
-    // init pose, vel, gyro & accel bias:
-    Eigen::Matrix4d init_pose_ = Eigen::Matrix4d::Identity();
-    Eigen::Vector3d init_vel_ = Eigen::Vector3d::Zero();
-    Eigen::Vector3d gyro_bias_ = Eigen::Vector3d::Zero();
-    Eigen::Vector3d accel_bias_ = Eigen::Vector3d::Zero();
+protected:
+    KalmanFilter(){}
 
-    // state:
-    VectorX X_ = VectorX::Zero();
-    MatrixP P_ = MatrixP::Zero();
-    // process & measurement equations:
-    MatrixF F_ = MatrixF::Zero();
-    MatrixB B_ = MatrixB::Zero();
-    MatrixQ Q_ = MatrixQ::Zero();
+    // time:
+    double time_;
 
-    MatrixGPosi GPosi_ = MatrixGPosi::Zero();
-    MatrixGPosiVel GPosiVel_ = MatrixGPosiVel::Zero();
-    MatrixGPosiMag GPosiMag_ = MatrixGPosiMag::Zero();
-    MatrixGPosiVelMag GPosiVelMag_ = MatrixGPosiVelMag::Zero();
+    // data buff:
+    std::deque<IMUData> imu_data_buff_;
 
-    MatrixCPosi CPosi_ = MatrixCPosi::Zero();
-    MatrixCPosiMag CPosiVel_ = MatrixCPosiVel::Zero();
-    MatrixCPosiMag CPosiMag_ = MatrixCPosiMag::Zero();
-    MatrixCPosiVelMag CPosiVelMag_ = MatrixCPosiVelMag::Zero();
+    // earth constants:
+    Eigen::Vector3d g_;
+    Eigen::Vector3d w_;
+    Eigen::Vector3d b_;
 
-    MatrixRPosi RPosi_ = MatrixRPosi::Zero();
-    MatrixRPosiVel RPosiVel_ = MatrixRPosiVel::Zero();
-    MatrixRPosiMag RPosiMag_ = MatrixRPosiMag::Zero();
-    MatrixRPosiVelMag RPosiVelMag_ = MatrixRPosiVelMag::Zero();
+    // observability analysis:
+    struct {
+        std::vector<std::vector<double>> pose_;
+        std::vector<std::vector<double>> posi_;
+        std::vector<std::vector<double>> posi_vel_;
+        std::vector<std::vector<double>> posi_mag_;
+        std::vector<std::vector<double>> posi_vel_mag_;
+    } observability;
 
-    MatrixF FSOM_;
-    MatrixSOMPosi SOMPosi_ = MatrixSOMPosi::Zero();
-    MatrixSOMPosiVel SOMPosiVel_ = MatrixSOMPosiVel::Zero();
-    MatrixSOMPosiMag SOMPosiMag_ = MatrixSOMPosiMag::Zero();
-    MatrixSOMPosiVelMag SOMPosiVelMag_ = MatrixSOMPosiVelMag::Zero();
-
-    // measurement:
-    VectorYPosi YPosi_;
-    VectorYPosiVel YPosiVel_;
-    VectorYPosiMag YPosiMag_;
-    VectorYPosiVelMag YPosiVelMag_;
+    // hyper-params:
+    // a. earth constants:
+    struct {
+        double GRAVITY_MAGNITUDE;
+        double ROTATION_SPEED;
+        double LATITUDE;
+        double LONGITUDE;
+        struct {
+            double B_E;
+            double B_N;
+            double B_U;
+        } MAG;
+    } EARTH;
+    // b. prior state covariance, process & measurement noise:
+    struct {
+        struct {
+            double POSI;
+            double VEL;
+            double ORI;
+            double EPSILON;
+            double DELTA;
+        } PRIOR;
+        struct {
+            double GYRO;
+            double ACCEL;
+        } PROCESS;
+        struct {
+            double POSI;
+            double VEL;
+            double ORI;
+            double MAG;
+        } MEASUREMENT;
+    } COV;
 };
 
 } // namespace lidar_localization
 
-#endif // LIDAR_LOCALIZATION_MODELS_KALMAN_FILTER_EXTENDED_KALMAN_FILTER_HPP_
+#endif // LIDAR_LOCALIZATION_MODELS_KALMAN_FILTER_KALMAN_FILTER_HPP_

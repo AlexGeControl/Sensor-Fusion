@@ -26,31 +26,32 @@ This is the solution of Assignment 05 of Sensor Fusion from [深蓝学院](https
 
 #### Data Generation
 
-首先修改`ROS GNSS-INS-Sim Wrapper` [here](src/gnss_ins_sim/README.md) 产生所需的仿真数据. 一个示例数据如下图所示:
+首先修改`ROS GNSS-INS-Sim Wrapper` [here](src/gnss_ins_sim/README.md) 产生所需的仿真数据. 为了抑制`IEKF`解算的数值误差, 此处设置GNSS-INS-Sim的仿真频率为`400Hz`. 一个示例数据如下图所示:
 
 ```bash
 $ rosbag info virtual_proving_ground.bag 
 
 path:        virtual_proving_ground.bag
 version:     2.0
-duration:    1:37s (97s)
-start:       Nov 21 2020 07:34:38.69 (1605944078.69)
-end:         Nov 21 2020 07:36:16.68 (1605944176.68)
-size:        16.6 MB
-messages:    58801
-compression: none [22/22 chunks]
+duration:    2:35s (155s)
+start:       Nov 26 2020 11:06:50.94 (1606360010.94)
+end:         Nov 26 2020 11:09:26.94 (1606360166.94)
+size:        105.4 MB
+messages:    374401
+compression: none [135/135 chunks]
 types:       geometry_msgs/TwistStamped [98d34b0043a2093cf9d9345ab6eef12e]
              nav_msgs/Odometry          [cd5e73d190d741a2f92e81eda573aca7]
              sensor_msgs/Imu            [6a62c6daae103f4ff57a132d6f95cec2]
              sensor_msgs/MagneticField  [2f3b0b43eed0c9501de0fa3ff89a45aa]
              sensor_msgs/NavSatFix      [2d3a8cd499b9b4a0249fb98fd05cfa48]
-topics:      /init_pose               1 msg     : nav_msgs/Odometry         
-             /reference_pose       9800 msgs    : nav_msgs/Odometry         
-             /sim/sensor/gps/fix   9800 msgs    : sensor_msgs/NavSatFix     
-             /sim/sensor/gps/vel   9800 msgs    : geometry_msgs/TwistStamped
-             /sim/sensor/imu       9800 msgs    : sensor_msgs/Imu           
-             /sim/sensor/imu/mag   9800 msgs    : sensor_msgs/MagneticField 
-             /sim/sensor/odo       9800 msgs    : geometry_msgs/TwistStamped
+topics:      /init_pose                1 msg     : nav_msgs/Odometry         
+             /reference_pose       62400 msgs    : nav_msgs/Odometry         
+             /sim/sensor/gps/fix   62400 msgs    : sensor_msgs/NavSatFix     
+             /sim/sensor/gps/vel   62400 msgs    : geometry_msgs/TwistStamped
+             /sim/sensor/imu       62400 msgs    : sensor_msgs/Imu           
+             /sim/sensor/imu/mag   62400 msgs    : sensor_msgs/MagneticField 
+             /sim/sensor/odo       62400 msgs    : geometry_msgs/TwistStamped
+
 ```
 
 #### Data Preprocessing
@@ -63,44 +64,89 @@ topics:      /init_pose               1 msg     : nav_msgs/Odometry
 
 #### Results & Analysis
 
-测试数据如下图所示. 
+测试数据如下图所示. 该数据模拟了自动驾驶车辆上下高架桥的过程. 测试路段的三维构型参照EVO的评测结果.
 
-<img src="doc/images/02-virtual-test-drive.png" alt="Virtual Test Drive, IMU-GNSS-Odo Fusion" width="100%" />
+<img src="doc/images/02-virtual-test-drive.png" alt="Virtual Test Drive, IMU-GNSS-Odo-Mag Fusion" width="100%" />
+
+##### Fusion Config
+
+```yaml
+# select fusion method for IMU-GNSS-Odo-Mag, available methods are:
+#     1. extended_kalman_filter
+#     2. error_state_kalman_filter
+fusion_method: error_state_kalman_filter
+# select fusion strategy for IMU-GNSS-Odo-Mag, available methods are:
+#     1. pose
+#     2. position
+#     3. position_velocity
+#     4. position_magnetic_field
+#     5. position_velocity_magnetic_field
+fusion_strategy: position_velocity
+```
 
 `GNSS Only`, `IMU-GNSS Fusion`与`IMU-GNSS-Odo Fusion`的误差对比如下:
 
-GNSS Only                  |IMU-GNSS Fusion            |IMU-GNSS-Odo Fusion
-:-------------------------:|:-------------------------:|:-------------------------:
-![GNSS Only, Time Series Plot](doc/images/02-evo--gnss-only--time-series-plot.png)  |  ![IMU-GNSS Fusion, Time Series Plot](doc/images/02-evo--imu-gnss--time-series-plot.png)  |  ![IMU-GNSS-Odo Fusion, Time Series Plot](doc/images/02-evo--imu-gnss-odo--time-series-plot.png)
-![GNSS Only, Map Plot](doc/images/02-evo--gnss-only--map-plot.png)  |  ![IMU-GNSS Fusion, Map Plot](doc/images/02-evo--imu-gnss--map-plot.png)  |  ![IMU-GNSS-Odo Fusion, Map Plot](doc/images/02-evo--imu-gnss-odo--map-plot.png)
+##### EVO, Time Series Plot
 
-三者的估计精度如下. `IMU-GNSS-Odo Fusion`的精度, 相比`IMU-GNSS Fusion`有~40%的显著提升.
+GNSS Only                  |IMU-GNSS-Odo Fusion
+:-------------------------:|:-------------------------:
+![GNSS Only, Time Series Plot](doc/images/02-evo--gnss-only--time-series-plot.png)  |  ![IMU-GNSS-Odo Fusion, Time Series Plot](doc/images/02-evo--imu-gnss-odo--time-series-plot.png)
 
-|        Algo.       | GNSS Only | IMU-GNSS Fusion | IMU-GNSS-Odo Fusion |
-|:------------------:|:---------:|:---------------:|:-------------------:|
-| Standard Deviation |  0.841071 |     0.551382    |     **0.332923**    |
+##### EVO, 3D Map Plot
+
+GNSS Only                  |IMU-GNSS-Odo Fusion
+:-------------------------:|:-------------------------:
+![GNSS Only, Map Plot](doc/images/02-evo--gnss-only--map-plot.png)  |  ![IMU-GNSS-Odo Fusion, Map Plot](doc/images/02-evo--imu-gnss-odo--map-plot.png)
+
+##### EVO, Standard Deviation
+
+三者的估计精度如下. `IMU-GNSS-Odo Fusion`的精度, 相比`GNSS-Only`有~25%的显著提升.
+
+|        Algo.       | GNSS Only | IMU-GNSS-Odo Fusion |
+|:------------------:|:---------:|:-------------------:|
+| Standard Deviation |  0.728081 |     **0.542979**    |
 
 ---
 
-### 3. IMU-GNSS-Mag
+## 3. IMU-GNSS-Mag
 
 基于`GNSS-INS-Sim`仿真数据, 实现`IMU-GNSS-Mag`滤波融合算法
 
-#### ANS
+### ANS
 
-此处选择`Iterative Extended Kalman Filter`进行`IMU-GNSS-Mag`观测值的融合定位. 解决方案架构图如下, 此处使用课程中的`Loosely-Coupled Lidar`为例进行说明:
+此处选择`Iterative Extended Kalman Filter`, 基于`导航信息`, 进行`IMU-GNSS-Odo-Mag`观测值的融合定位. 解决方案架构图如下, 此处使用课程中的`Loosely-Coupled Lidar Estimation`为例进行说明:
 
 <img src="doc/images/03-extended-kalman-filtering--architect.png" alt="Extended Kalman Filter for Localization" width="100%" />
 
+#### Data Preprocessing
+
+首先在框架中增加新的节点, 实现`GNSS`观测值的预处理, 以及融合节点对`位置观测`, `速度观测`与`磁场强度观测`的订阅.
+
 #### EKF for IMU-GNSS-Odo Fusion
 
-接着实现`IterativeExtendedKalmanFilter`, 实现基于`GNSS-Odo`观测值的校正. 代码实现参考 [here](src/lidar_localization/src/models/kalman_filter/extended_kalman_filter.cpp#L783)
+接着实现`IterativeExtendedKalmanFilter`, 实现基于`导航信息`的`GNSS-Odo / GNSS-Mag / GNSS-Odo-Mag`观测值的校正. 代码实现参考 [here](src/lidar_localization/src/models/kalman_filter/extended_kalman_filter.cpp#L783)
 
 #### Results & Analysis
 
 测试数据如下图所示. 该数据模拟了自动驾驶车辆上下高架桥的过程. 测试路段的三维构型参照EVO的评测结果.
 
-<img src="doc/images/02-virtual-test-drive.png" alt="Virtual Test Drive, IMU-GNSS-Odo Fusion" width="100%" />
+<img src="doc/images/02-virtual-test-drive.png" alt="Virtual Test Drive, IMU-GNSS-Odo-Mag Fusion" width="100%" />
+
+##### Fusion Config
+
+```yaml
+# select fusion method for IMU-GNSS-Odo-Mag, available methods are:
+#     1. extended_kalman_filter
+#     2. error_state_kalman_filter
+fusion_method: extended_kalman_filter
+# select fusion strategy for IMU-GNSS-Odo-Mag, available methods are:
+#     1. pose
+#     2. position
+#     3. position_velocity
+#     4. position_magnetic_field
+#     5. position_velocity_magnetic_field
+fusion_strategy: position_velocity_magnetic_field
+```
 
 `GNSS Only`, `IMU-GNSS-Mag Fusion`与`IMU-GNSS-Odo Fusion`, 以及`IMU-GNSS-Odo-Mag Fusion`的误差对比如下:
 
@@ -126,7 +172,7 @@ IMU-GNSS-Odo-Mag Fusion    |GNSS Only
 
 ##### EVO, Standard Deviation
 
-三者的估计精度对比如下. 
+三者的估计精度对比如下. `IMU-GNSS-Odo-Mag Fusion`的精度, 相比`GNSS-Only`有~60%的显著提升.
 
 * `Odo & Motion Constraint`对`IEKF`的精度提升最为显著;
 

@@ -7,117 +7,12 @@
 #ifndef LIDAR_LOCALIZATION_MODELS_KALMAN_FILTER_ERROR_STATE_KALMAN_FILTER_HPP_
 #define LIDAR_LOCALIZATION_MODELS_KALMAN_FILTER_ERROR_STATE_KALMAN_FILTER_HPP_
 
-#include <yaml-cpp/yaml.h>
-
-#include <deque>
-
-#include <Eigen/Core>
-#include <Eigen/Dense>
-
-#include "lidar_localization/sensor_data/imu_data.hpp"
+#include "lidar_localization/models/kalman_filter/kalman_filter.hpp"
 
 namespace lidar_localization {
 
-class ErrorStateKalmanFilter {
+class ErrorStateKalmanFilter : public KalmanFilter {
 public:
-    enum MeasurementType {
-        POSE = 0,
-        POSITION,
-        POSITION_VELOCITY,
-        NUM_TYPES
-    };
-
-    struct Measurement {
-        double time;
-        
-        // a. pose observation, lidar/visual frontend:
-        Eigen::Matrix4d T_nb;
-        // b. body frame velocity observation, odometer:
-        Eigen::Vector3d v_b;
-        // c. magnetometer:
-        Eigen::Vector3d m_b;
-    };
-
-    struct Cov {
-        struct {
-            double x;
-            double y;
-            double z;
-        } delta_pos;
-        struct {
-            double x;
-            double y;
-            double z;
-        } delta_vel;
-        struct {
-            double x;
-            double y;
-            double z;
-        } delta_ori;
-            struct {
-            double x;
-            double y;
-            double z;
-        } gyro_bias;
-        struct {
-            double x;
-            double y;
-            double z;
-        } accel_bias;
-    };
-
-    // dimensions:
-    static const int DIM_STATE = 15;
-    static const int DIM_PROCESS_NOISE = 6;
-
-    static const int DIM_MEASUREMENT_POSE = 6;
-    static const int DIM_MEASUREMENT_POSE_NOISE = 6;
-    static const int DIM_MEASUREMENT_POSITION = 3;
-    static const int DIM_MEASUREMENT_POSITION_NOISE = 3;
-    static const int DIM_MEASUREMENT_POSVEL = 6;
-    static const int DIM_MEASUREMENT_POSVEL_NOISE = 6;
-
-    // indices:
-    static const int INDEX_ERROR_POS = 0;
-    static const int INDEX_ERROR_VEL = 3;
-    static const int INDEX_ERROR_ORI = 6;
-    static const int INDEX_ERROR_GYRO = 9;
-    static const int INDEX_ERROR_ACCEL = 12;
-    
-    // state:
-    typedef Eigen::Matrix<double,                      DIM_STATE,                              1> VectorX;
-    typedef Eigen::Matrix<double,                      DIM_STATE,                      DIM_STATE> MatrixP;
-    // process equation:
-    typedef Eigen::Matrix<double,                      DIM_STATE,                      DIM_STATE> MatrixF;
-    typedef Eigen::Matrix<double,                      DIM_STATE,              DIM_PROCESS_NOISE> MatrixB;
-    typedef Eigen::Matrix<double,              DIM_PROCESS_NOISE,              DIM_PROCESS_NOISE> MatrixQ;
-    // measurement equation:
-    typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSE,                      DIM_STATE> MatrixGPose;
-    typedef Eigen::Matrix<double,       DIM_MEASUREMENT_POSITION,                      DIM_STATE> MatrixGPosition;
-    typedef Eigen::Matrix<double,         DIM_MEASUREMENT_POSVEL,                      DIM_STATE> MatrixGPosVel;
-
-    typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSE,     DIM_MEASUREMENT_POSE_NOISE> MatrixCPose;
-    typedef Eigen::Matrix<double,       DIM_MEASUREMENT_POSITION, DIM_MEASUREMENT_POSITION_NOISE> MatrixCPosition;
-    typedef Eigen::Matrix<double,         DIM_MEASUREMENT_POSVEL,   DIM_MEASUREMENT_POSVEL_NOISE> MatrixCPosVel;
-
-    typedef Eigen::Matrix<double,     DIM_MEASUREMENT_POSE_NOISE,     DIM_MEASUREMENT_POSE_NOISE> MatrixRPose;
-    typedef Eigen::Matrix<double, DIM_MEASUREMENT_POSITION_NOISE, DIM_MEASUREMENT_POSITION_NOISE> MatrixRPosition;
-    typedef Eigen::Matrix<double,   DIM_MEASUREMENT_POSVEL_NOISE,   DIM_MEASUREMENT_POSVEL_NOISE> MatrixRPosVel;
-
-    // measurement:
-    typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSE,                              1> VectorYPose;
-    typedef Eigen::Matrix<double,       DIM_MEASUREMENT_POSITION,                              1> VectorYPosition;
-    typedef Eigen::Matrix<double,         DIM_MEASUREMENT_POSVEL,                              1> VectorYPosVel;
-    // Kalman gain:
-    typedef Eigen::Matrix<double,                      DIM_STATE,           DIM_MEASUREMENT_POSE> MatrixKPose;
-    typedef Eigen::Matrix<double,                      DIM_STATE,       DIM_MEASUREMENT_POSITION> MatrixKPosition;
-    typedef Eigen::Matrix<double,                      DIM_STATE,         DIM_MEASUREMENT_POSVEL> MatrixKPosVel;
-
-    // state observality matrix:
-    typedef Eigen::Matrix<double,     DIM_STATE*DIM_MEASUREMENT_POSE, DIM_STATE> MatrixSOMPose;
-    typedef Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSITION, DIM_STATE> MatrixSOMPosition;
-    typedef Eigen::Matrix<double,   DIM_STATE*DIM_MEASUREMENT_POSVEL, DIM_STATE> MatrixSOMPosVel;
-
     ErrorStateKalmanFilter(const YAML::Node& node);
 
     /**
@@ -161,12 +56,6 @@ public:
         const double &time, const MeasurementType &measurement_type, 
         const Eigen::Matrix4f &T_nb, const Eigen::Vector3f &v_b
     );
-
-    /**
-     * @brief  get filter time
-     * @return filter time as double    
-     */
-    double GetTime(void) const { return time_; }
     
     /**
      * @brief  get odometry estimation
@@ -204,6 +93,58 @@ public:
     );
 
 private:
+    // dimensions:
+    static const int DIM_STATE = 15;
+    static const int DIM_PROCESS_NOISE = 6;
+
+    static const int DIM_MEASUREMENT_POSE = 6;
+    static const int DIM_MEASUREMENT_POSE_NOISE = 6;
+    static const int DIM_MEASUREMENT_POSI = 3;
+    static const int DIM_MEASUREMENT_POSI_NOISE = 3;
+    static const int DIM_MEASUREMENT_POSI_VEL = 6;
+    static const int DIM_MEASUREMENT_POSI_VEL_NOISE = 6;
+
+    // indices:
+    static const int INDEX_ERROR_POS = 0;
+    static const int INDEX_ERROR_VEL = 3;
+    static const int INDEX_ERROR_ORI = 6;
+    static const int INDEX_ERROR_GYRO = 9;
+    static const int INDEX_ERROR_ACCEL = 12;
+    
+    // state:
+    typedef Eigen::Matrix<double,                      DIM_STATE,                              1> VectorX;
+    typedef Eigen::Matrix<double,                      DIM_STATE,                      DIM_STATE> MatrixP;
+    // process equation:
+    typedef Eigen::Matrix<double,                      DIM_STATE,                      DIM_STATE> MatrixF;
+    typedef Eigen::Matrix<double,                      DIM_STATE,              DIM_PROCESS_NOISE> MatrixB;
+    typedef Eigen::Matrix<double,              DIM_PROCESS_NOISE,              DIM_PROCESS_NOISE> MatrixQ;
+    // measurement equation:
+    typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSE,                      DIM_STATE> MatrixGPose;
+    typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSI,                      DIM_STATE> MatrixGPosi;
+    typedef Eigen::Matrix<double,       DIM_MEASUREMENT_POSI_VEL,                      DIM_STATE> MatrixGPosiVel;
+
+    typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSE,     DIM_MEASUREMENT_POSE_NOISE> MatrixCPose;
+    typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSI,     DIM_MEASUREMENT_POSI_NOISE> MatrixCPosi;
+    typedef Eigen::Matrix<double,       DIM_MEASUREMENT_POSI_VEL, DIM_MEASUREMENT_POSI_VEL_NOISE> MatrixCPosiVel;
+
+    typedef Eigen::Matrix<double,     DIM_MEASUREMENT_POSE_NOISE,     DIM_MEASUREMENT_POSE_NOISE> MatrixRPose;
+    typedef Eigen::Matrix<double,     DIM_MEASUREMENT_POSI_NOISE,     DIM_MEASUREMENT_POSI_NOISE> MatrixRPosi;
+    typedef Eigen::Matrix<double, DIM_MEASUREMENT_POSI_VEL_NOISE, DIM_MEASUREMENT_POSI_VEL_NOISE> MatrixRPosiVel;
+
+    // measurement:
+    typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSE,                              1> VectorYPose;
+    typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSI,                              1> VectorYPosi;
+    typedef Eigen::Matrix<double,       DIM_MEASUREMENT_POSI_VEL,                              1> VectorYPosiVel;
+    // Kalman gain:
+    typedef Eigen::Matrix<double,                      DIM_STATE,           DIM_MEASUREMENT_POSE> MatrixKPose;
+    typedef Eigen::Matrix<double,                      DIM_STATE,           DIM_MEASUREMENT_POSI> MatrixKPosi;
+    typedef Eigen::Matrix<double,                      DIM_STATE,       DIM_MEASUREMENT_POSI_VEL> MatrixKPosiVel;
+
+    // state observality matrix:
+    typedef Eigen::Matrix<double,     DIM_STATE*DIM_MEASUREMENT_POSE, DIM_STATE> MatrixSOMPose;
+    typedef Eigen::Matrix<double,     DIM_STATE*DIM_MEASUREMENT_POSI, DIM_STATE> MatrixSOMPosi;
+    typedef Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSI_VEL, DIM_STATE> MatrixSOMPosiVel;
+
     /**
      * @brief  get unbiased angular velocity in body frame
      * @param  angular_vel, angular velocity measurement
@@ -224,6 +165,12 @@ private:
         const Eigen::Vector3d &linear_acc,
         const Eigen::Matrix3d &R
     );
+    /**
+     * @brief  apply motion constraint on velocity estimation
+     * @param  void
+     * @return void
+     */
+    void ApplyMotionConstraint(void);
     /**
      * @brief  get angular delta
      * @param  index_curr, current imu measurement buffer index
@@ -314,7 +261,7 @@ private:
      * @param  T_nb, input position measurement
      * @return void
      */
-    void CorrectErrorEstimationPosition(const Eigen::Matrix4d &T_nb);
+    void CorrectErrorEstimationPosi(const Eigen::Matrix4d &T_nb);
 
     /**
      * @brief  correct error estimation using navigation position and body velocity measurement
@@ -322,7 +269,7 @@ private:
      * @param  v_b, input velocity measurement
      * @return void
      */
-    void CorrectErrorEstimationPosVel(const Eigen::Matrix4d &T_nb, const Eigen::Vector3d &v_b);
+    void CorrectErrorEstimationPosiVel(const Eigen::Matrix4d &T_nb, const Eigen::Vector3d &v_b);
 
     /**
      * @brief  correct error estimation
@@ -376,7 +323,7 @@ private:
      * @param  void
      * @return void
      */
-    void UpdateObservabilityAnalysisPosition(
+    void UpdateObservabilityAnalysisPosi(
         const double &time, std::vector<double> &record
     );
 
@@ -385,7 +332,7 @@ private:
      * @param  void
      * @return void
      */
-    void UpdateObservabilityAnalysisPosVel(
+    void UpdateObservabilityAnalysisPosiVel(
         const double &time, std::vector<double> &record
     );
 
@@ -412,63 +359,26 @@ private:
     MatrixQ Q_ = MatrixQ::Zero();
 
     MatrixGPose GPose_ = MatrixGPose::Zero();
-    MatrixGPosition GPosition_ = MatrixGPosition::Zero();
-    MatrixGPosVel GPosVel_ = MatrixGPosVel::Zero();
+    MatrixGPosi GPosi_ = MatrixGPosi::Zero();
+    MatrixGPosiVel GPosiVel_ = MatrixGPosiVel::Zero();
 
     MatrixCPose CPose_ = MatrixCPose::Zero();
-    MatrixCPosition CPosition_ = MatrixCPosition::Zero();
-    MatrixCPosVel CPosVel_ = MatrixCPosVel::Zero();
+    MatrixCPosi CPosi_ = MatrixCPosi::Zero();
+    MatrixCPosiVel CPosiVel_ = MatrixCPosiVel::Zero();
 
     MatrixRPose RPose_ = MatrixRPose::Zero();
-    MatrixRPosition RPosition_ = MatrixRPosition::Zero();
-    MatrixRPosVel RPosVel_ = MatrixRPosVel::Zero();
+    MatrixRPosi RPosi_ = MatrixRPosi::Zero();
+    MatrixRPosiVel RPosiVel_ = MatrixRPosiVel::Zero();
 
+    MatrixF FSOM_;
     MatrixSOMPose SOMPose_ = MatrixSOMPose::Zero();
-    MatrixSOMPosition SOMPosition_ = MatrixSOMPosition::Zero();
-    MatrixSOMPosVel SOMPosVel_ = MatrixSOMPosVel::Zero();
+    MatrixSOMPosi SOMPosi_ = MatrixSOMPosi::Zero();
+    MatrixSOMPosiVel SOMPosiVel_ = MatrixSOMPosiVel::Zero();
 
     // measurement:
     VectorYPose YPose_;
-    VectorYPosition YPosition_;
-    VectorYPosVel YPosVel_;
-
-    // earth constants:
-    Eigen::Vector3d g_;
-    Eigen::Vector3d w_;
-
-    // observability analysis:
-    struct {
-        std::vector<std::vector<double>> pose_;
-        std::vector<std::vector<double>> position_;
-        std::vector<std::vector<double>> pos_vel_;
-    } observability;
-
-    // hyper-params:
-    // a. earth constants:
-    struct {
-        double GRAVITY_MAGNITUDE;
-        double ROTATION_SPEED;
-        double LATITUDE;
-    } EARTH;
-    // b. prior state covariance, process & measurement noise:
-    struct {
-        struct {
-            double POS;
-            double VEL;
-            double ORIENTATION;
-            double EPSILON;
-            double DELTA;
-        } PRIOR;
-        struct {
-            double GYRO;
-            double ACCEL;
-        } PROCESS;
-        struct {
-            double POS;
-            double VEL;
-            double ORIENTATION;
-        } MEASUREMENT;
-    } COV;
+    VectorYPosi YPosi_;
+    VectorYPosiVel YPosiVel_;
 };
 
 } // namespace lidar_localization

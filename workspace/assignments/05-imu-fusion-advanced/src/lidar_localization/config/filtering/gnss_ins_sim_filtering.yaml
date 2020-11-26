@@ -10,7 +10,7 @@ fusion_method: extended_kalman_filter
 #     5. position_velocity_magnetic_field
 fusion_strategy: position_velocity_magnetic_field
 
-## a. Iterative Extended Kalman filter for IMU-GNSS-Mag fusion:
+## a. Iterative Extended Kalman filter for IMU-GNSS-Odo-Mag fusion:
 extended_kalman_filter:
     earth:
         # gravity can be calculated from https://www.sensorsone.com/local-gravity-calculator/ using latitude and height:
@@ -37,6 +37,30 @@ extended_kalman_filter:
             gyro: 1.0e-8
             accel: 1.0e-8
         measurement:
-            posi: 2.5e-1
+            pos: 2.5e-1
             vel: 2.5e-3
+            ori: 1.0e-4
             mag: 1.0e-4
+## a. Error-State Kalman filter for IMU-GNSS-Odo fusion:
+error_state_kalman_filter:
+    earth:
+        # gravity can be calculated from https://www.sensorsone.com/local-gravity-calculator/ using latitude and height:
+        gravity_magnitude: -9.7821972833
+        # rotation speed, rad/s:
+        rotation_speed: 7.292115e-5
+        # latitude:
+        latitude:   31.224361
+    covariance:
+        prior:
+            pos: 2.5e-1
+            vel: 2.5e-3
+            ori: 1.0e-6
+            epsilon: 1.0e-8
+            delta: 1.0e-8
+        process:
+            gyro: 1.0e-8
+            accel: 1.0e-8
+        measurement:
+            pos: 2.5e-1
+            vel: 2.5e-3
+            ori: 1.0e-4
