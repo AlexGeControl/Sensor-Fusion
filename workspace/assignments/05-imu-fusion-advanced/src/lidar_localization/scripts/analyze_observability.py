@@ -1,0 +1,136 @@
+#! /usr/bin/python
+# -*- coding: utf-8 -*-
+
+import os
+import sys
+import shutil
+
+import argparse
+from collections import namedtuple
+
+import numpy as np
+import pandas as pd
+
+
+Config = namedtuple(
+    'Config', 
+    ['motion_file', 'tom', 'output_file', 'sv_thresh'], 
+    verbose=False
+)
+
+
+def get_arguments():
+    """ 
+    Get command-line arguments
+    """
+    # init parser:
+    parser = argparse.ArgumentParser("Analyze observability for each motion def stage.")
+
+    # add required and optional groups:
+    required = parser.add_argument_group('Required')
+    optional = parser.add_argument_group('Optional')
+
+    # add required:
+    required.add_argument(
+        "-m", dest="motion_file", help="Input filepath of GNSS-INS-Sim motion def file.",
+        required=True, type=str
+    )
+    required.add_argument(
+        "-t", dest="tom", help="Input filepath of TOM data file.",
+        required=True, type=str
+    )
+    required.add_argument(
+        "-o", dest="output_file", help="Output filepath of TOM analysis result.",
+        required=True, type=str
+    )
+
+    # add optional
+    optional.add_argument(
+        "-s", dest="sv_thresh", help="Singular value threshold. Defaults to 1.0e-5",
+        required=False, default=1.0e-5, type=float, 
+    )
+
+    # parse arguments:
+    return parser.parse_args()
+
+
+def main(config):
+    """
+    Get system observability & state variable's degree of observability for each motion stage
+    """
+    # load motion def:
+    df_motion = pd.read_csv(config.motion_file, header=None, skiprows=[0, 1, 2])
+    df_motion.columns = ['command_type', 'yaw', 'pitch', 'roll', 'x', 'y', 'z', 'duration', 'gps_visibility']
+    # add timestamp:
+    df_motion['timestamp'] = df_motion.duration.cumsum()
+    # add motion stage id:
+    df_motion['motion_stage_id'] = df_motion.index.values
+
+    # load TOM data:
+    df_tom = pd.read_csv(config.tom)
+    # convert to relative time
+    df_tom['T'] = df_tom['T'] - df_tom.iloc[0, 0] + 1
+
+    # get motion stage id of each SOM record:
+    motion_stage_bins = df_motion.timestamp.values
+    df_tom['motion_stage_id'] = df_tom['T'].apply(lambda x: np.digitize(x, motion_stage_bins))
+    # get rank of each SOM record:
+    singular_value_columns = [ col for col in df_tom.columns if col.startswith('sv') ]
+    df_tom['som_rank'] = np.sum(
+        df_tom.loc[:, singular_value_columns].values > config.sv_thresh, axis = 1
+    )
+    #
+    # get 
+    #     1. min. Q rank
+    #     2. min. degree of observability for each state variable
+    # for each motion stage
+    #
+    degree_of_observability_columns = [ col for col in df_tom.columns if col.startswith('doo') ]
+    df_tom =  df_tom[
+        ['motion_stage_id'] + ['som_rank'] + degree_of_observability_columns
+    ].groupby(
+        ['motion_stage_id']
+    ).min()
+    
+    # set state variable names for TOM table
+    state_variable_columns = []
+    if len(degree_of_observability_columns) == 16:
+        state_variable_columns = [
+            'pE', 'pN', 'pU', 
+            'vE', 'vN', 'vU', 
+            'qw', 'qx', 'qy', 'qz',
+            'gyro_bias_x', 'gyro_bias_y', 'gyro_bias_z',
+            'accel_bias_x', 'accel_bias_y', 'accel_bias_z',
+        ]
+    else:
+        state_variable_columns = [
+            'pE', 'pN', 'pU', 
+            'vE', 'vN', 'vU', 
+            'thetaE', 'thetaN', 'thetaU',
+            'gyro_bias_x', 'gyro_bias_y', 'gyro_bias_z',
+            'accel_bias_x', 'accel_bias_y', 'accel_bias_z',
+        ]
+    df_tom.columns = ['som_rank'] + state_variable_columns
+    df_tom.reset_index(inplace=True, drop=True)
+
+    # finally:
+    df_output = df_motion.join(df_tom, how='left')
+
+    # write to output:
+    df_output.to_csv(config.output_file)
+
+    sys.exit(os.EX_OK) 
+
+
+if __name__ == '__main__':
+    # parse arguments:
+    arguments = get_arguments()
+
+    config = Config(
+        motion_file = arguments.motion_file,
+        tom = arguments.tom,
+        sv_thresh = arguments.sv_thresh,
+        output_file = arguments.output_file
+    )
+
+    main(config)

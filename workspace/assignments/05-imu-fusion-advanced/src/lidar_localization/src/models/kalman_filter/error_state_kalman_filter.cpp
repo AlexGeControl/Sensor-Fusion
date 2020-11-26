@@ -827,7 +827,7 @@ void ErrorStateKalmanFilter::UpdateObservabilityAnalysisPose(
     }
 
     // perform SVD analysis:
-    Eigen::JacobiSVD<Eigen::MatrixXd> svd(SOMPose_, Eigen::ComputeThinU | Eigen::ComputeThinV);
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(SOMPose_, Eigen::ComputeFullV);
 
     // record timestamp:
     record.push_back(time);
@@ -838,12 +838,13 @@ void ErrorStateKalmanFilter::UpdateObservabilityAnalysisPose(
     }
 
     // record degree of observability:
-    Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSE, 1> Y = COV.MEASUREMENT.POSI*Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSE, 1>::Ones();
+    // a. here assumes that in the latent space, there is a Gaussian white noise on each dim
     VectorX X = (
-        svd.matrixV()*
-        svd.singularValues().asDiagonal().inverse()*
-        svd.matrixU().transpose()
-    )*Y;
+        svd.matrixV().cwiseAbs()*
+        svd.singularValues().asDiagonal().inverse()
+    ) * VectorX::Ones();
+    // b. normalize:
+    X = 100.0 * VectorX::Ones() - 100.0  / X.maxCoeff() * X;
     for (int i = 0; i < DIM_STATE; ++i) {
         record.push_back(X(i, 0));
     }
@@ -865,7 +866,7 @@ void ErrorStateKalmanFilter::UpdateObservabilityAnalysisPosi(
     }
 
     // perform SVD analysis:
-    Eigen::JacobiSVD<Eigen::MatrixXd> svd(SOMPosi_, Eigen::ComputeThinU | Eigen::ComputeThinV);
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(SOMPosi_, Eigen::ComputeFullV);
 
     // record timestamp:
     record.push_back(time);
@@ -876,12 +877,13 @@ void ErrorStateKalmanFilter::UpdateObservabilityAnalysisPosi(
     }
 
     // record degree of observability:
-    Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSI, 1> Y = COV.MEASUREMENT.POSI*Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSI, 1>::Ones();
+    // a. here assumes that in the latent space, there is a Gaussian white noise on each dim
     VectorX X = (
-        svd.matrixV()*
-        svd.singularValues().asDiagonal().inverse()*
-        svd.matrixU().transpose()
-    )*Y;
+        svd.matrixV().cwiseAbs()*
+        svd.singularValues().asDiagonal().inverse()
+    ) * VectorX::Ones();
+    // b. normalize:
+    X = 100.0 * VectorX::Ones() - 100.0  / X.maxCoeff() * X;
     for (int i = 0; i < DIM_STATE; ++i) {
         record.push_back(X(i, 0));
     }
@@ -904,7 +906,7 @@ void ErrorStateKalmanFilter::UpdateObservabilityAnalysisPosiVel(
     }
 
     // perform SVD analysis:
-    Eigen::JacobiSVD<Eigen::MatrixXd> svd(SOMPosiVel_, Eigen::ComputeThinU | Eigen::ComputeThinV);
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(SOMPosiVel_, Eigen::ComputeFullV);
 
     // record timestamp:
     record.push_back(time);
@@ -915,12 +917,13 @@ void ErrorStateKalmanFilter::UpdateObservabilityAnalysisPosiVel(
     }
 
     // record degree of observability:
-    Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSI_VEL, 1> Y = COV.MEASUREMENT.POSI*Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSI_VEL, 1>::Ones();
+    // a. here assumes that in the latent space, there is a Gaussian white noise on each dim
     VectorX X = (
-        svd.matrixV()*
-        svd.singularValues().asDiagonal().inverse()*
-        svd.matrixU().transpose()
-    )*Y;
+        svd.matrixV().cwiseAbs()*
+        svd.singularValues().asDiagonal().inverse()
+    ) * VectorX::Ones();
+    // b. normalize:
+    X = 100.0 * VectorX::Ones() - 100.0  / X.maxCoeff() * X;
     for (int i = 0; i < DIM_STATE; ++i) {
         record.push_back(X(i, 0));
     }

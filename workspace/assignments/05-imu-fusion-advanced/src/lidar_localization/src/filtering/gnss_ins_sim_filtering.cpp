@@ -86,13 +86,11 @@ bool GNSSINSSimFiltering::Correct(
             // reset downsample counter:
             count = 0;
 
-            /*
             // perform observability analysis:
             kalman_filter_ptr_->UpdateObservabilityAnalysis(
-                gnss_pose_data.time,
-                KalmanFilter::MeasurementType::POSITION
+                pos_vel_mag_data.time,
+                CONFIG.FUSION_STRATEGY
             );
-            */
         }
 
         return true;

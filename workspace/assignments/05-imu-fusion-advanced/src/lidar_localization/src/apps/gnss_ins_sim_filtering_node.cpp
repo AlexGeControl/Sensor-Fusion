@@ -36,7 +36,7 @@ int main(int argc, char *argv[]) {
     std::shared_ptr<GNSSINSSimFilteringFlow> gnss_ins_sim_filtering_flow_ptr = std::make_shared<GNSSINSSimFilteringFlow>(nh);
     ros::ServiceServer service = nh.advertiseService("save_odometry", SaveOdometryCB);
 
-    ros::Rate rate(400);
+    ros::Rate rate(100);
     while (ros::ok()) {
         ros::spinOnce();
 

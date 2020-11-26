@@ -83,16 +83,25 @@ fusion_method: error_state_kalman_filter
 #     5. position_velocity_magnetic_field
 fusion_strategy: position_velocity
 ```
+##### Observability Analysis
 
-`GNSS Only`, `IMU-GNSS Fusion`与`IMU-GNSS-Odo Fusion`的误差对比如下:
+各运动阶段对应的`可观测性&可观测度`分析参见 [here](doc/observability/02-eskf--position-velocity-observability.csv). 针对自动驾驶车辆的运动:
+
+* `IMU-GNSS-Odom ESKF Fusion`的`TOM`秩为`14`
+
+* `Accel Bias Y`不可观
 
 ##### EVO, Time Series Plot
+
+`GNSS Only`与`IMU-GNSS-Odo Fusion`的误差对比如下:
 
 GNSS Only                  |IMU-GNSS-Odo Fusion
 :-------------------------:|:-------------------------:
 ![GNSS Only, Time Series Plot](doc/images/02-evo--gnss-only--time-series-plot.png)  |  ![IMU-GNSS-Odo Fusion, Time Series Plot](doc/images/02-evo--imu-gnss-odo--time-series-plot.png)
 
 ##### EVO, 3D Map Plot
+
+`GNSS Only`与`IMU-GNSS-Odo Fusion`的误差对比如下:
 
 GNSS Only                  |IMU-GNSS-Odo Fusion
 :-------------------------:|:-------------------------:
@@ -148,9 +157,17 @@ fusion_method: extended_kalman_filter
 fusion_strategy: position_velocity_magnetic_field
 ```
 
-`GNSS Only`, `IMU-GNSS-Mag Fusion`与`IMU-GNSS-Odo Fusion`, 以及`IMU-GNSS-Odo-Mag Fusion`的误差对比如下:
+##### Observability Analysis
+
+各运动阶段对应的`可观测性&可观测度`分析参见 [here](doc/observability/03-iekf--position-velocity-magneto-observability.csv). 针对自动驾驶车辆的运动:
+
+* `IMU-GNSS-Odom-Mag IEFK Fusion`的`TOM`秩为`16`
+
+* `Accel Bias Y`大部分时刻不可观.
 
 ##### EVO, Time Series Plot
+
+`GNSS Only`, `IMU-GNSS-Mag Fusion`与`IMU-GNSS-Odo Fusion`, 以及`IMU-GNSS-Odo-Mag Fusion`的误差对比如下:
 
 IMU-GNSS-Mag Fusion        |IMU-GNSS-Odo Fusion
 :-------------------------:|:-------------------------:
@@ -161,6 +178,8 @@ IMU-GNSS-Odo-Mag Fusion    |GNSS Only
 ![IMU-GNSS-Odo-Mag Fusion, Time Series Plot](doc/images/03-evo--imu-gnss-odo-mag--time-series-plot.png)  |  ![GNSS Only, Time Series Plot](doc/images/03-evo--gnss-only--time-series-plot.png)
 
 ##### EVO, 3D Map Plot
+
+`GNSS Only`, `IMU-GNSS-Mag Fusion`与`IMU-GNSS-Odo Fusion`, 以及`IMU-GNSS-Odo-Mag Fusion`的误差对比如下:
 
 IMU-GNSS-Mag Fusion        |IMU-GNSS-Odo Fusion
 :-------------------------:|:-------------------------:
