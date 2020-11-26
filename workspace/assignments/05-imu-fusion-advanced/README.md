@@ -104,18 +104,34 @@ GNSS Only                  |IMU-GNSS Fusion            |IMU-GNSS-Odo Fusion
 
 `GNSS Only`, `IMU-GNSS-Mag Fusion`与`IMU-GNSS-Odo Fusion`, 以及`IMU-GNSS-Odo-Mag Fusion`的误差对比如下:
 
+##### EVO, Time Series Plot
+
 IMU-GNSS-Mag Fusion        |IMU-GNSS-Odo Fusion
 :-------------------------:|:-------------------------:
 ![IMU-GNSS-Mag Fusion, Time Series Plot](doc/images/03-evo--imu-gnss-mag--time-series-plot.png)  |  ![IMU-GNSS-Odo Fusion, Time Series Plot](doc/images/03-evo--imu-gnss-odo--time-series-plot.png)
+
+IMU-GNSS-Odo-Mag Fusion    |GNSS Only
+:-------------------------:|:-------------------------:
+![IMU-GNSS-Odo-Mag Fusion, Time Series Plot](doc/images/03-evo--imu-gnss-odo-mag--time-series-plot.png)  |  ![GNSS Only, Time Series Plot](doc/images/03-evo--gnss-only--time-series-plot.png)
+
+##### EVO, 3D Map Plot
+
+IMU-GNSS-Mag Fusion        |IMU-GNSS-Odo Fusion
+:-------------------------:|:-------------------------:
 ![IMU-GNSS-Mag Fusion, Map Plot](doc/images/03-evo--imu-gnss-mag--map-plot.png)  |  ![IMU-GNSS-Odo Fusion, Map Plot](doc/images/03-evo--imu-gnss-odo--map-plot.png)
 
 IMU-GNSS-Odo-Mag Fusion    |GNSS Only
 :-------------------------:|:-------------------------:
-![IMU-GNSS-Odo-Mag Fusion, Time Series Plot](doc/images/03-evo--imu-gnss-mag--time-series-plot.png)  |  ![GNSS Only, Time Series Plot](doc/images/03-evo--gnss-only--time-series-plot.png)
-![IMU-GNSS-Odo-Mag Fusion, Map Plot](doc/images/03-evo--imu-gnss-mag--map-plot.png)  |  ![GNSS Only, Map Plot](doc/images/03-evo--gnss-only--map-plot.png)
+![IMU-GNSS-Odo-Mag Fusion, Map Plot](doc/images/03-evo--imu-gnss-odo-mag--map-plot.png)  |  ![GNSS Only, Map Plot](doc/images/03-evo--gnss-only--map-plot.png)
 
-三者的估计精度对比如下.
+##### EVO, Standard Deviation
+
+三者的估计精度对比如下. 
+
+* `Odo & Motion Constraint`对`IEKF`的精度提升最为显著;
+
+* `Magnetometer`对提升精度亦有帮助.
 
 |        Algo.       | GNSS Only | IMU-GNSS-Mag Fusion | IMU-GNSS-Odo Fusion | IMU-GNSS-Odo-Mag Fusion 
 |:------------------:|:---------:|:-------------------:|:-------------------:|:-----------------------:
-| Standard Deviation |  0.726113 |      0.634136       |     **0.396074**    |      **0.149349**      
+| Standard Deviation |  0.726113 |      0.634136       |       0.396074      |      **0.285830**      

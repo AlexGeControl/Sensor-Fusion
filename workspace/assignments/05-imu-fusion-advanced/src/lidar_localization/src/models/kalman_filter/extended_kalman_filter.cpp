@@ -123,9 +123,11 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(const YAML::Node& node) {
         EARTH.MAG.B_N,
         EARTH.MAG.B_U
     );
+    
     // b. prior state & covariance:
     ResetState();
     ResetCovariance();
+
     // c. process noise:
     Q_.block<3, 3>(0, 0) = COV.PROCESS.GYRO*Eigen::Matrix3d::Identity();
     Q_.block<3, 3>(3, 3) = COV.PROCESS.ACCEL*Eigen::Matrix3d::Identity();
@@ -139,6 +141,10 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(const YAML::Node& node) {
     RPosiMag_.block<3, 3>(0, 0) = COV.MEASUREMENT.POSI*Eigen::Matrix3d::Identity();
     RPosiMag_.block<3, 3>(3, 3) = COV.MEASUREMENT.MAG*Eigen::Matrix3d::Identity();
 
+    RPosiVelMag_.block<3, 3>(0, 0) = COV.MEASUREMENT.POSI*Eigen::Matrix3d::Identity();
+    RPosiVelMag_.block<3, 3>(3, 3) = COV.MEASUREMENT.VEL*Eigen::Matrix3d::Identity();
+    RPosiVelMag_.block<3, 3>(6, 6) = COV.MEASUREMENT.MAG*Eigen::Matrix3d::Identity();
+
     // e. process equation:
     F_.block<3, 3>( INDEX_POS, INDEX_VEL ) = Eigen::Matrix3d::Identity();
 
@@ -149,10 +155,13 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(const YAML::Node& node) {
 
     GPosiMag_.block<3, 3>( 0, INDEX_POS ) = Eigen::Matrix3d::Identity();
 
+    GPosiVelMag_.block<3, 3>( 0, INDEX_POS ) = Eigen::Matrix3d::Identity();
+
     // init soms:
     SOMPosi_.block<DIM_MEASUREMENT_POSI, DIM_STATE>(0, 0) = GPosi_;
     SOMPosiVel_.block<DIM_MEASUREMENT_POSI_VEL, DIM_STATE>(0, 0) = GPosiVel_;
     SOMPosiMag_.block<DIM_MEASUREMENT_POSI_MAG, DIM_STATE>(0, 0) = GPosiMag_;
+    SOMPosiVelMag_.block<DIM_MEASUREMENT_POSI_VEL_MAG, DIM_STATE>(0, 0) = GPosiVelMag_;
 }
 
 /**
@@ -890,7 +899,56 @@ void ExtendedKalmanFilter::CorrectStateEstimationPosiMag(
 void ExtendedKalmanFilter::CorrectStateEstimationPosiVelMag(
     const Eigen::Matrix4d &T_nb, const Eigen::Vector3d &v_b, const Eigen::Vector3d &B_b
 ) {
+    // parse measurement:
+    YPosiVelMag_.block<3, 1>(0, 0) = T_nb.block<3, 1>(0,3);
+    YPosiVelMag_.block<3, 1>(3, 0) = v_b;
+    YPosiVelMag_.block<3, 1>(6, 0) = B_b;
 
+    // iterative observation:
+    for (size_t i = 0; i < 1; ++i) {
+        // set observation equation:
+        const Eigen::Quaterniond q_nb(
+            X_(INDEX_ORI + 0, 0),
+            X_(INDEX_ORI + 1, 0),
+            X_(INDEX_ORI + 2, 0),
+            X_(INDEX_ORI + 3, 0)
+        );
+        Eigen::Matrix3d C_nb = q_nb.toRotationMatrix();
+        GPosiVelMag_.block<3, 3>( 3, INDEX_VEL ) = C_nb.transpose();
+        GPosiVelMag_.block<3, 4>( 3, INDEX_ORI ) = GetGMOri(X_.block<3, 1>(INDEX_VEL, 0), q_nb);
+        GPosiVelMag_.block<3, 4>( 6, INDEX_ORI ) = GetGMOri(b_, q_nb);
+
+        // build Kalman gain:
+        MatrixRPosiVelMag R = GPosiVelMag_*P_*GPosiVelMag_.transpose() + RPosiVelMag_;
+        MatrixKPosiVelMag K = P_*GPosiVelMag_.transpose()*R.inverse();
+        VectorYPosiVelMag Y = VectorYPosiVelMag::Zero();
+        Y.block<3, 1>(0, 0) = X_.block<3, 1>( INDEX_POS, 0);
+        Y.block<3, 1>(3, 0) = C_nb.transpose() * X_.block<3, 1>(INDEX_VEL, 0);
+        Y.block<3, 1>(6, 0) = C_nb.transpose() * b_;
+        
+        /*
+        // magneto monitor:
+        LOG(INFO) << "Mag:"
+                  << "\tPrediction: " << Y(3, 0) << ", " << Y(4, 0) << ", " << Y(5, 0)
+                  << " -- "
+                  << "\tMeasurement: " << B_b(0) << ", " << B_b(1) << ", " << B_b(2)
+                  << std::endl; 
+        */
+
+        // perform Kalman correct:
+        P_ = (MatrixP::Identity() - K*GPosiVelMag_)*P_;
+        X_ = X_ + K*(YPosiVelMag_ - Y);
+
+        // normalize quaternion:
+        X_.block<4, 1>( INDEX_ORI, 0 ).normalize();
+
+        // apply motion constraint:
+        ApplyMotionConstraint();
+    }
+
+    // update bias:
+    // gyro_bias_ = X_.block<3, 1>(INDEX_GYRO_BIAS, 0);
+    // accel_bias_ = X_.block<3, 1>(INDEX_ACCEL_BIAS, 0);
 }
 
 /**

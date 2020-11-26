@@ -8,7 +8,7 @@ fusion_method: extended_kalman_filter
 #     3. position_velocity
 #     4. position_magnetic_field
 #     5. position_velocity_magnetic_field
-fusion_strategy: position_velocity
+fusion_strategy: position_velocity_magnetic_field
 
 ## a. Iterative Extended Kalman filter for IMU-GNSS-Mag fusion:
 extended_kalman_filter:
