@@ -82,10 +82,6 @@ add_executable(lidar_preprocess_node src/apps/lidar_preprocess_node.cpp ${ALL_SR
 add_dependencies(lidar_preprocess_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(lidar_preprocess_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
 
-add_executable(eskf_preprocess_node src/apps/eskf_preprocess_node.cpp ${ALL_SRCS})
-add_dependencies(eskf_preprocess_node ${catkin_EXPORTED_TARGETS})
-target_link_libraries(eskf_preprocess_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
-
 add_executable(front_end_node src/apps/front_end_node.cpp ${ALL_SRCS})
 add_dependencies(front_end_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(front_end_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
@@ -106,21 +102,17 @@ add_executable(filtering_node src/apps/filtering_node.cpp ${ALL_SRCS})
 add_dependencies(filtering_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(filtering_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
 
-add_executable(imu_gnss_filtering_node src/apps/imu_gnss_filtering_node.cpp ${ALL_SRCS})
-add_dependencies(imu_gnss_filtering_node ${catkin_EXPORTED_TARGETS})
-target_link_libraries(imu_gnss_filtering_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
+add_executable(eskf_preprocess_node src/apps/eskf_preprocess_node.cpp ${ALL_SRCS})
+add_dependencies(eskf_preprocess_node ${catkin_EXPORTED_TARGETS})
+target_link_libraries(eskf_preprocess_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
 
-add_executable(imu_gnss_odo_preprocess_node src/apps/imu_gnss_odo_preprocess_node.cpp ${ALL_SRCS})
-add_dependencies(imu_gnss_odo_preprocess_node ${catkin_EXPORTED_TARGETS})
-target_link_libraries(imu_gnss_odo_preprocess_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
+add_executable(gnss_ins_sim_preprocess_node src/apps/gnss_ins_sim_preprocess_node.cpp ${ALL_SRCS})
+add_dependencies(gnss_ins_sim_preprocess_node ${catkin_EXPORTED_TARGETS})
+target_link_libraries(gnss_ins_sim_preprocess_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
 
-add_executable(imu_gnss_odo_filtering_node src/apps/imu_gnss_odo_filtering_node.cpp ${ALL_SRCS})
-add_dependencies(imu_gnss_odo_filtering_node ${catkin_EXPORTED_TARGETS})
-target_link_libraries(imu_gnss_odo_filtering_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
-
-add_executable(imu_gnss_mag_filtering_node src/apps/imu_gnss_mag_filtering_node.cpp ${ALL_SRCS})
-add_dependencies(imu_gnss_mag_filtering_node ${catkin_EXPORTED_TARGETS})
-target_link_libraries(imu_gnss_mag_filtering_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
+add_executable(gnss_ins_sim_filtering_node src/apps/gnss_ins_sim_filtering_node.cpp ${ALL_SRCS})
+add_dependencies(gnss_ins_sim_filtering_node ${catkin_EXPORTED_TARGETS})
+target_link_libraries(gnss_ins_sim_filtering_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
 
 #############
 ## Install ##
@@ -144,7 +136,7 @@ install(TARGETS
         data_pretreat_node
         lidar_preprocess_node
         eskf_preprocess_node
-        imu_gnss_odo_preprocess_node
+        gnss_ins_sim_preprocess_node
 
         front_end_node
         back_end_node
@@ -152,9 +144,7 @@ install(TARGETS
         viewer_node
 
         filtering_node
-        imu_gnss_filtering_node
-        imu_gnss_odo_filtering_node
-        imu_gnss_mag_filtering_node
+        gnss_ins_sim_filtering_node
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

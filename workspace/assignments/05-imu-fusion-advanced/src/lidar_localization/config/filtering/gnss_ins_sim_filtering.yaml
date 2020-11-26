@@ -1,6 +1,14 @@
-# select fusion method for IMU-GNSS-Mag, available methods are:
-# 1. extended_kalman_filter
+# select fusion method for IMU-GNSS-Odo-Mag, available methods are:
+#     1. extended_kalman_filter
+#     2. error_state_kalman_filter
 fusion_method: extended_kalman_filter
+# select fusion strategy for IMU-GNSS-Odo-Mag, available methods are:
+#     1. pose
+#     2. position
+#     3. position_velocity
+#     4. position_magnetic_field
+#     5. position_velocity_magnetic_field
+fusion_strategy: position_velocity
 
 ## a. Iterative Extended Kalman filter for IMU-GNSS-Mag fusion:
 extended_kalman_filter:
@@ -15,9 +23,9 @@ extended_kalman_filter:
         longitude: 121.469170
         # magneto:
         magneto:
-            B_E:   0.676937818461
-            B_N:  36.676775319000
-            B_U: -27.647856205800
+            B_E:  32.98660  
+            B_N:  -3.56781
+            B_U:  36.07890
     covariance:
         prior:
             pos: 2.5e-1

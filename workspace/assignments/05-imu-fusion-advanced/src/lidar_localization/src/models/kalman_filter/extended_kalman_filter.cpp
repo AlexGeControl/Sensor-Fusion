@@ -118,6 +118,11 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(const YAML::Node& node) {
         EARTH.ROTATION_SPEED*cos(EARTH.LATITUDE),
         EARTH.ROTATION_SPEED*sin(EARTH.LATITUDE)
     );
+    b_ = Eigen::Vector3d(
+        EARTH.MAG.B_E,
+        EARTH.MAG.B_N,
+        EARTH.MAG.B_U
+    );
     // b. prior state & covariance:
     ResetState();
     ResetCovariance();
@@ -571,7 +576,7 @@ void ExtendedKalmanFilter::UpdateStateEstimation(void) {
     UpdatePosition(T, velocity_delta);
 
     // apply motion constraint:
-    // ApplyMotionConstraint();
+    ApplyMotionConstraint();
 }
 
 /**
@@ -788,7 +793,7 @@ void ExtendedKalmanFilter::CorrectStateEstimationPosiVel(
     YPosiVel_.block<3, 1>(3, 0) = v_b;
 
     // iterative observation:
-    for (size_t i = 0; i < 3; ++i) {
+    for (size_t i = 0; i < 1; ++i) {
         // set observation equation:
         Eigen::Quaterniond q_nb(
             X_(INDEX_ORI + 0, 0),
@@ -832,7 +837,7 @@ void ExtendedKalmanFilter::CorrectStateEstimationPosiMag(
     YPosiMag_.block<3, 1>(3, 0) = B_b;
 
     // iterative observation:
-    for (size_t i = 0; i < 3; ++i) {
+    for (size_t i = 0; i < 1; ++i) {
         // set observation equation:
         const Eigen::Quaterniond q_nb(
             X_(INDEX_ORI + 0, 0),
@@ -840,22 +845,52 @@ void ExtendedKalmanFilter::CorrectStateEstimationPosiMag(
             X_(INDEX_ORI + 2, 0),
             X_(INDEX_ORI + 3, 0)
         );
-        // TODO: generate reference B_n
-        const Eigen::Vector3d B_n = X_.block<3, 1>(INDEX_VEL, 0);
-        GPosiMag_.block<3, 4>( 3, INDEX_ORI ) = GetGMOri(B_n, q_nb);
+        Eigen::Matrix3d C_nb = q_nb.toRotationMatrix();
+        GPosiMag_.block<3, 4>( 3, INDEX_ORI ) = GetGMOri(b_, q_nb);
 
         // build Kalman gain:
-        MatrixRPosiVel R = GPosiMag_*P_*GPosiMag_.transpose() + RPosiMag_;
-        MatrixKPosiVel K = P_*GPosiMag_.transpose()*R.inverse();
+        MatrixRPosiMag R = GPosiMag_*P_*GPosiMag_.transpose() + RPosiMag_;
+        MatrixKPosiMag K = P_*GPosiMag_.transpose()*R.inverse();
+        VectorYPosiMag Y = VectorYPosiMag::Zero();
+        Y.block<3, 1>(0, 0) = X_.block<3, 1>( INDEX_POS, 0);
+        Y.block<3, 1>(3, 0) = C_nb.transpose() * b_;
+        
+        /*
+        // magneto monitor:
+        LOG(INFO) << "Mag:"
+                  << "\tPrediction: " << Y(3, 0) << ", " << Y(4, 0) << ", " << Y(5, 0)
+                  << " -- "
+                  << "\tMeasurement: " << B_b(0) << ", " << B_b(1) << ", " << B_b(2)
+                  << std::endl; 
+        */
 
         // perform Kalman correct:
         P_ = (MatrixP::Identity() - K*GPosiMag_)*P_;
-        X_ = X_ + K*(YPosiMag_ - GPosiMag_*X_);
+        X_ = X_ + K*(YPosiMag_ - Y);
+
+        // normalize quaternion:
+        X_.block<4, 1>( INDEX_ORI, 0 ).normalize();
+
+        // apply motion constraint:
+        ApplyMotionConstraint();
     }
 
     // update bias:
     // gyro_bias_ = X_.block<3, 1>(INDEX_GYRO_BIAS, 0);
     // accel_bias_ = X_.block<3, 1>(INDEX_ACCEL_BIAS, 0);
+}
+
+/**
+ * @brief  correct state estimation using GNSS position, odometer and magneto measurement
+ * @param  T_nb, input GNSS position 
+ * @param  v_b, input odo
+ * @param  B_b, input magneto
+ * @return void
+ */
+void ExtendedKalmanFilter::CorrectStateEstimationPosiVelMag(
+    const Eigen::Matrix4d &T_nb, const Eigen::Vector3d &v_b, const Eigen::Vector3d &B_b
+) {
+
 }
 
 /**
@@ -883,6 +918,7 @@ void ExtendedKalmanFilter::CorrectStateEstimation(
             CorrectStateEstimationPosiMag(measurement.T_nb, measurement.B_b);
             break;
         case MeasurementType::POSI_VEL_MAG:
+            CorrectStateEstimationPosiVelMag(measurement.T_nb, measurement.v_b, measurement.B_b);
             break;
         default:
             break;

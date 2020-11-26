@@ -360,7 +360,19 @@ private:
      * @param  B_b, input magneto
      * @return void
      */
-    void CorrectStateEstimationPosiMag(const Eigen::Matrix4d &T_nb, const Eigen::Vector3d &B_b);
+    void CorrectStateEstimationPosiMag(
+        const Eigen::Matrix4d &T_nb, const Eigen::Vector3d &B_b);
+
+    /**
+     * @brief  correct state estimation using GNSS position, odometer and magneto measurement
+     * @param  T_nb, input GNSS position 
+     * @param  v_b, input odo
+     * @param  B_b, input magneto
+     * @return void
+     */
+    void CorrectStateEstimationPosiVelMag(
+        const Eigen::Matrix4d &T_nb, const Eigen::Vector3d &v_b, const Eigen::Vector3d &B_b
+    );
 
     /**
      * @brief  correct state estimation
@@ -473,6 +485,7 @@ private:
     // earth constants:
     Eigen::Vector3d g_;
     Eigen::Vector3d w_;
+    Eigen::Vector3d b_;
 
     // observability analysis:
     struct {

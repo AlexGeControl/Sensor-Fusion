@@ -1,5 +1,0 @@
-<launch>
-    <node pkg="rviz"  type="rviz"  name="rviz"  args="-d $(find lidar_localization)/rviz/imu_gnss_odo_fusion.rviz"></node>
-    <node pkg="lidar_localization"  type="imu_gnss_odo_preprocess_node"  name="imu_gnss_odo_preprocess_node"  output="screen"></node>
-    <node pkg="lidar_localization"  type="imu_gnss_odo_filtering_node"  name="imu_gnss_odo_filtering_node"  output="screen"></node>
-</launch>

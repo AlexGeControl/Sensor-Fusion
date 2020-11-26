@@ -1,11 +1,12 @@
 /*
- * @Description: IMU-lidar fusion for localization
+ * @Description: Kalman filter based localization on GNSS-INS-Sim workflow
  * @Author: Ge Yao
  * @Date: 2020-11-12 15:14:07
  */
+
 #include <ros/ros.h>
 
-#include "lidar_localization/filtering/imu_gnss_mag_filtering_flow.hpp"
+#include "lidar_localization/filtering/gnss_ins_sim_filtering_flow.hpp"
 
 #include <lidar_localization/saveOdometry.h>
 
@@ -29,22 +30,22 @@ int main(int argc, char *argv[]) {
     FLAGS_log_dir = WORK_SPACE_PATH + "/Log";
     FLAGS_alsologtostderr = 1;
 
-    ros::init(argc, argv, "imu_gnss_mag_filtering_node");
+    ros::init(argc, argv, "gnss_ins_sim_filtering_node");
     ros::NodeHandle nh;
 
-    std::shared_ptr<IMUGNSSMagFilteringFlow> imu_gnss_mag_filtering_flow_ptr = std::make_shared<IMUGNSSMagFilteringFlow>(nh);
+    std::shared_ptr<GNSSINSSimFilteringFlow> gnss_ins_sim_filtering_flow_ptr = std::make_shared<GNSSINSSimFilteringFlow>(nh);
     ros::ServiceServer service = nh.advertiseService("save_odometry", SaveOdometryCB);
 
     ros::Rate rate(400);
     while (ros::ok()) {
         ros::spinOnce();
 
-        imu_gnss_mag_filtering_flow_ptr->Run();
+        gnss_ins_sim_filtering_flow_ptr->Run();
 
         // save odometry estimations for evo evaluation:
         if ( _need_save_odometry && 
-             imu_gnss_mag_filtering_flow_ptr->SaveOdometry() && 
-             imu_gnss_mag_filtering_flow_ptr->SaveObservabilityAnalysis()
+             gnss_ins_sim_filtering_flow_ptr->SaveOdometry() && 
+             gnss_ins_sim_filtering_flow_ptr->SaveObservabilityAnalysis()
         ) {
             _need_save_odometry = false;
         }
