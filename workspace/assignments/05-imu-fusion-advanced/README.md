@@ -65,7 +65,11 @@ No Constraint              |With Constraint
 
 ##### EVO, Standard Deviation
 
-三者的估计精度如下. `With Constraint`的精度, 相比`No Constraint`没有提升. 还需要继续调参 :P.
+三者的估计精度如下
+
+* `With Constraint`的精度(Standard Deviation), 相比`No Constraint`没有提升.
+
+* 但从`EVO Time Series Plot`上来看, `With Constraint`的情况下, 误差的波动性相比`No Constraint`有显著提升.
 
 |        Algo.       | No Constraint | With Constraint |
 |:------------------:|:-------------:|:---------------:|
