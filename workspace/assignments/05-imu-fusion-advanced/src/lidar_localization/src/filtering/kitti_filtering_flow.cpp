@@ -24,11 +24,13 @@ KITTIFilteringFlow::KITTIFilteringFlow(
     imu_raw_sub_ptr_ = std::make_shared<IMUSubscriber>(nh, "/kitti/oxts/imu/extract", 1000000);
     // b. undistorted Velodyne measurement: 
     cloud_sub_ptr_ = std::make_shared<CloudSubscriber>(nh, "/synced_cloud", 100000);
-    // c. lidar pose in map frame:
-    gnss_sub_ptr_ = std::make_shared<OdometrySubscriber>(nh, "/synced_gnss", 100000);
-    // d. IMU synced measurement:
+    // c. IMU synced measurement:
     imu_synced_sub_ptr_ = std::make_shared<IMUSubscriber>(nh, "/synced_imu", 100000); 
-    // e. lidar to imu tf:
+    // d. synced GNSS-odo measurement:
+    pos_vel_sub_ptr_ = std::make_shared<PosVelSubscriber>(nh, "/synced_pos_vel", 100000);
+    // e. lidar pose in map frame:
+    gnss_sub_ptr_ = std::make_shared<OdometrySubscriber>(nh, "/synced_gnss", 100000);
+    // f. lidar to imu tf:
     lidar_to_imu_ptr_ = std::make_shared<TFListener>(nh, "/imu_link", "/velo_link");
     
     // publisher:
@@ -162,6 +164,7 @@ bool KITTIFilteringFlow::ReadData() {
     // 
     cloud_sub_ptr_->ParseData(cloud_data_buff_);
     imu_synced_sub_ptr_->ParseData(imu_synced_data_buff_);
+    pos_vel_sub_ptr_->ParseData(pos_vel_data_buff_);
     gnss_sub_ptr_->ParseData(gnss_data_buff_);
 
     return true;
@@ -196,10 +199,12 @@ bool KITTIFilteringFlow::ValidIMUData() {
 bool KITTIFilteringFlow::ValidLidarData() {
     current_cloud_data_ = cloud_data_buff_.front();
     current_imu_synced_data_ = imu_synced_data_buff_.front();
+    current_pos_vel_data_ = pos_vel_data_buff_.front();
 
     double diff_imu_time = current_cloud_data_.time - current_imu_synced_data_.time;
+    double diff_pos_vel_time = current_cloud_data_.time - current_pos_vel_data_.time;
 
-    if ( diff_imu_time < -0.05 ) {
+    if ( diff_imu_time < -0.05 || diff_pos_vel_time < -0.05 ) {
         cloud_data_buff_.pop_front();
         return false;
     }
@@ -209,8 +214,14 @@ bool KITTIFilteringFlow::ValidLidarData() {
         return false;
     }
 
+    if (diff_pos_vel_time > 0.05) {
+        pos_vel_data_buff_.pop_front();
+        return false;
+    }
+
     cloud_data_buff_.pop_front();
     imu_synced_data_buff_.pop_front();
+    pos_vel_data_buff_.pop_front();
 
     return true;
 }
@@ -229,8 +240,8 @@ bool KITTIFilteringFlow::InitCalibration() {
 }
 
 bool KITTIFilteringFlow::InitLocalization(void) {
-    // geo ego vehicle velocity in navigation frame:
-    Eigen::Vector3f init_vel = gnss_data_buff_.front().vel;
+    // ego vehicle velocity in body frame:
+    Eigen::Vector3f init_vel = current_pos_vel_data_.vel;
 
     // first try to init using scan context query:
     if (
@@ -260,11 +271,12 @@ bool KITTIFilteringFlow::CorrectLocalization() {
     bool is_fusion_succeeded = filtering_ptr_->Correct(
         current_imu_synced_data_, 
         current_cloud_data_, 
+        current_pos_vel_data_,
         laser_pose_
     );
     PublishLidarOdom();
 
-    if ( is_fusion_succeeded ) {
+    if ( is_fusion_succeeded ) {        
         PublishFusionOdom();
         
         // add to odometry output for evo evaluation:

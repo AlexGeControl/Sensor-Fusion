@@ -26,6 +26,7 @@ public:
      */
     enum MeasurementType {
         POSE = 0,
+        POSE_VEL,
         POSI,
         POSI_VEL,
         POSI_MAG,
@@ -44,7 +45,9 @@ public:
         Eigen::Matrix4d T_nb;
         // b. body frame velocity observation, odometer:
         Eigen::Vector3d v_b;
-        // c. magnetometer:
+        // c. body frame angular velocity, needed by motion constraint:
+        Eigen::Vector3d w_b;
+        // d. magnetometer:
         Eigen::Vector3d B_b;
     };
 
@@ -415,6 +418,7 @@ protected:
     // observability analysis:
     struct {
         std::vector<std::vector<double>> pose_;
+        std::vector<std::vector<double>> pose_vel_;
         std::vector<std::vector<double>> posi_;
         std::vector<std::vector<double>> posi_vel_;
         std::vector<std::vector<double>> posi_mag_;
@@ -448,12 +452,21 @@ protected:
             double ACCEL;
         } PROCESS;
         struct {
+            struct {
+                double POSI;
+                double ORI;
+            } POSE;
             double POSI;
             double VEL;
             double ORI;
             double MAG;
         } MEASUREMENT;
     } COV;
+    // c. motion constraint:
+    struct {
+        bool ACTIVATED;
+        double W_B_THRESH;
+    } MOTION_CONSTRAINT;
 };
 
 } // namespace lidar_localization

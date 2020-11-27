@@ -74,11 +74,14 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(const YAML::Node& node) {
     COV.PROCESS.GYRO = node["covariance"]["process"]["gyro"].as<double>();
     COV.PROCESS.ACCEL = node["covariance"]["process"]["accel"].as<double>();
     // d. measurement noise:
+    COV.MEASUREMENT.POSE.POSI = node["covariance"]["measurement"]["pose"]["pos"].as<double>();
+    COV.MEASUREMENT.POSE.ORI = node["covariance"]["measurement"]["pose"]["ori"].as<double>();
     COV.MEASUREMENT.POSI = node["covariance"]["measurement"]["pos"].as<double>();
     COV.MEASUREMENT.VEL = node["covariance"]["measurement"]["vel"].as<double>();
-    COV.MEASUREMENT.ORI = node["covariance"]["measurement"]["ori"].as<double>();
     COV.MEASUREMENT.MAG = node["covariance"]["measurement"]["mag"].as<double>();
-
+    // e. motion constraint:
+    MOTION_CONSTRAINT.ACTIVATED = node["motion_constraint"].as<bool>();
+    
     // prompt:
     LOG(INFO) << std::endl 
               << "Iterative Extended Kalman Filter params:" << std::endl
@@ -100,10 +103,13 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(const YAML::Node& node) {
               << "\tprocess noise gyro.: " << COV.PROCESS.GYRO << std::endl
               << "\tprocess noise accel.: " << COV.PROCESS.ACCEL << std::endl
               << std::endl
-              << "\tmeasurement noise posi.: " << COV.MEASUREMENT.POSI << std::endl
+              << "\tmeasurement noise pose.: " << std::endl 
+              << "\t\tpos: " << COV.MEASUREMENT.POSE.POSI << ", ori.: " << COV.MEASUREMENT.POSE.ORI << std::endl
+              << "\tmeasurement noise pos.: " << COV.MEASUREMENT.POSI << std::endl
               << "\tmeasurement noise vel.: " << COV.MEASUREMENT.VEL << std::endl
-              << "\tmeasurement noise ori.: " << COV.MEASUREMENT.ORI << std::endl
               << "\tmeasurement noise mag.: " << COV.MEASUREMENT.MAG << std::endl
+              << std::endl
+              << "\tuse motion constraint: " << (MOTION_CONSTRAINT.ACTIVATED ? "true" : "false") << std::endl
               << std::endl;
     
     //
@@ -135,8 +141,8 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(const YAML::Node& node) {
     Q_.block<3, 3>(3, 3) = COV.PROCESS.ACCEL*Eigen::Matrix3d::Identity();
 
     // d. measurement noise:
-    RPose_.block<3, 3>(0, 0) = COV.MEASUREMENT.POSI*Eigen::Matrix3d::Identity();
-    RPose_.block<4, 4>(3, 3) = COV.MEASUREMENT.ORI*Eigen::Matrix4d::Identity();
+    RPose_.block<3, 3>(0, 0) = COV.MEASUREMENT.POSE.POSI*Eigen::Matrix3d::Identity();
+    RPose_.block<4, 4>(3, 3) = COV.MEASUREMENT.POSE.ORI*Eigen::Matrix4d::Identity();
 
     RPosi_.block<3, 3>(0, 0) = COV.MEASUREMENT.POSI*Eigen::Matrix3d::Identity();
 

@@ -16,6 +16,61 @@ This is the solution of Assignment 05 of Sensor Fusion from [深蓝学院](https
 
 ### ANS
 
+#### Data Preprocessing 
+
+首先修改`data_pretreat_flow`, 增加对组合导航输出的位置-速度信息的订阅.
+
+#### ESKF & IEKF with Motion Constraints
+
+接着重构`ESKF/IEKF`, 增加下列实现
+
+* 使用运动约束的观测方程 
+    * [ESKF](src/lidar_localization/src/models/kalman_filter/extended_kalman_filter.cpp#L411)
+    * [IEKF](src/lidar_localization/src/models/kalman_filter/error_state_kalman_filter.cpp#L688)
+
+* 增加输出时的运动约束 
+    * [ESKF](src/lidar_localization/src/models/kalman_filter/extended_kalman_filter.cpp#L411)
+    * [IEKF](src/lidar_localization/src/models/kalman_filter/error_state_kalman_filter.cpp#L355)
+
+#### Results & Analysis
+
+测试数据如下图所示. 该数据模拟了自动驾驶车辆上下高架桥的过程. 测试路段的三维构型参照EVO的评测结果.
+
+<img src="doc/images/01-kitti-test-drive.png" alt="KITTI Test Drive" width="100%" />
+
+##### Fusion Config
+
+```yaml
+# select fusion method for IMU-Lidar-GNSS-Odo, available methods are:
+#     1. extended_kalman_filter
+#     2. error_state_kalman_filter
+fusion_method: error_state_kalman_filter
+```
+
+##### EVO, Time Series Plot
+
+`No Constraint`与`With Constraint`的误差对比如下:
+
+No Constraint              |With Constraint
+:-------------------------:|:-------------------------:
+![No Constraint, Time Series Plot](doc/images/01-evo--no-constraint--time-series-plot.png)  |  ![With Constraint, Time Series Plot](doc/images/01-evo--with-constraint--time-series-plot.png)
+
+##### EVO, 3D Map Plot
+
+`No Constraint`与`With Constraint`的误差对比如下:
+
+No Constraint              |With Constraint
+:-------------------------:|:-------------------------:
+![No Constraint, Map Plot](doc/images/01-evo--no-constraint--map-plot.png)  |  ![With Constraint, Map Plot](doc/images/01-evo--with-constraint--map-plot.png)
+
+##### EVO, Standard Deviation
+
+三者的估计精度如下. `With Constraint`的精度, 相比`No Constraint`没有提升. 还需要继续调参 :P.
+
+|        Algo.       | No Constraint | With Constraint |
+|:------------------:|:-------------:|:---------------:|
+| Standard Deviation |    0.151242   |   **0.166400**  |
+
 ---
 
 ## 2. IMU-GNSS-Odo滤波
@@ -71,11 +126,11 @@ topics:      /init_pose                1 msg     : nav_msgs/Odometry
 ##### Fusion Config
 
 ```yaml
-# select fusion method for IMU-GNSS-Odo-Mag, available methods are:
+# select fusion method for IMU-GNSS-Odo, available methods are:
 #     1. extended_kalman_filter
 #     2. error_state_kalman_filter
 fusion_method: error_state_kalman_filter
-# select fusion strategy for IMU-GNSS-Odo-Mag, available methods are:
+# select fusion strategy for IMU-GNSS-Odo, available methods are:
 #     1. pose
 #     2. position
 #     3. position_velocity
@@ -162,8 +217,6 @@ fusion_strategy: position_velocity_magnetic_field
 各运动阶段对应的`可观测性&可观测度`分析参见 [here](doc/observability/03-iekf--position-velocity-magneto-observability.csv). 针对自动驾驶车辆的运动:
 
 * `IMU-GNSS-Odom-Mag IEFK Fusion`的`TOM`秩为`16`
-
-* `Accel Bias Y`大部分时刻不可观.
 
 ##### EVO, Time Series Plot
 

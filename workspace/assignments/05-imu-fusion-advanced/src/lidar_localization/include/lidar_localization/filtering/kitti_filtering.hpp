@@ -14,6 +14,7 @@
 
 #include "lidar_localization/sensor_data/imu_data.hpp"
 #include "lidar_localization/sensor_data/cloud_data.hpp"
+#include "lidar_localization/sensor_data/pos_vel_data.hpp"
 #include "lidar_localization/sensor_data/pose_data.hpp"
 
 #include "lidar_localization/models/cloud_filter/cloud_filter_interface.hpp"
@@ -49,6 +50,7 @@ class KITTIFiltering {
     bool Correct(
       const IMUData &imu_data,
       const CloudData& cloud_data, 
+      const PosVelData &pos_vel_data,
       Eigen::Matrix4f& cloud_pose
     );
 

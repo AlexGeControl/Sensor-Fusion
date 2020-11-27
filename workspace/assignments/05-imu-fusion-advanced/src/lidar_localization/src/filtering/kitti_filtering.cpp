@@ -84,6 +84,7 @@ bool KITTIFiltering::Update(
 bool KITTIFiltering::Correct(
     const IMUData &imu_data,
     const CloudData& cloud_data, 
+    const PosVelData &pos_vel_data,
     Eigen::Matrix4f& cloud_pose
 ) {
     static Eigen::Matrix4f step_pose = Eigen::Matrix4f::Identity();
@@ -133,12 +134,18 @@ bool KITTIFiltering::Correct(
     // set lidar measurement:
     current_measurement_.time = cloud_data.time;
     current_measurement_.T_nb = (init_pose_.inverse() * cloud_pose).cast<double>();
+    current_measurement_.v_b = pos_vel_data.vel.cast<double>();
+    current_measurement_.w_b = Eigen::Vector3d(
+        imu_data.angular_velocity.x,
+        imu_data.angular_velocity.y,
+        imu_data.angular_velocity.z
+    );
 
     // Kalman correction:
     if (
         kalman_filter_ptr_->Correct(
             imu_data,
-            KalmanFilter::MeasurementType::POSE, current_measurement_
+            KalmanFilter::MeasurementType::POSE_VEL, current_measurement_
         )
     ) {
         kalman_filter_ptr_->GetOdometry(

@@ -13,9 +13,11 @@
 #include "lidar_localization/subscriber/imu_subscriber.hpp"
 // b. lidar:
 #include "lidar_localization/subscriber/cloud_subscriber.hpp"
-// c. GNSS:
+// c. synced GNSS-odo measurements:
+#include "lidar_localization/subscriber/pos_vel_subscriber.hpp"
+// d. GNSS:
 #include "lidar_localization/subscriber/odometry_subscriber.hpp"
-// d. lidar to imu:
+// e. lidar to imu:
 #include "lidar_localization/tf_listener/tf_listener.hpp"
 
 // publisher:
@@ -53,7 +55,7 @@ class KITTIFilteringFlow {
       return false; 
     }
     bool HasLidarData(void) const { 
-      return ( !cloud_data_buff_.empty() && !imu_synced_data_buff_.empty() );
+      return ( !cloud_data_buff_.empty() && !imu_synced_data_buff_.empty() && !pos_vel_data_buff_.empty() );
     }
     bool HasIMUComesFirst(void) const { return imu_raw_data_buff_.front().time < cloud_data_buff_.front().time; }
 
@@ -91,13 +93,16 @@ class KITTIFilteringFlow {
     // b. lidar:
     std::shared_ptr<CloudSubscriber> cloud_sub_ptr_;
     std::deque<CloudData> cloud_data_buff_;
-    // c. GNSS:
-    std::shared_ptr<OdometrySubscriber> gnss_sub_ptr_;
-    std::deque<PoseData> gnss_data_buff_;
-    // d. IMU synced:
+    // c. synced GNSS-odo measurement:
+    std::shared_ptr<PosVelSubscriber> pos_vel_sub_ptr_;
+    std::deque<PosVelData> pos_vel_data_buff_;
+    // c. IMU synced:
     std::shared_ptr<IMUSubscriber> imu_synced_sub_ptr_;
     std::deque<IMUData> imu_synced_data_buff_;
-    // e. lidar to imu tf:
+    // e. GNSS:
+    std::shared_ptr<OdometrySubscriber> gnss_sub_ptr_;
+    std::deque<PoseData> gnss_data_buff_;
+    // f. lidar to imu tf:
     std::shared_ptr<TFListener> lidar_to_imu_ptr_;
     Eigen::Matrix4f lidar_to_imu_ = Eigen::Matrix4f::Identity();
 
@@ -119,9 +124,10 @@ class KITTIFilteringFlow {
     IMUData current_imu_raw_data_;
 
     CloudData current_cloud_data_;
-    PoseData current_gnss_data_;
     IMUData current_imu_synced_data_;
-    
+    PosVelData current_pos_vel_data_;
+    PoseData current_gnss_data_;
+
     // lidar odometry frame in map frame:
     Eigen::Matrix4f fused_pose_ = Eigen::Matrix4f::Identity();
     Eigen::Vector3f fused_vel_ = Eigen::Vector3f::Zero();
