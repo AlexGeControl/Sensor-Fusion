@@ -104,7 +104,7 @@ extended_kalman_filter:
             mag: 1.0e-4
     motion_constraint: 
         activated: true
-        w_b_thresh: 0.131
+        w_b_thresh: 0.07
 ## d.2. Error-State Kalman filter for IMU-GNSS-Odo fusion:
 error_state_kalman_filter:
     earth:
@@ -131,5 +131,5 @@ error_state_kalman_filter:
             pos: 1.0e-4
             vel: 2.5e-3
     motion_constraint: 
-            activated: true
-            w_b_thresh: 0.131
+        activated: true
+        w_b_thresh: 0.07

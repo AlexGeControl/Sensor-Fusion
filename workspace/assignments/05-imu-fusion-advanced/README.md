@@ -25,7 +25,7 @@ This is the solution of Assignment 05 of Sensor Fusion from [深蓝学院](https
 接着重构`ESKF/IEKF`, 增加下列实现
 
 * 使用运动约束的观测方程 
-    * [ESKF](src/lidar_localization/src/models/kalman_filter/extended_kalman_filter.cpp#L411)
+    * [ESKF](src/lidar_localization/src/models/kalman_filter/extended_kalman_filter.cpp#L688)
     * [IEKF](src/lidar_localization/src/models/kalman_filter/error_state_kalman_filter.cpp#L688)
 
 * 增加输出时的运动约束 
