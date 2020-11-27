@@ -3,10 +3,12 @@
  * @Author: Ge Yao
  * @Date: 2020-11-12 15:14:07
  */
-#ifndef LIDAR_LOCALIZATION_FILTERING_FILTERING_HPP_
-#define LIDAR_LOCALIZATION_FILTERING_FILTERING_HPP_
+#ifndef LIDAR_LOCALIZATION_FILTERING_KITTI_FILTERING_HPP_
+#define LIDAR_LOCALIZATION_FILTERING_KITTI_FILTERING_HPP_
 
 #include <deque>
+#include <unordered_map>
+
 #include <Eigen/Dense>
 #include <yaml-cpp/yaml.h>
 
@@ -21,13 +23,13 @@
 
 #include "lidar_localization/models/registration/registration_interface.hpp"
 
-#include "lidar_localization/models/kalman_filter/error_state_kalman_filter.hpp"
+#include "lidar_localization/models/kalman_filter/kalman_filter.hpp"
 
 namespace lidar_localization {
 
-class Filtering {
+class KITTIFiltering {
   public:
-    Filtering();
+    KITTIFiltering();
 
     bool Init(
       const CloudData& init_scan,
@@ -113,8 +115,14 @@ class Filtering {
     // frontend:
     std::shared_ptr<RegistrationInterface> registration_ptr_; 
     // IMU-lidar Kalman filter:
-    std::shared_ptr<ErrorStateKalmanFilter> kalman_filter_ptr_;
-    ErrorStateKalmanFilter::Measurement current_measurement_;
+    struct {
+      std::string FUSION_METHOD;
+
+      std::unordered_map<std::string, KalmanFilter::MeasurementType> FUSION_STRATEGY_ID;
+      KalmanFilter::MeasurementType FUSION_STRATEGY;
+    } CONFIG;
+    std::shared_ptr<KalmanFilter> kalman_filter_ptr_;
+    KalmanFilter::Measurement current_measurement_;
     
     CloudData::CLOUD_PTR global_map_ptr_;
     CloudData::CLOUD_PTR local_map_ptr_;
@@ -132,4 +140,4 @@ class Filtering {
 
 } // namespace lidar_localization
 
-#endif // LIDAR_LOCALIZATION_FILTERING_FILTERING_HPP_
+#endif // LIDAR_LOCALIZATION_FILTERING_KITTI_FILTERING_HPP_

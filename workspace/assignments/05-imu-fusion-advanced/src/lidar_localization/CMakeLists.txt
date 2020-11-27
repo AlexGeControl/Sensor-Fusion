@@ -98,9 +98,9 @@ add_executable(viewer_node src/apps/viewer_node.cpp ${ALL_SRCS})
 add_dependencies(viewer_node ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)
 target_link_libraries(viewer_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
 
-add_executable(filtering_node src/apps/filtering_node.cpp ${ALL_SRCS})
-add_dependencies(filtering_node ${catkin_EXPORTED_TARGETS})
-target_link_libraries(filtering_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
+add_executable(kitti_filtering_node src/apps/kitti_filtering_node.cpp ${ALL_SRCS})
+add_dependencies(kitti_filtering_node ${catkin_EXPORTED_TARGETS})
+target_link_libraries(kitti_filtering_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
 
 add_executable(eskf_preprocess_node src/apps/eskf_preprocess_node.cpp ${ALL_SRCS})
 add_dependencies(eskf_preprocess_node ${catkin_EXPORTED_TARGETS})
@@ -143,7 +143,7 @@ install(TARGETS
         loop_closing_node
         viewer_node
 
-        filtering_node
+        kitti_filtering_node
         gnss_ins_sim_filtering_node
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )

@@ -235,7 +235,7 @@ bool ErrorStateKalmanFilter::Correct(
         measurement_.T_nb = init_pose_ * measurement_.T_nb;
 
         // correct error estimation:
-        CorrectErrorEstimation(measurement_type, measurement);
+        CorrectErrorEstimation(measurement_type, measurement_);
 
         // eliminate error:
         EliminateError();
@@ -271,8 +271,6 @@ void ErrorStateKalmanFilter::GetOdometry(
     pose_double.block<3, 1>(0, 3) = pose_double.block<3, 1>(0, 3) - X_.block<3, 1>(INDEX_ERROR_POS, 0);
     // b. velocity:
     vel_double = vel_double - X_.block<3, 1>(INDEX_ERROR_VEL, 0);
-    // apply motion constraint:
-    ApplyMotionConstraint();
     // c. orientation:
     Eigen::Matrix3d C_nn = Sophus::SO3d::exp(X_.block<3, 1>(INDEX_ERROR_ORI, 0)).matrix();
     pose_double.block<3, 3>(0, 0) = C_nn*pose_double.block<3, 3>(0, 0);

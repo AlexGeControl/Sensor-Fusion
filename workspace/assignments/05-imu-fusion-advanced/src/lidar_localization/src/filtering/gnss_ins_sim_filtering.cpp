@@ -164,11 +164,11 @@ bool GNSSINSSimFiltering::InitFusion(const YAML::Node& config_node) {
 
     if ( CONFIG.FUSION_STRATEGY_ID.end() != CONFIG.FUSION_STRATEGY_ID.find(fusion_strategy) ) {
         CONFIG.FUSION_STRATEGY = CONFIG.FUSION_STRATEGY_ID.at(fusion_strategy);
-        std::cout << "\tIMU-GNSS-Odo-Mag Fusion Strategy: " << fusion_strategy << std::endl;
     } else {
         LOG(ERROR) << "Fusion strategy " << fusion_strategy << " NOT FOUND!";
         return false;
     }
+    std::cout << "\tGNSS-INS-Sim Localization Fusion Strategy: " << fusion_strategy << std::endl;
 
     if (
         "position_magnetic_field" == fusion_strategy ||
@@ -182,14 +182,13 @@ bool GNSSINSSimFiltering::InitFusion(const YAML::Node& config_node) {
     // set up fusion method:
     if (CONFIG.FUSION_METHOD == "extended_kalman_filter") {
         kalman_filter_ptr_ = std::make_shared<ExtendedKalmanFilter>(config_node[CONFIG.FUSION_METHOD]);
-        std::cout << "\tIMU-GNSS-Odo-Mag Fusion Method: " << CONFIG.FUSION_METHOD << std::endl;
     } else if (CONFIG.FUSION_METHOD == "error_state_kalman_filter") {
         kalman_filter_ptr_ = std::make_shared<ErrorStateKalmanFilter>(config_node[CONFIG.FUSION_METHOD]);
-        std::cout << "\tIMU-GNSS-Odo-Mag Fusion Method: " << CONFIG.FUSION_METHOD << std::endl;
     } else {
         LOG(ERROR) << "Fusion method " << CONFIG.FUSION_METHOD << " NOT FOUND!";
         return false;
     }
+    std::cout << "\tGNSS-INS-Sim Localization Fusion Method: " << CONFIG.FUSION_METHOD << std::endl;
 
     return true;
 }

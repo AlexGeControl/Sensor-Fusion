@@ -85,6 +85,8 @@ private:
     static const int DIM_STATE = 16;
     static const int DIM_PROCESS_NOISE = 6;
 
+    static const int DIM_MEASUREMENT_POSE = 7;
+    static const int DIM_MEASUREMENT_POSE_NOISE = 7;
     static const int DIM_MEASUREMENT_POSI = 3;
     static const int DIM_MEASUREMENT_POSI_NOISE = 3;
     static const int DIM_MEASUREMENT_POSI_VEL = 6;
@@ -109,34 +111,40 @@ private:
     typedef Eigen::Matrix<double,                          DIM_STATE,                  DIM_PROCESS_NOISE> MatrixB;
     typedef Eigen::Matrix<double,                  DIM_PROCESS_NOISE,                  DIM_PROCESS_NOISE> MatrixQ;
     // measurement equation:
+    typedef Eigen::Matrix<double,               DIM_MEASUREMENT_POSE,                          DIM_STATE> MatrixGPose;
     typedef Eigen::Matrix<double,               DIM_MEASUREMENT_POSI,                          DIM_STATE> MatrixGPosi;
     typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSI_VEL,                          DIM_STATE> MatrixGPosiVel;
     typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSI_MAG,                          DIM_STATE> MatrixGPosiMag;
     typedef Eigen::Matrix<double,       DIM_MEASUREMENT_POSI_VEL_MAG,                          DIM_STATE> MatrixGPosiVelMag;
 
+    typedef Eigen::Matrix<double,               DIM_MEASUREMENT_POSE,         DIM_MEASUREMENT_POSI_NOISE> MatrixCPose;
     typedef Eigen::Matrix<double,               DIM_MEASUREMENT_POSI,         DIM_MEASUREMENT_POSI_NOISE> MatrixCPosi;
     typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSI_VEL,     DIM_MEASUREMENT_POSI_VEL_NOISE> MatrixCPosiVel;
     typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSI_MAG,     DIM_MEASUREMENT_POSI_MAG_NOISE> MatrixCPosiMag;
     typedef Eigen::Matrix<double,       DIM_MEASUREMENT_POSI_VEL_MAG, DIM_MEASUREMENT_POSI_VEL_MAG_NOISE> MatrixCPosiVelMag;
 
+    typedef Eigen::Matrix<double,         DIM_MEASUREMENT_POSE_NOISE,         DIM_MEASUREMENT_POSE_NOISE> MatrixRPose;
     typedef Eigen::Matrix<double,         DIM_MEASUREMENT_POSI_NOISE,         DIM_MEASUREMENT_POSI_NOISE> MatrixRPosi;
     typedef Eigen::Matrix<double,     DIM_MEASUREMENT_POSI_VEL_NOISE,     DIM_MEASUREMENT_POSI_VEL_NOISE> MatrixRPosiVel;
     typedef Eigen::Matrix<double,     DIM_MEASUREMENT_POSI_MAG_NOISE,     DIM_MEASUREMENT_POSI_MAG_NOISE> MatrixRPosiMag;
     typedef Eigen::Matrix<double, DIM_MEASUREMENT_POSI_VEL_MAG_NOISE, DIM_MEASUREMENT_POSI_VEL_MAG_NOISE> MatrixRPosiVelMag;
 
     // measurement:
+    typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSE,                              1> VectorYPose;
     typedef Eigen::Matrix<double,           DIM_MEASUREMENT_POSI,                              1> VectorYPosi;
     typedef Eigen::Matrix<double,       DIM_MEASUREMENT_POSI_VEL,                              1> VectorYPosiVel;
     typedef Eigen::Matrix<double,       DIM_MEASUREMENT_POSI_MAG,                              1> VectorYPosiMag;
     typedef Eigen::Matrix<double,   DIM_MEASUREMENT_POSI_VEL_MAG,                              1> VectorYPosiVelMag;
 
     // Kalman gain:
+    typedef Eigen::Matrix<double,                      DIM_STATE,           DIM_MEASUREMENT_POSE> MatrixKPose;
     typedef Eigen::Matrix<double,                      DIM_STATE,           DIM_MEASUREMENT_POSI> MatrixKPosi;
     typedef Eigen::Matrix<double,                      DIM_STATE,       DIM_MEASUREMENT_POSI_VEL> MatrixKPosiVel;
     typedef Eigen::Matrix<double,                      DIM_STATE,       DIM_MEASUREMENT_POSI_MAG> MatrixKPosiMag;
     typedef Eigen::Matrix<double,                      DIM_STATE,   DIM_MEASUREMENT_POSI_VEL_MAG> MatrixKPosiVelMag;
 
     // state observality matrix:
+    typedef Eigen::Matrix<double, DIM_STATE*        DIM_MEASUREMENT_POSE, DIM_STATE> MatrixSOMPose;
     typedef Eigen::Matrix<double, DIM_STATE*        DIM_MEASUREMENT_POSI, DIM_STATE> MatrixSOMPosi;
     typedef Eigen::Matrix<double, DIM_STATE*    DIM_MEASUREMENT_POSI_VEL, DIM_STATE> MatrixSOMPosiVel;
     typedef Eigen::Matrix<double, DIM_STATE*    DIM_MEASUREMENT_POSI_MAG, DIM_STATE> MatrixSOMPosiMag;
@@ -270,6 +278,15 @@ private:
      * @return void
      */
     void UpdateStateEstimation(void);
+
+    /**
+     * @brief  correct state estimation using frontend pose
+     * @param  T_nb, input GNSS position
+     * @return void
+     */
+    void CorrectStateEstimationPose(
+        const Eigen::Matrix4d &T_nb
+    );
 
     /**
      * @brief  correct state estimation using GNSS position
@@ -409,27 +426,32 @@ private:
     MatrixB B_ = MatrixB::Zero();
     MatrixQ Q_ = MatrixQ::Zero();
 
+    MatrixGPose GPose_ = MatrixGPose::Zero();
     MatrixGPosi GPosi_ = MatrixGPosi::Zero();
     MatrixGPosiVel GPosiVel_ = MatrixGPosiVel::Zero();
     MatrixGPosiMag GPosiMag_ = MatrixGPosiMag::Zero();
     MatrixGPosiVelMag GPosiVelMag_ = MatrixGPosiVelMag::Zero();
 
+    MatrixCPose CPose_ = MatrixCPose::Zero();
     MatrixCPosi CPosi_ = MatrixCPosi::Zero();
     MatrixCPosiMag CPosiVel_ = MatrixCPosiVel::Zero();
     MatrixCPosiMag CPosiMag_ = MatrixCPosiMag::Zero();
     MatrixCPosiVelMag CPosiVelMag_ = MatrixCPosiVelMag::Zero();
 
+    MatrixRPose RPose_ = MatrixRPose::Zero();
     MatrixRPosi RPosi_ = MatrixRPosi::Zero();
     MatrixRPosiVel RPosiVel_ = MatrixRPosiVel::Zero();
     MatrixRPosiMag RPosiMag_ = MatrixRPosiMag::Zero();
     MatrixRPosiVelMag RPosiVelMag_ = MatrixRPosiVelMag::Zero();
 
+    MatrixSOMPose SOMPose_ = MatrixSOMPose::Zero();
     MatrixSOMPosi SOMPosi_ = MatrixSOMPosi::Zero();
     MatrixSOMPosiVel SOMPosiVel_ = MatrixSOMPosiVel::Zero();
     MatrixSOMPosiMag SOMPosiMag_ = MatrixSOMPosiMag::Zero();
     MatrixSOMPosiVelMag SOMPosiVelMag_ = MatrixSOMPosiVelMag::Zero();
 
     // measurement:
+    VectorYPose YPose_;
     VectorYPosi YPosi_;
     VectorYPosiVel YPosiVel_;
     VectorYPosiMag YPosiMag_;

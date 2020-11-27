@@ -3,8 +3,8 @@
  * @Author: Ge Yao
  * @Date: 2020-11-12 15:14:07
  */
-#ifndef LIDAR_LOCALIZATION_FILTERING_FILTERING_FLOW_HPP_
-#define LIDAR_LOCALIZATION_FILTERING_FILTERING_FLOW_HPP_
+#ifndef LIDAR_LOCALIZATION_FILTERING_KITTI_FILTERING_FLOW_HPP_
+#define LIDAR_LOCALIZATION_FILTERING_KITTI_FILTERING_FLOW_HPP_
 
 #include <ros/ros.h>
 
@@ -24,13 +24,13 @@
 #include "lidar_localization/publisher/tf_broadcaster.hpp"
 
 // filtering instance:
-#include "lidar_localization/filtering/filtering.hpp"
+#include "lidar_localization/filtering/kitti_filtering.hpp"
 
 namespace lidar_localization {
 
-class FilteringFlow {
+class KITTIFilteringFlow {
   public:
-    FilteringFlow(ros::NodeHandle& nh);
+    KITTIFilteringFlow(ros::NodeHandle& nh);
     bool Run();
     // save odometry for evo evaluation:
     bool SaveOdometry(void);
@@ -114,7 +114,7 @@ class FilteringFlow {
     std::shared_ptr<TFBroadCaster> laser_tf_pub_ptr_;
 
     // filtering instance:
-    std::shared_ptr<Filtering> filtering_ptr_;
+    std::shared_ptr<KITTIFiltering> filtering_ptr_;
 
     IMUData current_imu_raw_data_;
 
@@ -141,4 +141,4 @@ class FilteringFlow {
 
 } // namespace lidar_localization
 
-#endif // LIDAR_LOCALIZATION_FILTERING_FILTERING_FLOW_HPP_
+#endif // LIDAR_LOCALIZATION_FILTERING_KITTI_FILTERING_FLOW_HPP_

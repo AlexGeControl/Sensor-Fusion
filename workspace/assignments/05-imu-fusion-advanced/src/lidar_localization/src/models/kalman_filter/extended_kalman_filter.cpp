@@ -76,6 +76,7 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(const YAML::Node& node) {
     // d. measurement noise:
     COV.MEASUREMENT.POSI = node["covariance"]["measurement"]["pos"].as<double>();
     COV.MEASUREMENT.VEL = node["covariance"]["measurement"]["vel"].as<double>();
+    COV.MEASUREMENT.ORI = node["covariance"]["measurement"]["ori"].as<double>();
     COV.MEASUREMENT.MAG = node["covariance"]["measurement"]["mag"].as<double>();
 
     // prompt:
@@ -101,6 +102,7 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(const YAML::Node& node) {
               << std::endl
               << "\tmeasurement noise posi.: " << COV.MEASUREMENT.POSI << std::endl
               << "\tmeasurement noise vel.: " << COV.MEASUREMENT.VEL << std::endl
+              << "\tmeasurement noise ori.: " << COV.MEASUREMENT.ORI << std::endl
               << "\tmeasurement noise mag.: " << COV.MEASUREMENT.MAG << std::endl
               << std::endl;
     
@@ -133,6 +135,9 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(const YAML::Node& node) {
     Q_.block<3, 3>(3, 3) = COV.PROCESS.ACCEL*Eigen::Matrix3d::Identity();
 
     // d. measurement noise:
+    RPose_.block<3, 3>(0, 0) = COV.MEASUREMENT.POSI*Eigen::Matrix3d::Identity();
+    RPose_.block<4, 4>(3, 3) = COV.MEASUREMENT.ORI*Eigen::Matrix4d::Identity();
+
     RPosi_.block<3, 3>(0, 0) = COV.MEASUREMENT.POSI*Eigen::Matrix3d::Identity();
 
     RPosiVel_.block<3, 3>(0, 0) = COV.MEASUREMENT.POSI*Eigen::Matrix3d::Identity();
@@ -149,6 +154,9 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(const YAML::Node& node) {
     F_.block<3, 3>( INDEX_POS, INDEX_VEL ) = Eigen::Matrix3d::Identity();
 
     // f. measurement equation:
+    GPose_.block<3, 3>( 0, INDEX_POS ) = Eigen::Matrix3d::Identity();
+    GPose_.block<4, 4>( 3, INDEX_ORI ) = Eigen::Matrix4d::Identity();
+
     GPosi_.block<3, 3>( 0, INDEX_POS ) = Eigen::Matrix3d::Identity();
 
     GPosiVel_.block<3, 3>( 0, INDEX_POS ) = Eigen::Matrix3d::Identity();
@@ -158,6 +166,7 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(const YAML::Node& node) {
     GPosiVelMag_.block<3, 3>( 0, INDEX_POS ) = Eigen::Matrix3d::Identity();
 
     // init soms:
+    SOMPose_.block<DIM_MEASUREMENT_POSE, DIM_STATE>(0, 0) = GPose_;
     SOMPosi_.block<DIM_MEASUREMENT_POSI, DIM_STATE>(0, 0) = GPosi_;
     SOMPosiVel_.block<DIM_MEASUREMENT_POSI_VEL, DIM_STATE>(0, 0) = GPosiVel_;
     SOMPosiMag_.block<DIM_MEASUREMENT_POSI_MAG, DIM_STATE>(0, 0) = GPosiMag_;
@@ -269,7 +278,7 @@ bool ExtendedKalmanFilter::Correct(
         measurement_.T_nb = init_pose_ * measurement_.T_nb;
 
         // correct error estimation:
-        CorrectStateEstimation(measurement_type, measurement);
+        CorrectStateEstimation(measurement_type, measurement_);
 
         return true;
     }
@@ -737,6 +746,37 @@ void ExtendedKalmanFilter::UpdateCovarianceEstimation(
 }
 
 /**
+ * @brief  correct state estimation using frontend pose
+ * @param  T_nb, input GNSS position
+ * @return void
+ */
+void ExtendedKalmanFilter::CorrectStateEstimationPose(
+    const Eigen::Matrix4d &T_nb
+) {
+    // parse measurement:
+    YPose_.block<3, 1>(0, 0) = T_nb.block<3, 1>(0,3);
+    Eigen::Quaterniond q_nb(T_nb.block<3, 3>(0,0));
+    YPose_(3, 0) = q_nb.w();
+    YPose_(4, 0) = q_nb.x();
+    YPose_(5, 0) = q_nb.y();
+    YPose_(6, 0) = q_nb.z();
+
+    // build Kalman gain:
+    MatrixRPose R = GPose_*P_*GPose_.transpose() + RPose_;
+    MatrixKPose K = P_*GPose_.transpose()*R.inverse();
+
+    // perform Kalman correct:
+    P_ = (MatrixP::Identity() - K*GPose_)*P_;
+    X_ = X_ + K*(YPose_ - GPose_*X_);
+
+    // normalize quaternion:
+    X_.block<4, 1>( INDEX_ORI, 0 ).normalize();
+
+    // apply motion constraint:
+    ApplyMotionConstraint();
+}
+
+/**
  * @brief  correct state estimation using GNSS position
  * @param  T_nb, input GNSS position
  * @return void
@@ -966,6 +1006,7 @@ void ExtendedKalmanFilter::CorrectStateEstimation(
 
     switch ( measurement_type ) {
         case MeasurementType::POSE:
+            CorrectStateEstimationPose(measurement.T_nb);
             break;
         case MeasurementType::POSI:
             CorrectStateEstimationPosi(measurement.T_nb);
@@ -1062,7 +1103,35 @@ void ExtendedKalmanFilter::ResetCovariance(void) {
 void ExtendedKalmanFilter::UpdateObservabilityAnalysisPose(
     const double &time, std::vector<double> &record
 ) {
-    ;
+    // build observability matrix for position measurement:
+    for (int i = 1; i < DIM_STATE; ++i) {
+        SOMPose_.block<DIM_MEASUREMENT_POSE, DIM_STATE>(i*DIM_MEASUREMENT_POSE, 0) = (
+            SOMPose_.block<DIM_MEASUREMENT_POSE, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSE, 0) * F_
+        );
+    }
+
+    // perform SVD analysis:
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(SOMPose_, Eigen::ComputeFullV);
+
+    // record timestamp:
+    record.push_back(time);
+
+    // record singular values:
+    for (int i = 0; i < DIM_STATE; ++i) {
+        record.push_back(svd.singularValues()(i, 0));
+    }
+
+    // record degree of observability:
+    // a. here assumes that in the latent space, there is a Gaussian white noise on each dim
+    VectorX X = (
+        svd.matrixV().cwiseAbs()*
+        svd.singularValues().asDiagonal().inverse()
+    ) * VectorX::Ones();
+    // b. normalize:
+    X = 100.0 * VectorX::Ones() - 100.0  / X.maxCoeff() * X;
+    for (int i = 0; i < DIM_STATE; ++i) {
+        record.push_back(X(i, 0));
+    }
 }
 
 /**
@@ -1238,6 +1307,8 @@ void ExtendedKalmanFilter::UpdateObservabilityAnalysis(
 
     switch ( measurement_type ) {
         case MeasurementType::POSE:
+            UpdateObservabilityAnalysisPose(time, record);
+            observability.pose_.push_back(record);
             break;
         case MeasurementType::POSI:
             UpdateObservabilityAnalysisPosi(time, record);
@@ -1268,6 +1339,8 @@ void ExtendedKalmanFilter::SaveObservabilityAnalysis(
 
     switch ( measurement_type ) {
         case MeasurementType::POSE:
+            data = &(observability.pose_);
+            type = std::string("pose");
             break;
         case MeasurementType::POSI:
             data = &(observability.posi_);

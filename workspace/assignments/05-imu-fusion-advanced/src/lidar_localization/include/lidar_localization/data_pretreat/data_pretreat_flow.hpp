@@ -45,8 +45,8 @@ class DataPretreatFlow {
     std::shared_ptr<TFListener> lidar_to_imu_ptr_;
     // publisher
     std::shared_ptr<CloudPublisher> cloud_pub_ptr_;
-    std::shared_ptr<OdometryPublisher> gnss_pub_ptr_;
     std::shared_ptr<IMUPublisher> imu_pub_ptr_;
+    std::shared_ptr<OdometryPublisher> gnss_pub_ptr_;
     // models
     std::shared_ptr<DistortionAdjust> distortion_adjust_ptr_;
 
