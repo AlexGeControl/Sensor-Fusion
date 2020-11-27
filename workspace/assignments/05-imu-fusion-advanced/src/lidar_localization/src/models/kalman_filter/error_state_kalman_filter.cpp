@@ -382,7 +382,7 @@ void ErrorStateKalmanFilter::ApplyMotionConstraint(void) {
     const Eigen::Matrix3d C_nb = pose_.block<3, 3>(0, 0);
 
     Eigen::Vector3d v_b = C_nb.transpose() * vel_;
-    v_b.y() = 0.0;
+    v_b.y() = v_b.z() = 0.0;
     vel_ = C_nb * v_b;
 }
 
@@ -791,10 +791,6 @@ void ErrorStateKalmanFilter::CorrectErrorEstimationPosiVel(
         P_ = (MatrixP::Identity() - KCons*GPosiVelCons_)*P_;
         X_ = X_ + KCons*(YPosiVelCons - GPosiVelCons_*X_);
     } else {
-        if ( IsTurning(w_b) ) {
-            LOG(INFO) << "Turning..." << std::endl;
-        }
-
         // build Kalman gain:
         MatrixRPosiVel R = GPosiVel_*P_*GPosiVel_.transpose() + RPosiVel_;
         MatrixKPosiVel K = P_*GPosiVel_.transpose()*R.inverse();
