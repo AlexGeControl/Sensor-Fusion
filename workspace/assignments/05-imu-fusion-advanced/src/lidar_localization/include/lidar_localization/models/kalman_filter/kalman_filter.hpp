@@ -417,6 +417,9 @@ protected:
 
     // observability analysis:
     struct {
+        std::vector<double> time_;
+        std::vector<Eigen::MatrixXd> Q_;
+        
         std::vector<std::vector<double>> pose_;
         std::vector<std::vector<double>> pose_vel_;
         std::vector<std::vector<double>> posi_;

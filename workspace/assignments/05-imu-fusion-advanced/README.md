@@ -34,7 +34,7 @@ This is the solution of Assignment 05 of Sensor Fusion from [深蓝学院](https
 
 #### Results & Analysis
 
-测试数据如下图所示. 该数据模拟了自动驾驶车辆上下高架桥的过程. 测试路段的三维构型参照EVO的评测结果.
+测试数据选择`kitti_2011_10_03_drive_0027_synced`.
 
 <img src="doc/images/01-kitti-test-drive.png" alt="KITTI Test Drive" width="100%" />
 
@@ -144,11 +144,14 @@ fusion_strategy: position_velocity
 ```
 ##### Observability Analysis
 
-各运动阶段对应的`可观测性&可观测度`分析参见 [here](doc/observability/02-eskf--position-velocity-observability.csv). 针对自动驾驶车辆的运动:
+针对自动驾驶车辆的运动:
 
-* `IMU-GNSS-Odom ESKF Fusion`的`TOM`秩为`14`
-
-* `Accel Bias Y`不可观
+* `各运动阶段`对应的`可观测性&可观测度`分析参见 [here](doc/observability/02-eskf--position-velocity-observability.csv). 
+    * 在每一时刻, `IMU-GNSS-Odom ESKF Fusion`的`Q`秩为`14`
+    * `Accel Bias Y`不可观
+    * 当车辆有`最高运动速度`且`转向`时, 系统的可观测度最高, 对应运动阶段为`5`, `6`和`7`
+* `整个运动过程中`, `可观测性&可观测度`的变化 [here](doc/observability/02-eskf--position-velocity-observability-som.csv). 
+    * 在车辆完成加速后, `IMU-GNSS-Odom ESKF Fusion`的`Qso`秩由`14`变为`15`, 此后系统变为`完全可观`
 
 ##### EVO, Time Series Plot
 

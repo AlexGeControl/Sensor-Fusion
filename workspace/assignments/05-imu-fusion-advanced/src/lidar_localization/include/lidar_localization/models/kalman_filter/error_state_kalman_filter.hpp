@@ -158,10 +158,10 @@ private:
     typedef Eigen::Matrix<double,                      DIM_STATE,   DIM_MEASUREMENT_POSI_VEL - 1> MatrixKPosiVelCons;
 
     // state observality matrix:
-    typedef Eigen::Matrix<double,     DIM_STATE*DIM_MEASUREMENT_POSE, DIM_STATE> MatrixSOMPose;
-    typedef Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSE_VEL, DIM_STATE> MatrixSOMPoseVel;
-    typedef Eigen::Matrix<double,     DIM_STATE*DIM_MEASUREMENT_POSI, DIM_STATE> MatrixSOMPosi;
-    typedef Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSI_VEL, DIM_STATE> MatrixSOMPosiVel;
+    typedef Eigen::Matrix<double,     DIM_STATE*DIM_MEASUREMENT_POSE, DIM_STATE> MatrixQPose;
+    typedef Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSE_VEL, DIM_STATE> MatrixQPoseVel;
+    typedef Eigen::Matrix<double,     DIM_STATE*DIM_MEASUREMENT_POSI, DIM_STATE> MatrixQPosi;
+    typedef Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSI_VEL, DIM_STATE> MatrixQPosiVel;
 
     /**
      * @brief  get unbiased angular velocity in body frame
@@ -344,40 +344,43 @@ private:
      * @return void
      */
     void ResetCovariance(void);
-    /**
-     * @brief  update observability analysis for pose measurement
-     * @param  void
-     * @return void
-     */
-    void UpdateObservabilityAnalysisPose(
-        const double &time, std::vector<double> &record
-    );
 
     /**
-     * @brief  update observability analysis for pose & body velocity measurement
+     * @brief  get Q analysis for pose measurement
      * @param  void
      * @return void
      */
-    void UpdateObservabilityAnalysisPoseVel(
-        const double &time, std::vector<double> &record
-    );
+    Eigen::MatrixXd GetQPose(void);
 
     /**
-     * @brief  update observability analysis for position measurement
+     * @brief  get Q for pose & body velocity measurement
      * @param  void
-     * @return void
+     * @return QPoseVel
      */
-    void UpdateObservabilityAnalysisPosi(
-        const double &time, std::vector<double> &record
-    );
+    Eigen::MatrixXd GetQPoseVel(void);
 
     /**
-     * @brief  update observability analysis for navigation position & body velocity measurement
+     * @brief  get Q for position measurement
+     * @param  void
+     * @return QPos
+     */
+    Eigen::MatrixXd GetQPosi(void);
+
+    /**
+     * @brief  get Q for navigation position & body velocity measurement
      * @param  void
      * @return void
      */
-    void UpdateObservabilityAnalysisPosiVel(
-        const double &time, std::vector<double> &record
+    Eigen::MatrixXd GetQPosiVel(void);
+
+    void AnalyzeQ(
+        const double &time, const Eigen::MatrixXd &Q,
+        std::vector<std::vector<double>> &data
+    );
+
+    void WriteAsCSV(
+        const std::vector<std::vector<double>> &data,
+        const std::string filename
     );
 
     // odometry estimation from IMU integration:
@@ -415,10 +418,10 @@ private:
     MatrixRPosi RPosi_ = MatrixRPosi::Zero();
     MatrixRPosiVel RPosiVel_ = MatrixRPosiVel::Zero();
 
-    MatrixSOMPose SOMPose_ = MatrixSOMPose::Zero();
-    MatrixSOMPoseVel SOMPoseVel_ = MatrixSOMPoseVel::Zero();
-    MatrixSOMPosi SOMPosi_ = MatrixSOMPosi::Zero();
-    MatrixSOMPosiVel SOMPosiVel_ = MatrixSOMPosiVel::Zero();
+    MatrixQPose QPose_ = MatrixQPose::Zero();
+    MatrixQPoseVel QPoseVel_ = MatrixQPoseVel::Zero();
+    MatrixQPosi QPosi_ = MatrixQPosi::Zero();
+    MatrixQPosiVel QPosiVel_ = MatrixQPosiVel::Zero();
 
     // measurement:
     VectorYPose YPose_;
