@@ -182,12 +182,12 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(const YAML::Node& node) {
     GPosiVelMag_.block<3, 3>( 0, INDEX_POS ) = Eigen::Matrix3d::Identity();
 
     // init soms:
-    SOMPose_.block<DIM_MEASUREMENT_POSE, DIM_STATE>(0, 0) = GPose_;
-    SOMPoseVel_.block<DIM_MEASUREMENT_POSE_VEL, DIM_STATE>(0, 0) = GPoseVel_;
-    SOMPosi_.block<DIM_MEASUREMENT_POSI, DIM_STATE>(0, 0) = GPosi_;
-    SOMPosiVel_.block<DIM_MEASUREMENT_POSI_VEL, DIM_STATE>(0, 0) = GPosiVel_;
-    SOMPosiMag_.block<DIM_MEASUREMENT_POSI_MAG, DIM_STATE>(0, 0) = GPosiMag_;
-    SOMPosiVelMag_.block<DIM_MEASUREMENT_POSI_VEL_MAG, DIM_STATE>(0, 0) = GPosiVelMag_;
+    QPose_.block<DIM_MEASUREMENT_POSE, DIM_STATE>(0, 0) = GPose_;
+    QPoseVel_.block<DIM_MEASUREMENT_POSE_VEL, DIM_STATE>(0, 0) = GPoseVel_;
+    QPosi_.block<DIM_MEASUREMENT_POSI, DIM_STATE>(0, 0) = GPosi_;
+    QPosiVel_.block<DIM_MEASUREMENT_POSI_VEL, DIM_STATE>(0, 0) = GPosiVel_;
+    QPosiMag_.block<DIM_MEASUREMENT_POSI_MAG, DIM_STATE>(0, 0) = GPosiMag_;
+    QPosVelMag_.block<DIM_MEASUREMENT_POSI_VEL_MAG, DIM_STATE>(0, 0) = GPosiVelMag_;
 }
 
 /**
@@ -724,11 +724,6 @@ void ExtendedKalmanFilter::SetProcessEquation(const IMUData &imu_data) {
 void ExtendedKalmanFilter::UpdateCovarianceEstimation(
     const IMUData &imu_data
 ) {
-    static int count = 0;
-
-    static MatrixF F_1st;
-    static MatrixF F_2nd;
-
     // update process equation:
     SetProcessEquation(imu_data);
 
@@ -742,24 +737,33 @@ void ExtendedKalmanFilter::UpdateCovarianceEstimation(
 
     // perform Kalman prediction for covariance:
     P_ = F*P_*F.transpose() + B*Q_*B.transpose();
+}
 
-    // update counter:
-    if (
-        0 == (++count % 10) 
-    ) {
-        count = 0;
-        /*
-        // covariance monitor, update step, debugging only:
-        LOG(INFO) << std::endl 
-                  << static_cast<int>(imu_data.time) << " Update: " << std::endl
-                  << P_( 0,  0) << ", " << P_( 1,  1) << ", " << P_( 2,  2) << std::endl
-                  << P_( 3,  3) << ", " << P_( 4,  4) << ", " << P_( 5,  5) << std::endl
-                  << P_( 6,  6) << ", " << P_( 7,  7) << ", " << P_( 8,  8) << P_( 9,  9) << std::endl
-                  << P_(10, 10) << ", " << P_(11, 11) << ", " << P_(12, 12) << std::endl
-                  << P_(13, 13) << ", " << P_(14, 14) << ", " << P_(15, 15) << std::endl
-                  << std::endl;
-        */
-    }
+/**
+ * @brief  get block matrix for observation by orientation quaternion
+ * @param  m_n, measurement in navigation frame
+ * @param  q_nb, orientation quaternion
+ * @return block matrix Gq
+ */
+Eigen::Matrix<double, 3, 4> ExtendedKalmanFilter::GetGMOri(
+    const Eigen::Vector3d &m_n,
+    const Eigen::Quaterniond &q_nb
+) {
+    // get F:
+    Eigen::Matrix<double, 4, 3> T_Gm;
+    T_Gm << +q_nb.w(), +q_nb.z(), -q_nb.y(),
+            +q_nb.x(), +q_nb.y(), +q_nb.z(),
+            -q_nb.y(), +q_nb.x(), -q_nb.w(),
+            -q_nb.z(), +q_nb.w(), +q_nb.x();
+    Eigen::Vector4d G = 2 * T_Gm * m_n;
+
+    // get Fvq:
+    Eigen::Matrix<double, 3, 4> Gq;
+    Gq << +G(0), +G(1), +G(2), +G(3),
+          +G(3), -G(2), +G(1), -G(0),
+          -G(2), -G(3), +G(0), +G(1);
+
+    return Gq;
 }
 
 /**
@@ -788,10 +792,6 @@ void ExtendedKalmanFilter::CorrectStateEstimationPose(
 
     // normalize quaternion:
     X_.block<4, 1>( INDEX_ORI, 0 ).normalize();
-
-    // update bias:
-    if (IsCovStable(INDEX_GYRO_BIAS))  gyro_bias_ = X_.block<3, 1>(INDEX_GYRO_BIAS, 0);
-    if (IsCovStable(INDEX_ACCEL_BIAS)) accel_bias_ = X_.block<3, 1>(INDEX_ACCEL_BIAS, 0);
 }
 
 /**
@@ -815,37 +815,6 @@ void ExtendedKalmanFilter::CorrectStateEstimationPosi(
 
     // normalize quaternion:
     X_.block<4, 1>( INDEX_ORI, 0 ).normalize();
-
-    // update bias:
-    if (IsCovStable(INDEX_GYRO_BIAS))  gyro_bias_ = X_.block<3, 1>(INDEX_GYRO_BIAS, 0);
-    if (IsCovStable(INDEX_ACCEL_BIAS)) accel_bias_ = X_.block<3, 1>(INDEX_ACCEL_BIAS, 0);
-}
-
-/**
- * @brief  get block matrix for observation by orientation quaternion
- * @param  m_n, measurement in navigation frame
- * @param  q_nb, orientation quaternion
- * @return block matrix Gq
- */
-Eigen::Matrix<double, 3, 4> ExtendedKalmanFilter::GetGMOri(
-    const Eigen::Vector3d &m_n,
-    const Eigen::Quaterniond &q_nb
-) {
-    // get F:
-    Eigen::Matrix<double, 4, 3> T_Gm;
-    T_Gm << +q_nb.w(), +q_nb.z(), -q_nb.y(),
-            +q_nb.x(), +q_nb.y(), +q_nb.z(),
-            -q_nb.y(), +q_nb.x(), -q_nb.w(),
-            -q_nb.z(), +q_nb.w(), +q_nb.x();
-    Eigen::Vector4d G = 2 * T_Gm * m_n;
-
-    // get Fvq:
-    Eigen::Matrix<double, 3, 4> Gq;
-    Gq << +G(0), +G(1), +G(2), +G(3),
-          +G(3), -G(2), +G(1), -G(0),
-          -G(2), -G(3), +G(0), +G(1);
-
-    return Gq;
 }
 
 /**
@@ -897,10 +866,6 @@ void ExtendedKalmanFilter::CorrectStateEstimationPoseVel(
         // normalize quaternion:
         X_.block<4, 1>( INDEX_ORI, 0 ).normalize();
     }
-
-    // update bias:
-    // if (IsCovStable(INDEX_GYRO_BIAS))  gyro_bias_ = X_.block<3, 1>(INDEX_GYRO_BIAS, 0);
-    // if (IsCovStable(INDEX_ACCEL_BIAS)) accel_bias_ = X_.block<3, 1>(INDEX_ACCEL_BIAS, 0);
 }
 
 /**
@@ -942,10 +907,6 @@ void ExtendedKalmanFilter::CorrectStateEstimationPosiVel(
         // normalize quaternion:
         X_.block<4, 1>( INDEX_ORI, 0 ).normalize();
     }
-
-    // update bias:
-    if (IsCovStable(INDEX_GYRO_BIAS))  gyro_bias_ = X_.block<3, 1>(INDEX_GYRO_BIAS, 0);
-    if (IsCovStable(INDEX_ACCEL_BIAS)) accel_bias_ = X_.block<3, 1>(INDEX_ACCEL_BIAS, 0);
 }
 
 /**
@@ -987,10 +948,6 @@ void ExtendedKalmanFilter::CorrectStateEstimationPosiMag(
         // normalize quaternion:
         X_.block<4, 1>( INDEX_ORI, 0 ).normalize();
     }
-
-    // update bias:
-    if (IsCovStable(INDEX_GYRO_BIAS))  gyro_bias_ = X_.block<3, 1>(INDEX_GYRO_BIAS, 0);
-    if (IsCovStable(INDEX_ACCEL_BIAS)) accel_bias_ = X_.block<3, 1>(INDEX_ACCEL_BIAS, 0);
 }
 
 /**
@@ -1037,10 +994,6 @@ void ExtendedKalmanFilter::CorrectStateEstimationPosiVelMag(
         // normalize quaternion:
         X_.block<4, 1>( INDEX_ORI, 0 ).normalize();
     }
-
-    // update bias:
-    if (IsCovStable(INDEX_GYRO_BIAS))  gyro_bias_ = X_.block<3, 1>(INDEX_GYRO_BIAS, 0);
-    if (IsCovStable(INDEX_ACCEL_BIAS)) accel_bias_ = X_.block<3, 1>(INDEX_ACCEL_BIAS, 0);
 }
 
 /**
@@ -1053,8 +1006,6 @@ void ExtendedKalmanFilter::CorrectStateEstimation(
     const MeasurementType &measurement_type, 
     const Measurement &measurement
 ) {
-    static int count = 0;
-
     switch ( measurement_type ) {
         case MeasurementType::POSE:
             CorrectStateEstimationPose(measurement.T_nb);
@@ -1078,22 +1029,9 @@ void ExtendedKalmanFilter::CorrectStateEstimation(
             break;
     }
 
-    if (
-        0 == (++count % 10) 
-    ) {
-        count = 0;
-        /*
-        // covariance monitor, correct step, debugging only
-        LOG(INFO) << std::endl 
-                  << "Correct" << std::endl
-                  << P_( 0,  0) << ", " << P_( 1,  1) << ", " << P_( 2,  2) << std::endl
-                  << P_( 3,  3) << ", " << P_( 4,  4) << ", " << P_( 5,  5) << std::endl
-                  << P_( 6,  6) << ", " << P_( 7,  7) << ", " << P_( 8,  8) << std::endl
-                  << P_(10, 10) << ", " << P_(11, 11) << ", " << P_(12, 12) << P_(13, 13) << std::endl
-                  << P_(13, 13) << ", " << P_(14, 14) << ", " << P_(15, 15) << std::endl
-                  << std::endl;
-        */
-    }
+    // update bias:
+    if ( IsCovStable(INDEX_GYRO_BIAS, 1.0e-6) )  gyro_bias_ = X_.block<3, 1>(INDEX_GYRO_BIAS, 0);
+    if ( IsCovStable(INDEX_ACCEL_BIAS, 1.0e-6) ) accel_bias_ = X_.block<3, 1>(INDEX_ACCEL_BIAS, 0);
 }
 
 /**
@@ -1150,212 +1088,102 @@ void ExtendedKalmanFilter::ResetCovariance(void) {
 }
 
 /**
- * @brief  update observability analysis for pose measurement
+ * @brief  get Q for pose measurement
  * @param  void
  * @return void
  */
-void ExtendedKalmanFilter::UpdateObservabilityAnalysisPose(
-    const double &time, std::vector<double> &record
-) {
+void ExtendedKalmanFilter::GetQPose(Eigen::MatrixXd &Q) {
     // build observability matrix for position measurement:
     for (int i = 1; i < DIM_STATE; ++i) {
-        SOMPose_.block<DIM_MEASUREMENT_POSE, DIM_STATE>(i*DIM_MEASUREMENT_POSE, 0) = (
-            SOMPose_.block<DIM_MEASUREMENT_POSE, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSE, 0) * F_
+        QPose_.block<DIM_MEASUREMENT_POSE, DIM_STATE>(i*DIM_MEASUREMENT_POSE, 0) = (
+            QPose_.block<DIM_MEASUREMENT_POSE, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSE, 0) * F_
         );
     }
 
-    // perform SVD analysis:
-    Eigen::JacobiSVD<Eigen::MatrixXd> svd(SOMPose_, Eigen::ComputeFullV);
-
-    // record timestamp:
-    record.push_back(time);
-
-    // record singular values:
-    for (int i = 0; i < DIM_STATE; ++i) {
-        record.push_back(svd.singularValues()(i, 0));
-    }
-
-    // record degree of observability:
-    // a. here assumes that in the latent space, there is a Gaussian white noise on each dim
-    VectorX X = (
-        svd.matrixV().cwiseAbs()*
-        svd.singularValues().asDiagonal().inverse()
-    ) * VectorX::Ones();
-    // b. normalize:
-    X = 100.0 * VectorX::Ones() - 100.0  / X.maxCoeff() * X;
-    for (int i = 0; i < DIM_STATE; ++i) {
-        record.push_back(X(i, 0));
-    }
+    Q = QPose_;
 }
 
 /**
- * @brief  update observability analysis for pose & body velocity measurement
+ * @brief  get Q for pose & body velocity measurement
  * @param  void
  * @return void
  */
-void ExtendedKalmanFilter::UpdateObservabilityAnalysisPoseVel(
-    const double &time, std::vector<double> &record
-) {
-
-}
-
-/**
- * @brief  update observability analysis for GNSS position
- * @param  void
- * @return void
- */
-void ExtendedKalmanFilter::UpdateObservabilityAnalysisPosi(
-    const double &time, std::vector<double> &record
-) {
-    // build observability matrix for position measurement:
-    for (int i = 1; i < DIM_STATE; ++i) {
-        SOMPosi_.block<DIM_MEASUREMENT_POSI, DIM_STATE>(i*DIM_MEASUREMENT_POSI, 0) = (
-            SOMPosi_.block<DIM_MEASUREMENT_POSI, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSI, 0) * F_
-        );
-    }
-
-    // perform SVD analysis:
-    Eigen::JacobiSVD<Eigen::MatrixXd> svd(SOMPosi_, Eigen::ComputeFullV);
-
-    // record timestamp:
-    record.push_back(time);
-
-    // record singular values:
-    for (int i = 0; i < DIM_STATE; ++i) {
-        record.push_back(svd.singularValues()(i, 0));
-    }
-
-    // record degree of observability:
-    // a. here assumes that in the latent space, there is a Gaussian white noise on each dim
-    VectorX X = (
-        svd.matrixV().cwiseAbs()*
-        svd.singularValues().asDiagonal().inverse()
-    ) * VectorX::Ones();
-    // b. normalize:
-    X = 100.0 * VectorX::Ones() - 100.0  / X.maxCoeff() * X;
-    for (int i = 0; i < DIM_STATE; ++i) {
-        record.push_back(X(i, 0));
-    }
-}
-
-/**
- * @brief  update observability analysis for GNSS position & magneto measurement
- * @param  void
- * @return void
- */
-void ExtendedKalmanFilter::UpdateObservabilityAnalysisPosiMag(
-    const double &time, std::vector<double> &record
-) {
-    // build observability matrix for position measurement:
-    SOMPosiMag_.block<DIM_MEASUREMENT_POSI_MAG, DIM_STATE>(0, 0) = GPosiMag_;
-    for (int i = 1; i < DIM_STATE; ++i) {
-        SOMPosiMag_.block<DIM_MEASUREMENT_POSI_MAG, DIM_STATE>(i*DIM_MEASUREMENT_POSI_MAG, 0) = (
-            SOMPosiMag_.block<DIM_MEASUREMENT_POSI_MAG, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSI_MAG, 0) * F_
-        );
-    }
-
-    // perform SVD analysis:
-    Eigen::JacobiSVD<Eigen::MatrixXd> svd(SOMPosiMag_, Eigen::ComputeFullV);
-
-    // record timestamp:
-    record.push_back(time);
-
-    // record singular values:
-    for (int i = 0; i < DIM_STATE; ++i) {
-        record.push_back(svd.singularValues()(i, 0));
-    }
-
-    // record degree of observability:
-    // a. here assumes that in the latent space, there is a Gaussian white noise on each dim
-    VectorX X = (
-        svd.matrixV().cwiseAbs()*
-        svd.singularValues().asDiagonal().inverse()
-    ) * VectorX::Ones();
-    // b. normalize:
-    X = 100.0 * VectorX::Ones() - 100.0  / X.maxCoeff() * X;
-    for (int i = 0; i < DIM_STATE; ++i) {
-        record.push_back(X(i, 0));
-    }
-}
-
-/**
- * @brief  update observability analysis for GNSS position & magneto measurement
- * @param  void
- * @return void
- */
-void ExtendedKalmanFilter::UpdateObservabilityAnalysisPosiVel(
-    const double &time, std::vector<double> &record
-) {
+void  ExtendedKalmanFilter::GetQPoseVel(Eigen::MatrixXd &Q) {
     // build observability matrix for position & velocity measurement:
-    SOMPosiVel_.block<DIM_MEASUREMENT_POSI_VEL, DIM_STATE>(0, 0) = GPosiVel_;
+    QPoseVel_.block<DIM_MEASUREMENT_POSE_VEL, DIM_STATE>(0, 0) = GPoseVel_;
     for (int i = 1; i < DIM_STATE; ++i) {
-        SOMPosiVel_.block<DIM_MEASUREMENT_POSI_VEL, DIM_STATE>(i*DIM_MEASUREMENT_POSI_VEL, 0) = (
-            SOMPosiVel_.block<DIM_MEASUREMENT_POSI_VEL, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSI_VEL, 0) * F_
+        QPoseVel_.block<DIM_MEASUREMENT_POSE_VEL, DIM_STATE>(i*DIM_MEASUREMENT_POSE_VEL, 0) = (
+            QPoseVel_.block<DIM_MEASUREMENT_POSE_VEL, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSE_VEL, 0) * F_
         );
     }
 
-    // perform SVD analysis:
-    Eigen::JacobiSVD<Eigen::MatrixXd> svd(SOMPosiVel_, Eigen::ComputeFullV);
-
-    // record timestamp:
-    record.push_back(time);
-
-    // record singular values:
-    for (int i = 0; i < DIM_STATE; ++i) {
-        record.push_back(svd.singularValues()(i, 0));
-    }
-
-    // record degree of observability:
-    // a. here assumes that in the latent space, there is a Gaussian white noise on each dim
-    VectorX X = (
-        svd.matrixV().cwiseAbs()*
-        svd.singularValues().asDiagonal().inverse()
-    ) * VectorX::Ones();
-    // b. normalize:
-    X = 100.0 * VectorX::Ones() - 100.0  / X.maxCoeff() * X;
-    for (int i = 0; i < DIM_STATE; ++i) {
-        record.push_back(X(i, 0));
-    }
+    Q = QPoseVel_;
 }
 
 /**
- * @brief  update observability analysis for GNSS position, body velocity & magneto measurement
+ * @brief  get Q for GNSS position measurement
  * @param  void
- * @return void
+ * @return QPosi
  */
-void ExtendedKalmanFilter::UpdateObservabilityAnalysisPosiVelMag(
-    const double &time, std::vector<double> &record
-) {
-    // build observability matrix for position & velocity measurement:
-    SOMPosiVelMag_.block<DIM_MEASUREMENT_POSI_VEL_MAG, DIM_STATE>(0, 0) = GPosiVelMag_;
+void ExtendedKalmanFilter::GetQPosi(Eigen::MatrixXd &Q) {
+    // build observability matrix for position measurement:
     for (int i = 1; i < DIM_STATE; ++i) {
-        SOMPosiVelMag_.block<DIM_MEASUREMENT_POSI_VEL_MAG, DIM_STATE>(i*DIM_MEASUREMENT_POSI_VEL_MAG, 0) = (
-            SOMPosiVelMag_.block<DIM_MEASUREMENT_POSI_VEL_MAG, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSI_VEL_MAG, 0) * F_
+        QPosi_.block<DIM_MEASUREMENT_POSI, DIM_STATE>(i*DIM_MEASUREMENT_POSI, 0) = (
+            QPosi_.block<DIM_MEASUREMENT_POSI, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSI, 0) * F_
+        );
+    }  
+
+    Q = QPosi_;
+}
+
+/**
+ * @brief  get Q for GNSS position & body velocity measurement
+ * @param  void
+ * @return QPosiVel
+ */
+ void ExtendedKalmanFilter::GetQPosiVel(Eigen::MatrixXd &Q) {
+    // build observability matrix for position & velocity measurement:
+    QPosiVel_.block<DIM_MEASUREMENT_POSI_VEL, DIM_STATE>(0, 0) = GPosiVel_;
+    for (int i = 1; i < DIM_STATE; ++i) {
+        QPosiVel_.block<DIM_MEASUREMENT_POSI_VEL, DIM_STATE>(i*DIM_MEASUREMENT_POSI_VEL, 0) = (
+            QPosiVel_.block<DIM_MEASUREMENT_POSI_VEL, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSI_VEL, 0) * F_
         );
     }
 
-    // perform SVD analysis:
-    Eigen::JacobiSVD<Eigen::MatrixXd> svd(SOMPosiVelMag_, Eigen::ComputeFullV);
+    Q = QPosiVel_;
+}
 
-    // record timestamp:
-    record.push_back(time);
-
-    // record singular values:
-    for (int i = 0; i < DIM_STATE; ++i) {
-        record.push_back(svd.singularValues()(i, 0));
+/**
+ * @brief  get Q for GNSS position & magneto measurement
+ * @param  void
+ * @return QPosiMag
+ */
+ void ExtendedKalmanFilter::GetQPosiMag(Eigen::MatrixXd &Q) {
+    // build observability matrix for position measurement:
+    QPosiMag_.block<DIM_MEASUREMENT_POSI_MAG, DIM_STATE>(0, 0) = GPosiMag_;
+    for (int i = 1; i < DIM_STATE; ++i) {
+        QPosiMag_.block<DIM_MEASUREMENT_POSI_MAG, DIM_STATE>(i*DIM_MEASUREMENT_POSI_MAG, 0) = (
+            QPosiMag_.block<DIM_MEASUREMENT_POSI_MAG, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSI_MAG, 0) * F_
+        );
     }
 
-    // record degree of observability:
-    // a. here assumes that in the latent space, there is a Gaussian white noise on each dim
-    VectorX X = (
-        svd.matrixV().cwiseAbs()*
-        svd.singularValues().asDiagonal().inverse()
-    ) * VectorX::Ones();
-    // b. normalize:
-    X = 100.0 * VectorX::Ones() - 100.0  / X.maxCoeff() * X;
-    for (int i = 0; i < DIM_STATE; ++i) {
-        record.push_back(X(i, 0));
+    Q = QPosiMag_;
+}
+
+/**
+ * @brief  get Q for GNSS position, body velocity & magneto measurement
+ * @param  void
+ * @return QPosiVelMag
+ */
+ void ExtendedKalmanFilter::GetQPosiVelMag(Eigen::MatrixXd &Q) {
+    // build observability matrix for position & velocity measurement:
+    QPosVelMag_.block<DIM_MEASUREMENT_POSI_VEL_MAG, DIM_STATE>(0, 0) = GPosiVelMag_;
+    for (int i = 1; i < DIM_STATE; ++i) {
+        QPosVelMag_.block<DIM_MEASUREMENT_POSI_VEL_MAG, DIM_STATE>(i*DIM_MEASUREMENT_POSI_VEL_MAG, 0) = (
+            QPosVelMag_.block<DIM_MEASUREMENT_POSI_VEL_MAG, DIM_STATE>((i - 1)*DIM_MEASUREMENT_POSI_VEL_MAG, 0) * F_
+        );
     }
+    Q = QPosVelMag_;
 }
 
 /**
@@ -1367,103 +1195,96 @@ void ExtendedKalmanFilter::UpdateObservabilityAnalysis(
     const double &time,
     const MeasurementType &measurement_type
 ) {
-    // init record:
-    std::vector<double> record;
-
+    // get Q:
+    Eigen::MatrixXd Q;
     switch ( measurement_type ) {
         case MeasurementType::POSE:
-            UpdateObservabilityAnalysisPose(time, record);
-            observability.pose_.push_back(record);
+            GetQPose(Q);
             break;
         case MeasurementType::POSE_VEL:
-            UpdateObservabilityAnalysisPoseVel(time, record);
-            observability.pose_vel_.push_back(record);
+            GetQPoseVel(Q);
             break;
         case MeasurementType::POSI:
-            UpdateObservabilityAnalysisPosi(time, record);
-            observability.posi_.push_back(record);
+            GetQPosi(Q);
             break;
         case MeasurementType::POSI_VEL:
-            UpdateObservabilityAnalysisPosiVel(time, record);
-            observability.posi_vel_.push_back(record);
+            GetQPosiVel(Q);
             break;
         case MeasurementType::POSI_MAG:
-            UpdateObservabilityAnalysisPosiMag(time, record);
-            observability.posi_mag_.push_back(record);
+            GetQPosiMag(Q);
             break;
         case MeasurementType::POSI_VEL_MAG:
-            UpdateObservabilityAnalysisPosiVelMag(time, record);
-            observability.posi_vel_mag_.push_back(record);
+            GetQPosiVelMag(Q);
             break;
         default:
             break;
     }
+
+    observability.time_.push_back(time);
+    observability.Q_.push_back(Q);
 }
 
-void ExtendedKalmanFilter::SaveObservabilityAnalysis(
+/**
+ * @brief  save observability analysis to persistent storage
+ * @param  measurement_type, measurement type
+ * @return void
+ */
+bool ExtendedKalmanFilter::SaveObservabilityAnalysis(
     const MeasurementType &measurement_type
 ) {
-    std::vector<std::vector<double>> *data = nullptr;
+    // get fusion strategy:
     std::string type;
-
     switch ( measurement_type ) {
         case MeasurementType::POSE:
-            data = &(observability.pose_);
             type = std::string("pose");
             break;
         case MeasurementType::POSE_VEL:
-            data = &(observability.pose_vel_);
             type = std::string("pose_velocity");
             break;
         case MeasurementType::POSI:
-            data = &(observability.posi_);
             type = std::string("position");
             break;
         case MeasurementType::POSI_VEL:
-            data = &(observability.posi_vel_);
             type = std::string("position_velocity");
             break;
         case MeasurementType::POSI_MAG:
-            data = &(observability.posi_mag_);
             type = std::string("position_magneto");
             break;
         case MeasurementType::POSI_VEL_MAG:
-            data = &(observability.posi_vel_mag_);
             type = std::string("position_velocity_magneto");
             break;
         default:
-            data = &(observability.posi_vel_mag_);
-            type = std::string("position_velocity_magneto");
+            return false;
             break;
     }
 
-    // init:
-    CSVWriter csv(",");
-    csv.enableAutoNewRow(1 + 2*DIM_STATE);
+    // build Q_so:
+    const int N = observability.Q_.at(0).rows();
 
-    // a. write header:
-    csv << "T";
-    for (int i = 0; i < DIM_STATE; ++i) {
-        csv << ("sv" + std::to_string(i + 1)); 
-    }
-    for (int i = 0; i < DIM_STATE; ++i) {
-        csv << ("doo" + std::to_string(i + 1)); 
-    }
+    std::vector<std::vector<double>> q_data, q_so_data;
 
-    // b. write contents:
-    for (const auto &record: *data) {
-        // cast timestamp to int:
-        csv << static_cast<int>(record.at(0));
-
-        for (size_t i = 1; i < record.size(); ++i) {
-            csv << std::fabs(record.at(i));
-        }    
-    }
-
-    // save to persistent storage:
-    csv.writeToFile(
-        WORK_SPACE_PATH + "/slam_data/observability/" + type + ".csv"
+    Eigen::MatrixXd Qso(
+        observability.Q_.size() * N,
+        DIM_STATE
     );
+    for (size_t i = 0; i < observability.Q_.size(); ++i) {
+        const double &time = observability.time_.at(i);
+        const Eigen::MatrixXd &Q = observability.Q_.at(i);
+
+        Qso.block(i * N, 0, N, DIM_STATE) = Q;
+
+        KalmanFilter::AnalyzeQ(DIM_STATE, time, Q, q_data);
+
+        KalmanFilter::AnalyzeQ(DIM_STATE, time, Qso.block(0, 0, (i + 1)*N, DIM_STATE), q_so_data);
+    }
+
+    std::string q_data_csv = WORK_SPACE_PATH + "/slam_data/observability/" + type + ".csv";
+    std::string q_so_data_csv = WORK_SPACE_PATH + "/slam_data/observability/" + type + "_som.csv";
+
+    KalmanFilter::WriteAsCSV(DIM_STATE, q_data, q_data_csv);
+    KalmanFilter::WriteAsCSV(DIM_STATE, q_so_data, q_so_data_csv);
+
+    return true;
 }
 
 } // namespace lidar_localization

@@ -88,7 +88,7 @@ public:
      * @param  measurement_type, measurement type
      * @return void
      */
-    void SaveObservabilityAnalysis(
+    bool SaveObservabilityAnalysis(
         const MeasurementType &measurement_type
     );
 
@@ -273,7 +273,10 @@ private:
      * @param  T_nb, input pose measurement
      * @return void
      */
-    void CorrectErrorEstimationPose(const Eigen::Matrix4d &T_nb);
+    void CorrectErrorEstimationPose(
+        const Eigen::Matrix4d &T_nb,
+        Eigen::VectorXd &Y, Eigen::MatrixXd &G, Eigen::MatrixXd &K
+    );
 
     /**
      * @brief  correct error estimation using pose and body velocity measurement
@@ -282,9 +285,8 @@ private:
      * @return void
      */
     void CorrectErrorEstimationPoseVel(
-        const Eigen::Matrix4d &T_nb, 
-        const Eigen::Vector3d &v_b, 
-        const Eigen::Vector3d &w_b
+        const Eigen::Matrix4d &T_nb, const Eigen::Vector3d &v_b, const Eigen::Vector3d &w_b,
+        Eigen::VectorXd &Y, Eigen::MatrixXd &G, Eigen::MatrixXd &K
     );
 
     /**
@@ -292,7 +294,10 @@ private:
      * @param  T_nb, input position measurement
      * @return void
      */
-    void CorrectErrorEstimationPosi(const Eigen::Matrix4d &T_nb);
+    void CorrectErrorEstimationPosi(
+        const Eigen::Matrix4d &T_nb,
+        Eigen::VectorXd &Y, Eigen::MatrixXd &G, Eigen::MatrixXd &K
+    );
 
     /**
      * @brief  correct error estimation using navigation position and body velocity measurement
@@ -301,9 +306,8 @@ private:
      * @return void
      */
     void CorrectErrorEstimationPosiVel(
-        const Eigen::Matrix4d &T_nb, 
-        const Eigen::Vector3d &v_b, 
-        const Eigen::Vector3d &w_b
+        const Eigen::Matrix4d &T_nb, const Eigen::Vector3d &v_b, const Eigen::Vector3d &w_b,
+        Eigen::VectorXd &Y, Eigen::MatrixXd &G, Eigen::MatrixXd &K
     );
 
     /**
@@ -372,16 +376,6 @@ private:
      * @return void
      */
     Eigen::MatrixXd GetQPosiVel(void);
-
-    void AnalyzeQ(
-        const double &time, const Eigen::MatrixXd &Q,
-        std::vector<std::vector<double>> &data
-    );
-
-    void WriteAsCSV(
-        const std::vector<std::vector<double>> &data,
-        const std::string filename
-    );
 
     // odometry estimation from IMU integration:
     Eigen::Matrix4d init_pose_ = Eigen::Matrix4d::Identity();

@@ -14,14 +14,9 @@
 // use sophus to handle so3 hat & SO3 log operations:
 #include <sophus/so3.hpp>
 
-// SVD for observability analysis:
-#include <Eigen/SVD>
-
 #include "lidar_localization/models/kalman_filter/error_state_kalman_filter.hpp"
 
 #include "lidar_localization/global_defination/global_defination.h"
-
-#include "lidar_localization/tools/CSVWriter.hpp"
 
 #include "glog/logging.h"
 
@@ -214,21 +209,17 @@ void ErrorStateKalmanFilter::Init(
 bool ErrorStateKalmanFilter::Update(const IMUData &imu_data) {
     // update IMU buff:
     if (time_ < imu_data.time) {
-        // update buffer:
-        imu_data_buff_.push_back(imu_data);
-
         // update IMU odometry:
         Eigen::Vector3d linear_acc_mid;
+        imu_data_buff_.push_back(imu_data);
         UpdateOdomEstimation(linear_acc_mid);
-        
+        imu_data_buff_.pop_front();
+
         // update error estimation:
         double T = imu_data.time - time_;
         UpdateErrorEstimation(T, linear_acc_mid);
         
         // move forward:
-        imu_data_buff_.pop_front();
-
-        // update filter time:
         time_ = imu_data.time;
 
         return true;
@@ -277,7 +268,7 @@ bool ErrorStateKalmanFilter::Correct(
         return true;
     }
 
-    LOG(INFO) << "Kalman Correct: Observation is not synced with filter. Skip, " 
+    LOG(INFO) << "ESKF Correct: Observation is not synced with filter. Skip, " 
               << (int)measurement.time << " <-- " << (int)time_ << " @ " << time_delta
               << std::endl; 
     
@@ -620,8 +611,6 @@ void ErrorStateKalmanFilter::UpdateErrorEstimation(
     const double &T,
     const Eigen::Vector3d &linear_acc_mid
 ) {
-    static int count = 0;
-
     static MatrixF F_1st;
     static MatrixF F_2nd;
 
@@ -638,24 +627,6 @@ void ErrorStateKalmanFilter::UpdateErrorEstimation(
     // perform Kalman prediction:
     X_ = F*X_;
     P_ = F*P_*F.transpose() + B*Q_*B.transpose();
-
-    // update counter:
-    if (
-        0 == (++count % 10) 
-    ) {
-        count = 0;
-        /*
-        // covariance monitor, update step, debugging only:
-        LOG(INFO) << std::endl 
-                  << static_cast<int>(imu_data.time) << " Update" << std::endl
-                  << P_( 0,  0) << ", " << P_( 1,  1) << ", " << P_( 2,  2) << std::endl
-                  << P_( 3,  3) << ", " << P_( 4,  4) << ", " << P_( 5,  5) << std::endl
-                  << P_( 6,  6) << ", " << P_( 7,  7) << ", " << P_( 8,  8) << std::endl
-                  << P_( 9,  9) << ", " << P_(10, 10) << ", " << P_(11, 11) << std::endl
-                  << P_(12, 12) << ", " << P_(13, 13) << ", " << P_(14, 14) << std::endl
-                  << std::endl;
-        */
-    }
 }
 
 /**
@@ -664,22 +635,24 @@ void ErrorStateKalmanFilter::UpdateErrorEstimation(
  * @return void
  */
 void ErrorStateKalmanFilter::CorrectErrorEstimationPose(
-    const Eigen::Matrix4d &T_nb
+    const Eigen::Matrix4d &T_nb,
+    Eigen::VectorXd &Y, Eigen::MatrixXd &G, Eigen::MatrixXd &K
 ) {
-    // parse measurement:
+    // set measurement:
     Eigen::Vector3d P_nn_obs = pose_.block<3, 1>(0,3) - T_nb.block<3, 1>(0,3);
     Eigen::Matrix3d C_nn_obs = pose_.block<3, 3>(0,0) * T_nb.block<3, 3>(0,0).transpose();
 
     YPose_.block<3, 1>(0, 0) = P_nn_obs;
     YPose_.block<3, 1>(3, 0) = Sophus::SO3d::vee(Eigen::Matrix3d::Identity() - C_nn_obs);
 
-    // build Kalman gain:
-    MatrixRPose R = GPose_*P_*GPose_.transpose() + RPose_;
-    MatrixKPose K = P_*GPose_.transpose()*R.inverse();
+    Y = YPose_;
 
-    // perform Kalman correct:
-    P_ = (MatrixP::Identity() - K*GPose_)*P_;
-    X_ = X_ + K*(YPose_ - GPose_*X_);
+    // set measurement equation:
+    G = GPose_;
+
+    // set Kalman gain:
+    MatrixRPose R = GPose_*P_*GPose_.transpose() + RPose_;
+    K = P_*GPose_.transpose()*R.inverse();
 }
 
 /**
@@ -689,11 +662,10 @@ void ErrorStateKalmanFilter::CorrectErrorEstimationPose(
  * @return void
  */
 void ErrorStateKalmanFilter::CorrectErrorEstimationPoseVel(
-    const Eigen::Matrix4d &T_nb, 
-    const Eigen::Vector3d &v_b,
-    const Eigen::Vector3d &w_b
+    const Eigen::Matrix4d &T_nb, const Eigen::Vector3d &v_b, const Eigen::Vector3d &w_b,
+    Eigen::VectorXd &Y, Eigen::MatrixXd &G, Eigen::MatrixXd &K
 ) {
-    // parse measurement:
+    // set measurement:
     Eigen::Vector3d P_nn_obs = pose_.block<3, 1>(0,3) - T_nb.block<3, 1>(0,3);
     Eigen::Matrix3d C_nn_obs = pose_.block<3, 3>(0,0) * T_nb.block<3, 3>(0,0).transpose();
     Eigen::Vector3d v_bb_obs = pose_.block<3, 3>(0,0).transpose()*vel_ - v_b;
@@ -702,34 +674,35 @@ void ErrorStateKalmanFilter::CorrectErrorEstimationPoseVel(
     YPoseVel_.block<3, 1>(3, 0) = Sophus::SO3d::vee(Eigen::Matrix3d::Identity() - C_nn_obs);
     YPoseVel_.block<3, 1>(6, 0) = v_bb_obs;
 
+    Y = YPoseVel_;
+
     // set measurement equation:
     GPoseVel_.block<3, 3>(6, INDEX_ERROR_VEL) =  pose_.block<3, 3>(0,0).transpose();
     GPoseVel_.block<3, 3>(6, INDEX_ERROR_ORI) = -pose_.block<3, 3>(0,0).transpose()*Sophus::SO3d::hat(vel_);
 
+    G = GPoseVel_;
+
     if ( !IsTurning(w_b) && MOTION_CONSTRAINT.ACTIVATED ) {
-        // apply constraint on observation:
+        // set measurement, with motion constraint:
         VectorYPoseVelCons YPoseVelCons = VectorYPoseVelCons::Zero();
         YPoseVelCons.block<7, 1>(0, 0) = YPoseVel_.block<7, 1>(0, 0);
         YPoseVelCons(7, 0) = YPoseVel_(8, 0);
 
+        Y = YPoseVelCons;
+
+        // set measurement equation, with motion constraint:
         GPoseVelCons_.block<1, DIM_STATE>(6, 0) = GPoseVel_.block<1, DIM_STATE>(6, 0);
         GPoseVelCons_.block<1, DIM_STATE>(7, 0) = GPoseVel_.block<1, DIM_STATE>(8, 0);
 
-        // build Kalman gain:
+        G = GPoseVelCons_;
+
+        // set Kalman gain, with motion constraint:
         MatrixRPoseVelCons RCons = GPoseVelCons_*P_*GPoseVelCons_.transpose() + CPoseVelCons_*RPoseVel_*CPoseVelCons_.transpose();
-        MatrixKPoseVelCons KCons = P_*GPoseVelCons_.transpose()*RCons.inverse();
-
-        // perform Kalman correct:
-        P_ = (MatrixP::Identity() - KCons*GPoseVelCons_)*P_;
-        X_ = X_ + KCons*(YPoseVelCons - GPoseVelCons_*X_);
+        K = P_*GPoseVelCons_.transpose()*RCons.inverse();
     } else {
-        // build Kalman gain:
+        // set Kalman gain:
         MatrixRPoseVel R = GPoseVel_*P_*GPoseVel_.transpose() + RPoseVel_;
-        MatrixKPoseVel K = P_*GPoseVel_.transpose()*R.inverse();
-
-        // perform Kalman correct:
-        P_ = (MatrixP::Identity() - K*GPoseVel_)*P_;
-        X_ = X_ + K*(YPoseVel_ - GPoseVel_*X_);
+        K = P_*GPoseVel_.transpose()*R.inverse();
     }
 }
 
@@ -739,20 +712,22 @@ void ErrorStateKalmanFilter::CorrectErrorEstimationPoseVel(
  * @return void
  */
 void ErrorStateKalmanFilter::CorrectErrorEstimationPosi(
-    const Eigen::Matrix4d &T_nb
+    const Eigen::Matrix4d &T_nb,
+    Eigen::VectorXd &Y, Eigen::MatrixXd &G, Eigen::MatrixXd &K
 ) {
-    // parse measurement:
+    // set measurement:
     Eigen::Vector3d P_nn_obs = pose_.block<3, 1>(0,3) - T_nb.block<3, 1>(0,3);
 
     YPosi_.block<3, 1>(0, 0) = P_nn_obs;
 
-    // build Kalman gain:
-    MatrixRPosi R = GPosi_*P_*GPosi_.transpose() + RPosi_;
-    MatrixKPosi K = P_*GPosi_.transpose()*R.inverse();
+    Y = YPosi_;
 
-    // perform Kalman correct:
-    P_ = (MatrixP::Identity() - K*GPosi_)*P_;
-    X_ = X_ + K*(YPosi_ - GPosi_*X_);
+    // set measurement equation:
+    G = GPosi_;
+
+    // set Kalman gain:
+    MatrixRPosi R = GPosi_*P_*GPosi_.transpose() + RPosi_;
+    K = P_*GPosi_.transpose()*R.inverse();
 }
 
 /**
@@ -762,9 +737,8 @@ void ErrorStateKalmanFilter::CorrectErrorEstimationPosi(
  * @return void
  */
 void ErrorStateKalmanFilter::CorrectErrorEstimationPosiVel(
-    const Eigen::Matrix4d &T_nb, 
-    const Eigen::Vector3d &v_b,
-    const Eigen::Vector3d &w_b
+    const Eigen::Matrix4d &T_nb, const Eigen::Vector3d &v_b, const Eigen::Vector3d &w_b,
+    Eigen::VectorXd &Y, Eigen::MatrixXd &G, Eigen::MatrixXd &K
 ) {
     // parse measurement:
     Eigen::Vector3d P_nn_obs = pose_.block<3, 1>(0,3) - T_nb.block<3, 1>(0,3);
@@ -773,34 +747,35 @@ void ErrorStateKalmanFilter::CorrectErrorEstimationPosiVel(
     YPosiVel_.block<3, 1>(0, 0) = P_nn_obs;
     YPosiVel_.block<3, 1>(3, 0) = v_bb_obs;
 
+    Y = YPosiVel_;
+
     // set measurement equation:
     GPosiVel_.block<3, 3>(3, INDEX_ERROR_VEL) =  pose_.block<3, 3>(0,0).transpose();
     GPosiVel_.block<3, 3>(3, INDEX_ERROR_ORI) = -pose_.block<3, 3>(0,0).transpose()*Sophus::SO3d::hat(vel_);
 
+    G = GPosiVel_;
+
     if ( !IsTurning(w_b) && MOTION_CONSTRAINT.ACTIVATED ) {
-        // apply constraint on observation:
+        // set measurement, with motion constraint:
         VectorYPosiVelCons YPosiVelCons = VectorYPosiVelCons::Zero();
         YPosiVelCons.block<4, 1>(0, 0) = YPosiVel_.block<4, 1>(0, 0);
         YPosiVelCons(4, 0) = YPosiVel_(5, 0);
 
+        Y = YPosiVelCons;
+
+        // set measurement equation, with motion constraint:
         GPosiVelCons_.block<1, DIM_STATE>(3, 0) = GPosiVel_.block<1, DIM_STATE>(3, 0);
         GPosiVelCons_.block<1, DIM_STATE>(4, 0) = GPosiVel_.block<1, DIM_STATE>(5, 0);
 
-        // build Kalman gain:
+        G = GPosiVelCons_;
+
+        // set Kalman gain:
         MatrixRPosiVelCons RCons = GPosiVelCons_*P_*GPosiVelCons_.transpose() + CPosiVelCons_*RPosiVel_*CPosiVelCons_.transpose();
-        MatrixKPosiVelCons KCons = P_*GPosiVelCons_.transpose()*RCons.inverse();
-
-        // perform Kalman correct:
-        P_ = (MatrixP::Identity() - KCons*GPosiVelCons_)*P_;
-        X_ = X_ + KCons*(YPosiVelCons - GPosiVelCons_*X_);
+        K = P_*GPosiVelCons_.transpose()*RCons.inverse();
     } else {
-        // build Kalman gain:
+        // set Kalman gain:
         MatrixRPosiVel R = GPosiVel_*P_*GPosiVel_.transpose() + RPosiVel_;
-        MatrixKPosiVel K = P_*GPosiVel_.transpose()*R.inverse();
-
-        // perform Kalman correct:
-        P_ = (MatrixP::Identity() - K*GPosiVel_)*P_;
-        X_ = X_ + K*(YPosiVel_ - GPosiVel_*X_);
+        K = P_*GPosiVel_.transpose()*R.inverse();
     }
 }
 
@@ -814,48 +789,39 @@ void ErrorStateKalmanFilter::CorrectErrorEstimation(
     const MeasurementType &measurement_type, 
     const Measurement &measurement
 ) {
-    static int count = 0;
-
+    Eigen::VectorXd Y;
+    Eigen::MatrixXd G, K;
     switch ( measurement_type ) {
         case MeasurementType::POSE:
-            CorrectErrorEstimationPose(measurement.T_nb);
+            CorrectErrorEstimationPose(
+                measurement.T_nb,
+                Y, G, K
+            );
             break;
         case MeasurementType::POSE_VEL:
             CorrectErrorEstimationPoseVel(
-                measurement.T_nb,
-                measurement.v_b,
-                measurement.w_b
+                measurement.T_nb, measurement.v_b, measurement.w_b,
+                Y, G, K
             );
             break;
         case MeasurementType::POSI:
-            CorrectErrorEstimationPosi(measurement.T_nb);
+            CorrectErrorEstimationPosi(
+                measurement.T_nb,
+                Y, G, K
+            );
             break;
         case MeasurementType::POSI_VEL:
             CorrectErrorEstimationPosiVel(
-                measurement.T_nb,
-                measurement.v_b,
-                measurement.w_b
+                measurement.T_nb, measurement.v_b, measurement.w_b,
+                Y, G, K
             );
         default:
             break;
     }
 
-    if (
-        0 == (++count % 10) 
-    ) {
-        count = 0;
-        /*
-        // covariance monitor, correct step, debugging only
-        LOG(INFO) << std::endl 
-                  << "Correct" << std::endl
-                  << P_( 0,  0) << ", " << P_( 1,  1) << ", " << P_( 2,  2) << std::endl
-                  << P_( 3,  3) << ", " << P_( 4,  4) << ", " << P_( 5,  5) << std::endl
-                  << P_( 6,  6) << ", " << P_( 7,  7) << ", " << P_( 8,  8) << std::endl
-                  << P_( 9,  9) << ", " << P_(10, 10) << ", " << P_(11, 11) << std::endl
-                  << P_(12, 12) << ", " << P_(13, 13) << ", " << P_(14, 14) << std::endl
-                  << std::endl;
-        */
-    }
+    // perform Kalman correct:
+    P_ = (MatrixP::Identity() - K*G)*P_;
+    X_ = X_ + K*(Y - G*X_);
 }
 
 /**
@@ -1025,73 +991,12 @@ void ErrorStateKalmanFilter::UpdateObservabilityAnalysis(
     observability.Q_.push_back(Q);
 }
 
-void ErrorStateKalmanFilter::AnalyzeQ(
-    const double &time, const Eigen::MatrixXd &Q,
-    std::vector<std::vector<double>> &data
-) {
-    // perform SVD analysis:
-    Eigen::JacobiSVD<Eigen::MatrixXd> svd(Q, Eigen::ComputeFullV);
-
-    // add record:
-    std::vector<double> record;
-
-    // a. record timestamp:
-    record.push_back(time);
-
-    // b. record singular values:
-    for (int i = 0; i < DIM_STATE; ++i) {
-        record.push_back(svd.singularValues()(i, 0));
-    }
-
-    // c. record degree of observability:
-    VectorX X = VectorX::Zero();
-    for (int i = 0; i < DIM_STATE; ++i) {
-        Eigen::MatrixXd::Index sv_index;
-        svd.matrixV().col(i).maxCoeff(&sv_index);
-        X(sv_index) = svd.singularValues()(i);
-    }
-    X = 100.0 / svd.singularValues().maxCoeff() * X;
-
-    for (int i = 0; i < DIM_STATE; ++i) {
-        record.push_back(X(i));
-    }
-
-    // add to data:
-    data.push_back(record);
-}
-
-void ErrorStateKalmanFilter::WriteAsCSV(
-    const std::vector<std::vector<double>> &data,
-    const std::string filename
-) {
-    // init:
-    CSVWriter csv(",");
-    csv.enableAutoNewRow(1 + 2*DIM_STATE);
-
-    // a. write header:
-    csv << "T";
-    for (int i = 0; i < DIM_STATE; ++i) {
-        csv << ("sv" + std::to_string(i + 1)); 
-    }
-    for (int i = 0; i < DIM_STATE; ++i) {
-        csv << ("doo" + std::to_string(i + 1)); 
-    }
-
-    // b. write contents:
-    for (const auto &record: data) {
-        // cast timestamp to int:
-        csv << static_cast<int>(record.at(0));
-
-        for (size_t i = 1; i < record.size(); ++i) {
-            csv << std::fabs(record.at(i));
-        }    
-    }
-
-    // save to persistent storage:
-    csv.writeToFile(filename);
-}
-
-void ErrorStateKalmanFilter::SaveObservabilityAnalysis(
+/**
+ * @brief  save observability analysis to persistent storage
+ * @param  measurement_type, measurement type
+ * @return void
+ */
+bool ErrorStateKalmanFilter::SaveObservabilityAnalysis(
     const MeasurementType &measurement_type
 ) {
     // get fusion strategy:
@@ -1110,7 +1015,7 @@ void ErrorStateKalmanFilter::SaveObservabilityAnalysis(
             type = std::string("position_velocity");
             break;
         default:
-            return;
+            return false;
             break;
     }
 
@@ -1129,16 +1034,18 @@ void ErrorStateKalmanFilter::SaveObservabilityAnalysis(
 
         Qso.block(i * N, 0, N, DIM_STATE) = Q;
 
-        AnalyzeQ(time, Q, q_data);
+        KalmanFilter::AnalyzeQ(DIM_STATE, time, Q, q_data);
 
-        AnalyzeQ(time, Qso.block(0, 0, (i + 1)*N, DIM_STATE), q_so_data);
+        KalmanFilter::AnalyzeQ(DIM_STATE, time, Qso.block(0, 0, (i + 1)*N, DIM_STATE), q_so_data);
     }
 
     std::string q_data_csv = WORK_SPACE_PATH + "/slam_data/observability/" + type + ".csv";
     std::string q_so_data_csv = WORK_SPACE_PATH + "/slam_data/observability/" + type + "_som.csv";
 
-    WriteAsCSV(q_data, q_data_csv);
-    WriteAsCSV(q_so_data, q_so_data_csv);
+    KalmanFilter::WriteAsCSV(DIM_STATE, q_data, q_data_csv);
+    KalmanFilter::WriteAsCSV(DIM_STATE, q_so_data, q_so_data_csv);
+
+    return true;
 }
 
 } // namespace lidar_localization

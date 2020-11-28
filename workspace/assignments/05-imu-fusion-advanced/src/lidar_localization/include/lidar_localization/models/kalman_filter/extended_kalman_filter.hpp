@@ -70,16 +70,16 @@ public:
         const double &time,
         const MeasurementType &measurement_type
     );
-
+    
     /**
      * @brief  save observability analysis to persistent storage
      * @param  measurement_type, measurement type
      * @return void
      */
-    void SaveObservabilityAnalysis(
+    bool SaveObservabilityAnalysis(
         const MeasurementType &measurement_type
     );
-    
+
 private:
     // dimensions:
     static const int DIM_STATE = 16;
@@ -151,12 +151,12 @@ private:
     typedef Eigen::Matrix<double,                      DIM_STATE,   DIM_MEASUREMENT_POSI_VEL_MAG> MatrixKPosiVelMag;
 
     // state observality matrix:
-    typedef Eigen::Matrix<double, DIM_STATE*        DIM_MEASUREMENT_POSE, DIM_STATE> MatrixSOMPose;
-    typedef Eigen::Matrix<double, DIM_STATE*    DIM_MEASUREMENT_POSE_VEL, DIM_STATE> MatrixSOMPoseVel;
-    typedef Eigen::Matrix<double, DIM_STATE*        DIM_MEASUREMENT_POSI, DIM_STATE> MatrixSOMPosi;
-    typedef Eigen::Matrix<double, DIM_STATE*    DIM_MEASUREMENT_POSI_VEL, DIM_STATE> MatrixSOMPosiVel;
-    typedef Eigen::Matrix<double, DIM_STATE*    DIM_MEASUREMENT_POSI_MAG, DIM_STATE> MatrixSOMPosiMag;
-    typedef Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSI_VEL_MAG, DIM_STATE> MatrixSOMPosiVelMag;
+    typedef Eigen::Matrix<double, DIM_STATE*        DIM_MEASUREMENT_POSE, DIM_STATE> MatrixQPose;
+    typedef Eigen::Matrix<double, DIM_STATE*    DIM_MEASUREMENT_POSE_VEL, DIM_STATE> MatrixQPoseVel;
+    typedef Eigen::Matrix<double, DIM_STATE*        DIM_MEASUREMENT_POSI, DIM_STATE> MatrixQPosi;
+    typedef Eigen::Matrix<double, DIM_STATE*    DIM_MEASUREMENT_POSI_VEL, DIM_STATE> MatrixQPosiVel;
+    typedef Eigen::Matrix<double, DIM_STATE*    DIM_MEASUREMENT_POSI_MAG, DIM_STATE> MatrixQPosiMag;
+    typedef Eigen::Matrix<double, DIM_STATE*DIM_MEASUREMENT_POSI_VEL_MAG, DIM_STATE> MatrixQPosVelMag;
 
     /**
      * @brief  get block matrix for velocity update by orientation quaternion
@@ -280,6 +280,7 @@ private:
      * @return void
      */
     void UpdatePosition(const double &T, const Eigen::Vector3d &velocity_delta);
+    
     /**
      * @brief  update state estimation
      * @param  void
@@ -386,59 +387,48 @@ private:
      * @return void
      */
     void ResetCovariance(void);
-    /**
-     * @brief  update observability analysis for pose measurement
-     * @param  void
-     * @return void
-     */
-    void UpdateObservabilityAnalysisPose(
-        const double &time, std::vector<double> &record
-    );
 
     /**
-     * @brief  update observability analysis for pose & body velocity measurement
+     * @brief  get Q for pose measurement
      * @param  void
      * @return void
      */
-    void UpdateObservabilityAnalysisPoseVel(
-        const double &time, std::vector<double> &record
-    );
+    void GetQPose(Eigen::MatrixXd &Q);
 
     /**
-     * @brief  update observability analysis for GNSS position
+     * @brief  get Q for pose & body velocity measurement
      * @param  void
      * @return void
      */
-    void UpdateObservabilityAnalysisPosi(
-        const double &time, std::vector<double> &record
-    );
+    void GetQPoseVel(Eigen::MatrixXd &Q);
 
     /**
-     * @brief  update observability analysis for GNSS position & magneto measurement
+     * @brief  get Q for GNSS position measurement
      * @param  void
-     * @return void
+     * @return QPosi
      */
-    void UpdateObservabilityAnalysisPosiVel(
-        const double &time, std::vector<double> &record
-    );
+    void GetQPosi(Eigen::MatrixXd &Q);
 
     /**
-     * @brief  update observability analysis for GNSS position & magneto measurement
+     * @brief  get Q for GNSS position & body velocity measurement
      * @param  void
-     * @return void
+     * @return QPosiVel
      */
-    void UpdateObservabilityAnalysisPosiMag(
-        const double &time, std::vector<double> &record
-    );
+    void GetQPosiVel(Eigen::MatrixXd &Q);
 
     /**
-     * @brief  update observability analysis for GNSS position, body velocity & magneto measurement
+     * @brief  get Q for GNSS position & magneto measurement
      * @param  void
-     * @return void
+     * @return QPosiMag
      */
-    void UpdateObservabilityAnalysisPosiVelMag(
-        const double &time, std::vector<double> &record
-    );
+    void GetQPosiMag(Eigen::MatrixXd &Q);
+
+    /**
+     * @brief  get Q for GNSS position, body velocity & magneto measurement
+     * @param  void
+     * @return QPosiVelMag
+     */
+    void GetQPosiVelMag(Eigen::MatrixXd &Q);
      
     // init pose, vel, gyro & accel bias:
     Eigen::Matrix4d init_pose_ = Eigen::Matrix4d::Identity();
@@ -475,12 +465,12 @@ private:
     MatrixRPosiMag RPosiMag_ = MatrixRPosiMag::Zero();
     MatrixRPosiVelMag RPosiVelMag_ = MatrixRPosiVelMag::Zero();
 
-    MatrixSOMPose SOMPose_ = MatrixSOMPose::Zero();
-    MatrixSOMPoseVel SOMPoseVel_ = MatrixSOMPoseVel::Zero();
-    MatrixSOMPosi SOMPosi_ = MatrixSOMPosi::Zero();
-    MatrixSOMPosiVel SOMPosiVel_ = MatrixSOMPosiVel::Zero();
-    MatrixSOMPosiMag SOMPosiMag_ = MatrixSOMPosiMag::Zero();
-    MatrixSOMPosiVelMag SOMPosiVelMag_ = MatrixSOMPosiVelMag::Zero();
+    MatrixQPose QPose_ = MatrixQPose::Zero();
+    MatrixQPoseVel QPoseVel_ = MatrixQPoseVel::Zero();
+    MatrixQPosi QPosi_ = MatrixQPosi::Zero();
+    MatrixQPosiVel QPosiVel_ = MatrixQPosiVel::Zero();
+    MatrixQPosiMag QPosiMag_ = MatrixQPosiMag::Zero();
+    MatrixQPosVelMag QPosVelMag_ = MatrixQPosVelMag::Zero();
 
     // measurement:
     VectorYPose YPose_;
