@@ -80,8 +80,9 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(const YAML::Node& node) {
     COV.MEASUREMENT.VEL = node["covariance"]["measurement"]["vel"].as<double>();
     COV.MEASUREMENT.MAG = node["covariance"]["measurement"]["mag"].as<double>();
     // e. motion constraint:
-    MOTION_CONSTRAINT.ACTIVATED = node["motion_constraint"].as<bool>();
-    
+    MOTION_CONSTRAINT.ACTIVATED = node["motion_constraint"]["activated"].as<bool>();
+    MOTION_CONSTRAINT.W_B_THRESH = node["motion_constraint"]["w_b_thresh"].as<double>();
+
     // prompt:
     LOG(INFO) << std::endl 
               << "Iterative Extended Kalman Filter params:" << std::endl
@@ -109,7 +110,9 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(const YAML::Node& node) {
               << "\tmeasurement noise vel.: " << COV.MEASUREMENT.VEL << std::endl
               << "\tmeasurement noise mag.: " << COV.MEASUREMENT.MAG << std::endl
               << std::endl
-              << "\tuse motion constraint: " << (MOTION_CONSTRAINT.ACTIVATED ? "true" : "false") << std::endl
+              << "\tmotion constraint: " << std::endl 
+              << "\t\tactivated: " << (MOTION_CONSTRAINT.ACTIVATED ? "true" : "false") << std::endl
+              << "\t\tw_b threshold: " << MOTION_CONSTRAINT.W_B_THRESH << std::endl
               << std::endl;
     
     //
@@ -144,6 +147,10 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(const YAML::Node& node) {
     RPose_.block<3, 3>(0, 0) = COV.MEASUREMENT.POSE.POSI*Eigen::Matrix3d::Identity();
     RPose_.block<4, 4>(3, 3) = COV.MEASUREMENT.POSE.ORI*Eigen::Matrix4d::Identity();
 
+    RPoseVel_.block<3, 3>(0, 0) = COV.MEASUREMENT.POSE.POSI*Eigen::Matrix3d::Identity();
+    RPoseVel_.block<4, 4>(3, 3) = COV.MEASUREMENT.POSE.ORI*Eigen::Matrix4d::Identity();
+    RPoseVel_.block<3, 3>(7, 7) = COV.MEASUREMENT.VEL*Eigen::Matrix3d::Identity();
+
     RPosi_.block<3, 3>(0, 0) = COV.MEASUREMENT.POSI*Eigen::Matrix3d::Identity();
 
     RPosiVel_.block<3, 3>(0, 0) = COV.MEASUREMENT.POSI*Eigen::Matrix3d::Identity();
@@ -163,6 +170,9 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(const YAML::Node& node) {
     GPose_.block<3, 3>( 0, INDEX_POS ) = Eigen::Matrix3d::Identity();
     GPose_.block<4, 4>( 3, INDEX_ORI ) = Eigen::Matrix4d::Identity();
 
+    GPoseVel_.block<3, 3>( 0, INDEX_POS ) = Eigen::Matrix3d::Identity();
+    GPoseVel_.block<4, 4>( 3, INDEX_ORI ) = Eigen::Matrix4d::Identity();
+
     GPosi_.block<3, 3>( 0, INDEX_POS ) = Eigen::Matrix3d::Identity();
 
     GPosiVel_.block<3, 3>( 0, INDEX_POS ) = Eigen::Matrix3d::Identity();
@@ -173,6 +183,7 @@ ExtendedKalmanFilter::ExtendedKalmanFilter(const YAML::Node& node) {
 
     // init soms:
     SOMPose_.block<DIM_MEASUREMENT_POSE, DIM_STATE>(0, 0) = GPose_;
+    SOMPoseVel_.block<DIM_MEASUREMENT_POSE_VEL, DIM_STATE>(0, 0) = GPoseVel_;
     SOMPosi_.block<DIM_MEASUREMENT_POSI, DIM_STATE>(0, 0) = GPosi_;
     SOMPosiVel_.block<DIM_MEASUREMENT_POSI_VEL, DIM_STATE>(0, 0) = GPosiVel_;
     SOMPosiMag_.block<DIM_MEASUREMENT_POSI_MAG, DIM_STATE>(0, 0) = GPosiMag_;
@@ -753,7 +764,7 @@ void ExtendedKalmanFilter::UpdateCovarianceEstimation(
 
 /**
  * @brief  correct state estimation using frontend pose
- * @param  T_nb, input GNSS position
+ * @param  T_nb, input frontend pose estimation
  * @return void
  */
 void ExtendedKalmanFilter::CorrectStateEstimationPose(
@@ -778,8 +789,9 @@ void ExtendedKalmanFilter::CorrectStateEstimationPose(
     // normalize quaternion:
     X_.block<4, 1>( INDEX_ORI, 0 ).normalize();
 
-    // apply motion constraint:
-    ApplyMotionConstraint();
+    // update bias:
+    if (IsCovStable(INDEX_GYRO_BIAS))  gyro_bias_ = X_.block<3, 1>(INDEX_GYRO_BIAS, 0);
+    if (IsCovStable(INDEX_ACCEL_BIAS)) accel_bias_ = X_.block<3, 1>(INDEX_ACCEL_BIAS, 0);
 }
 
 /**
@@ -804,8 +816,9 @@ void ExtendedKalmanFilter::CorrectStateEstimationPosi(
     // normalize quaternion:
     X_.block<4, 1>( INDEX_ORI, 0 ).normalize();
 
-    // apply motion constraint:
-    ApplyMotionConstraint();
+    // update bias:
+    if (IsCovStable(INDEX_GYRO_BIAS))  gyro_bias_ = X_.block<3, 1>(INDEX_GYRO_BIAS, 0);
+    if (IsCovStable(INDEX_ACCEL_BIAS)) accel_bias_ = X_.block<3, 1>(INDEX_ACCEL_BIAS, 0);
 }
 
 /**
@@ -833,6 +846,61 @@ Eigen::Matrix<double, 3, 4> ExtendedKalmanFilter::GetGMOri(
           -G(2), -G(3), +G(0), +G(1);
 
     return Gq;
+}
+
+/**
+ * @brief  correct state estimation using frontend pose & body velocity measurement
+ * @param  T_nb, input frontend pose estimation
+ * @param  v_b, input odo
+ * @return void
+ */
+void ExtendedKalmanFilter::CorrectStateEstimationPoseVel(
+    const Eigen::Matrix4d &T_nb, 
+    const Eigen::Vector3d &v_b
+) {
+    // parse measurement:
+    YPoseVel_.block<3, 1>(0, 0) = T_nb.block<3, 1>(0,3);
+
+    Eigen::Quaterniond q_nb_obs(T_nb.block<3, 3>(0,0));
+    YPoseVel_(3, 0) = q_nb_obs.w();
+    YPoseVel_(4, 0) = q_nb_obs.x();
+    YPoseVel_(5, 0) = q_nb_obs.y();
+    YPoseVel_(6, 0) = q_nb_obs.z();
+
+    YPoseVel_.block<3, 1>(7, 0) = v_b;
+
+    // iterative observation:
+    for (size_t i = 0; i < 3; ++i) {
+        // set observation equation:
+        Eigen::Quaterniond q_nb_pred(
+            X_(INDEX_ORI + 0, 0),
+            X_(INDEX_ORI + 1, 0),
+            X_(INDEX_ORI + 2, 0),
+            X_(INDEX_ORI + 3, 0)
+        );
+        Eigen::Matrix3d C_nb_pred = q_nb_pred.toRotationMatrix();
+        GPoseVel_.block<3, 3>( 7, INDEX_VEL ) = C_nb_pred.transpose();
+        GPoseVel_.block<3, 4>( 7, INDEX_ORI ) = GetGMOri(X_.block<3, 1>(INDEX_VEL, 0), q_nb_pred);
+
+        // build Kalman gain:
+        MatrixRPoseVel R = GPoseVel_*P_*GPoseVel_.transpose() + RPoseVel_;
+        MatrixKPoseVel K = P_*GPoseVel_.transpose()*R.inverse();
+        VectorYPoseVel Y = VectorYPoseVel::Zero();
+        Y.block<3, 1>(0, 0) = X_.block<3, 1>(INDEX_POS, 0);
+        Y.block<4, 1>(3, 0) = X_.block<4, 1>(INDEX_ORI, 0);
+        Y.block<3, 1>(7, 0) = C_nb_pred.transpose() * X_.block<3, 1>(INDEX_VEL, 0);
+
+        // perform Kalman correct:
+        P_ = (MatrixP::Identity() - K*GPoseVel_)*P_;
+        X_ = X_ + K*(YPoseVel_ - Y);
+
+        // normalize quaternion:
+        X_.block<4, 1>( INDEX_ORI, 0 ).normalize();
+    }
+
+    // update bias:
+    // if (IsCovStable(INDEX_GYRO_BIAS))  gyro_bias_ = X_.block<3, 1>(INDEX_GYRO_BIAS, 0);
+    // if (IsCovStable(INDEX_ACCEL_BIAS)) accel_bias_ = X_.block<3, 1>(INDEX_ACCEL_BIAS, 0);
 }
 
 /**
@@ -873,10 +941,11 @@ void ExtendedKalmanFilter::CorrectStateEstimationPosiVel(
         
         // normalize quaternion:
         X_.block<4, 1>( INDEX_ORI, 0 ).normalize();
-
-        // apply motion constraint:
-        ApplyMotionConstraint();
     }
+
+    // update bias:
+    if (IsCovStable(INDEX_GYRO_BIAS))  gyro_bias_ = X_.block<3, 1>(INDEX_GYRO_BIAS, 0);
+    if (IsCovStable(INDEX_ACCEL_BIAS)) accel_bias_ = X_.block<3, 1>(INDEX_ACCEL_BIAS, 0);
 }
 
 /**
@@ -910,15 +979,6 @@ void ExtendedKalmanFilter::CorrectStateEstimationPosiMag(
         VectorYPosiMag Y = VectorYPosiMag::Zero();
         Y.block<3, 1>(0, 0) = X_.block<3, 1>( INDEX_POS, 0);
         Y.block<3, 1>(3, 0) = C_nb.transpose() * b_;
-        
-        /*
-        // magneto monitor:
-        LOG(INFO) << "Mag:"
-                  << "\tPrediction: " << Y(3, 0) << ", " << Y(4, 0) << ", " << Y(5, 0)
-                  << " -- "
-                  << "\tMeasurement: " << B_b(0) << ", " << B_b(1) << ", " << B_b(2)
-                  << std::endl; 
-        */
 
         // perform Kalman correct:
         P_ = (MatrixP::Identity() - K*GPosiMag_)*P_;
@@ -926,14 +986,11 @@ void ExtendedKalmanFilter::CorrectStateEstimationPosiMag(
 
         // normalize quaternion:
         X_.block<4, 1>( INDEX_ORI, 0 ).normalize();
-
-        // apply motion constraint:
-        ApplyMotionConstraint();
     }
 
     // update bias:
-    // gyro_bias_ = X_.block<3, 1>(INDEX_GYRO_BIAS, 0);
-    // accel_bias_ = X_.block<3, 1>(INDEX_ACCEL_BIAS, 0);
+    if (IsCovStable(INDEX_GYRO_BIAS))  gyro_bias_ = X_.block<3, 1>(INDEX_GYRO_BIAS, 0);
+    if (IsCovStable(INDEX_ACCEL_BIAS)) accel_bias_ = X_.block<3, 1>(INDEX_ACCEL_BIAS, 0);
 }
 
 /**
@@ -973,29 +1030,17 @@ void ExtendedKalmanFilter::CorrectStateEstimationPosiVelMag(
         Y.block<3, 1>(3, 0) = C_nb.transpose() * X_.block<3, 1>(INDEX_VEL, 0);
         Y.block<3, 1>(6, 0) = C_nb.transpose() * b_;
         
-        /*
-        // magneto monitor:
-        LOG(INFO) << "Mag:"
-                  << "\tPrediction: " << Y(3, 0) << ", " << Y(4, 0) << ", " << Y(5, 0)
-                  << " -- "
-                  << "\tMeasurement: " << B_b(0) << ", " << B_b(1) << ", " << B_b(2)
-                  << std::endl; 
-        */
-
         // perform Kalman correct:
         P_ = (MatrixP::Identity() - K*GPosiVelMag_)*P_;
         X_ = X_ + K*(YPosiVelMag_ - Y);
 
         // normalize quaternion:
         X_.block<4, 1>( INDEX_ORI, 0 ).normalize();
-
-        // apply motion constraint:
-        ApplyMotionConstraint();
     }
 
     // update bias:
-    // gyro_bias_ = X_.block<3, 1>(INDEX_GYRO_BIAS, 0);
-    // accel_bias_ = X_.block<3, 1>(INDEX_ACCEL_BIAS, 0);
+    if (IsCovStable(INDEX_GYRO_BIAS))  gyro_bias_ = X_.block<3, 1>(INDEX_GYRO_BIAS, 0);
+    if (IsCovStable(INDEX_ACCEL_BIAS)) accel_bias_ = X_.block<3, 1>(INDEX_ACCEL_BIAS, 0);
 }
 
 /**
@@ -1013,6 +1058,9 @@ void ExtendedKalmanFilter::CorrectStateEstimation(
     switch ( measurement_type ) {
         case MeasurementType::POSE:
             CorrectStateEstimationPose(measurement.T_nb);
+            break;
+        case MeasurementType::POSE_VEL:
+            CorrectStateEstimationPoseVel(measurement.T_nb, measurement.v_b);
             break;
         case MeasurementType::POSI:
             CorrectStateEstimationPosi(measurement.T_nb);
@@ -1050,23 +1098,23 @@ void ExtendedKalmanFilter::CorrectStateEstimation(
 
 /**
  * @brief  is covariance stable
- * @param  INDEX_OFSET, state index offset
+ * @param  INDEX_OFFSET, state index offset
  * @param  THRESH, covariance threshold, defaults to 1.0e-5
  * @return void
  */
 bool ExtendedKalmanFilter::IsCovStable(
-    const int INDEX_OFSET,
+    const int INDEX_OFFSET,
     const double THRESH
 ) {
-    if ( INDEX_ORI == INDEX_OFSET ) {
+    if ( INDEX_ORI == INDEX_OFFSET ) {
         for (int i = 0; i < 4; ++i) {
-            if ( P_(INDEX_OFSET + i, INDEX_OFSET + i) > THRESH ) {
+            if ( P_(INDEX_OFFSET + i, INDEX_OFFSET + i) > THRESH ) {
                 return false;
             }
         }
     } else {
         for (int i = 0; i < 3; ++i) {
-            if ( P_(INDEX_OFSET + i, INDEX_OFSET + i) > THRESH ) {
+            if ( P_(INDEX_OFFSET + i, INDEX_OFFSET + i) > THRESH ) {
                 return false;
             }
         }
@@ -1138,6 +1186,17 @@ void ExtendedKalmanFilter::UpdateObservabilityAnalysisPose(
     for (int i = 0; i < DIM_STATE; ++i) {
         record.push_back(X(i, 0));
     }
+}
+
+/**
+ * @brief  update observability analysis for pose & body velocity measurement
+ * @param  void
+ * @return void
+ */
+void ExtendedKalmanFilter::UpdateObservabilityAnalysisPoseVel(
+    const double &time, std::vector<double> &record
+) {
+
 }
 
 /**
@@ -1316,6 +1375,10 @@ void ExtendedKalmanFilter::UpdateObservabilityAnalysis(
             UpdateObservabilityAnalysisPose(time, record);
             observability.pose_.push_back(record);
             break;
+        case MeasurementType::POSE_VEL:
+            UpdateObservabilityAnalysisPoseVel(time, record);
+            observability.pose_vel_.push_back(record);
+            break;
         case MeasurementType::POSI:
             UpdateObservabilityAnalysisPosi(time, record);
             observability.posi_.push_back(record);
@@ -1347,6 +1410,10 @@ void ExtendedKalmanFilter::SaveObservabilityAnalysis(
         case MeasurementType::POSE:
             data = &(observability.pose_);
             type = std::string("pose");
+            break;
+        case MeasurementType::POSE_VEL:
+            data = &(observability.pose_vel_);
+            type = std::string("pose_velocity");
             break;
         case MeasurementType::POSI:
             data = &(observability.posi_);

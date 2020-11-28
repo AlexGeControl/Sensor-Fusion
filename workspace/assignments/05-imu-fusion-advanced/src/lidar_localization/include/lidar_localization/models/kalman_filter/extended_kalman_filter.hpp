@@ -128,7 +128,7 @@ private:
     typedef Eigen::Matrix<double,       DIM_MEASUREMENT_POSI_VEL_MAG, DIM_MEASUREMENT_POSI_VEL_MAG_NOISE> MatrixCPosiVelMag;
 
     typedef Eigen::Matrix<double,         DIM_MEASUREMENT_POSE_NOISE,         DIM_MEASUREMENT_POSE_NOISE> MatrixRPose;
-    typedef Eigen::Matrix<double,     DIM_MEASUREMENT_POSE_VEL_NOISE,     DIM_MEASUREMENT_POSI_VEL_NOISE> MatrixRPoseVel;
+    typedef Eigen::Matrix<double,     DIM_MEASUREMENT_POSE_VEL_NOISE,     DIM_MEASUREMENT_POSE_VEL_NOISE> MatrixRPoseVel;
     typedef Eigen::Matrix<double,         DIM_MEASUREMENT_POSI_NOISE,         DIM_MEASUREMENT_POSI_NOISE> MatrixRPosi;
     typedef Eigen::Matrix<double,     DIM_MEASUREMENT_POSI_VEL_NOISE,     DIM_MEASUREMENT_POSI_VEL_NOISE> MatrixRPosiVel;
     typedef Eigen::Matrix<double,     DIM_MEASUREMENT_POSI_MAG_NOISE,     DIM_MEASUREMENT_POSI_MAG_NOISE> MatrixRPosiMag;
@@ -297,6 +297,17 @@ private:
     );
 
     /**
+     * @brief  correct state estimation using frontend pose & body velocity measurement
+     * @param  T_nb, input frontend pose estimation
+     * @param  v_b, input odo
+     * @return void
+     */
+    void CorrectStateEstimationPoseVel(
+        const Eigen::Matrix4d &T_nb, 
+        const Eigen::Vector3d &v_b
+    );
+
+    /**
      * @brief  correct state estimation using GNSS position
      * @param  T_nb, input GNSS position
      * @return void
@@ -381,6 +392,15 @@ private:
      * @return void
      */
     void UpdateObservabilityAnalysisPose(
+        const double &time, std::vector<double> &record
+    );
+
+    /**
+     * @brief  update observability analysis for pose & body velocity measurement
+     * @param  void
+     * @return void
+     */
+    void UpdateObservabilityAnalysisPoseVel(
         const double &time, std::vector<double> &record
     );
 

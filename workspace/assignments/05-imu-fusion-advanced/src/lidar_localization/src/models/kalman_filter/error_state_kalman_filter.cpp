@@ -74,7 +74,9 @@ ErrorStateKalmanFilter::ErrorStateKalmanFilter(const YAML::Node& node) {
               << "\tmeasurement noise pos.: " << COV.MEASUREMENT.POSI << std::endl
               << "\tmeasurement noise vel.: " << COV.MEASUREMENT.VEL << std::endl
               << std::endl
-              << "\tuse motion constraint: " << (MOTION_CONSTRAINT.ACTIVATED ? "true" : "false") << std::endl
+              << "\tmotion constraint: " << std::endl 
+              << "\t\tactivated: " << (MOTION_CONSTRAINT.ACTIVATED ? "true" : "false") << std::endl
+              << "\t\tw_b threshold: " << MOTION_CONSTRAINT.W_B_THRESH << std::endl
               << std::endl;
     
     //
