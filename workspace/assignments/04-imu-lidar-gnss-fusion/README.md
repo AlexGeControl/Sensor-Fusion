@@ -256,7 +256,7 @@ topics:      /init_pose                1 msg     : nav_msgs/Odometry
 
 最后, 将`Observability Analysis`分析的逻辑集成至`IMUGNSSFilteringFlow`:
 
-* 首先重构`Error-State Kalman Filter`[here](src/lidar_localization/include/lidar_localization/models/kalman_filter/error_state_kalman_filter.cpp#L714),  使ESKF可支持GNSS观测值, ESKF可产生融合后的轨迹
+* 首先重构`Error-State Kalman Filter`[here](src/lidar_localization/src/models/kalman_filter/error_state_kalman_filter.cpp#L714),  使ESKF可支持GNSS观测值, ESKF可产生融合后的轨迹
 
 IMU-GNSS ESKF, Acc         |IMU-GNSS ESKF, Turning
 :-------------------------:|:-------------------------:
