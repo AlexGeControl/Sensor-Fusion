@@ -29,6 +29,12 @@ add_message_files(
     LidarMeasurement.msg
     # ESKF covariance monitor:
     ESKFStd.msg
+    # EKF covariance monitor:
+    EKFStd.msg
+    # synced GNSS-odo measurement:
+    PosVel.msg
+    # synced GNSS-odo-mag measurement:
+    PosVelMag.msg
 )
 
 add_service_files(
@@ -42,6 +48,7 @@ add_service_files(
 generate_messages(
    DEPENDENCIES
    std_msgs
+   geometry_msgs
    sensor_msgs
    nav_msgs
 )
@@ -75,10 +82,6 @@ add_executable(lidar_preprocess_node src/apps/lidar_preprocess_node.cpp ${ALL_SR
 add_dependencies(lidar_preprocess_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(lidar_preprocess_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
 
-add_executable(eskf_preprocess_node src/apps/eskf_preprocess_node.cpp ${ALL_SRCS})
-add_dependencies(eskf_preprocess_node ${catkin_EXPORTED_TARGETS})
-target_link_libraries(eskf_preprocess_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
-
 add_executable(front_end_node src/apps/front_end_node.cpp ${ALL_SRCS})
 add_dependencies(front_end_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(front_end_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
@@ -95,13 +98,21 @@ add_executable(viewer_node src/apps/viewer_node.cpp ${ALL_SRCS})
 add_dependencies(viewer_node ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)
 target_link_libraries(viewer_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
 
-add_executable(filtering_node src/apps/filtering_node.cpp ${ALL_SRCS})
-add_dependencies(filtering_node ${catkin_EXPORTED_TARGETS})
-target_link_libraries(filtering_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
+add_executable(kitti_filtering_node src/apps/kitti_filtering_node.cpp ${ALL_SRCS})
+add_dependencies(kitti_filtering_node ${catkin_EXPORTED_TARGETS})
+target_link_libraries(kitti_filtering_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
 
-add_executable(imu_gnss_filtering_node src/apps/imu_gnss_filtering_node.cpp ${ALL_SRCS})
-add_dependencies(imu_gnss_filtering_node ${catkin_EXPORTED_TARGETS})
-target_link_libraries(imu_gnss_filtering_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
+add_executable(eskf_preprocess_node src/apps/eskf_preprocess_node.cpp ${ALL_SRCS})
+add_dependencies(eskf_preprocess_node ${catkin_EXPORTED_TARGETS})
+target_link_libraries(eskf_preprocess_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
+
+add_executable(gnss_ins_sim_preprocess_node src/apps/gnss_ins_sim_preprocess_node.cpp ${ALL_SRCS})
+add_dependencies(gnss_ins_sim_preprocess_node ${catkin_EXPORTED_TARGETS})
+target_link_libraries(gnss_ins_sim_preprocess_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
+
+add_executable(gnss_ins_sim_filtering_node src/apps/gnss_ins_sim_filtering_node.cpp ${ALL_SRCS})
+add_dependencies(gnss_ins_sim_filtering_node ${catkin_EXPORTED_TARGETS})
+target_link_libraries(gnss_ins_sim_filtering_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
 
 #############
 ## Install ##
@@ -125,14 +136,15 @@ install(TARGETS
         data_pretreat_node
         lidar_preprocess_node
         eskf_preprocess_node
+        gnss_ins_sim_preprocess_node
 
         front_end_node
         back_end_node
         loop_closing_node
         viewer_node
 
-        filtering_node
-        imu_gnss_filtering_node
+        kitti_filtering_node
+        gnss_ins_sim_filtering_node
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

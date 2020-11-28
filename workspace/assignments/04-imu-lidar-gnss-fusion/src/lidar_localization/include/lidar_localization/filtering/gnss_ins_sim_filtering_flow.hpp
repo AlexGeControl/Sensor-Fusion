@@ -1,19 +1,21 @@
 /*
- * @Description: IMU-GNSS fusion for localization workflow
+ * @Description: Kalman filter based localization on GNSS-INS-Sim workflow
  * @Author: Ge Yao
  * @Date: 2020-11-12 15:14:07
  */
-#ifndef LIDAR_LOCALIZATION_FILTERING_IMU_GNSS_FILTERING_FLOW_HPP_
-#define LIDAR_LOCALIZATION_FILTERING_IMU_GNSS_FILTERING_FLOW_HPP_
+#ifndef LIDAR_LOCALIZATION_FILTERING_GNSS_INS_SIM_FILTERING_FLOW_HPP_
+#define LIDAR_LOCALIZATION_FILTERING_GNSS_INS_SIM_FILTERING_FLOW_HPP_
 
 #include <ros/ros.h>
 
-#include "lidar_localization/ESKFStd.h"
+#include "lidar_localization/EKFStd.h"
 
 // subscribers:
 // a. IMU:
 #include "lidar_localization/subscriber/imu_subscriber.hpp"
-// b. GNSS & reference pose:
+// b. synced GNSS-odo measurements:
+#include "lidar_localization/subscriber/pos_vel_mag_subscriber.hpp"
+// c. reference pose:
 #include "lidar_localization/subscriber/odometry_subscriber.hpp"
 
 // publishers:
@@ -21,18 +23,20 @@
 #include "lidar_localization/publisher/tf_broadcaster.hpp"
 
 // filtering instance:
-#include "lidar_localization/filtering/imu_gnss_filtering.hpp"
+#include "lidar_localization/filtering/gnss_ins_sim_filtering.hpp"
 
 #include "glog/logging.h"
 
 namespace lidar_localization {
 
-class IMUGNSSFilteringFlow {
+class GNSSINSSimFilteringFlow {
   public:
-    IMUGNSSFilteringFlow(ros::NodeHandle& nh);
+    GNSSINSSimFilteringFlow(ros::NodeHandle& nh);
     bool Run();
+
     // save odometry for evo evaluation:
     bool SaveOdometry(void);
+    // save TOM measurements for observability analysis:
     bool SaveObservabilityAnalysis(void);
 
   private:
@@ -44,13 +48,15 @@ class IMUGNSSFilteringFlow {
     bool HasIMUData(void) { 
       return ( !imu_data_buff_.empty() ); 
     }
-    bool HasGNSSData(void) { 
-      return ( !gnss_data_buff_.empty() );
+    bool HasPosVelMagData(void) { 
+      return ( !pos_vel_mag_data_buff_.empty() );
     }
-    bool HasIMUComesFirst(void) const { return imu_data_buff_.front().time < gnss_data_buff_.front().time; }
+    bool HasIMUComesFirst(void) const { 
+      return imu_data_buff_.front().time < pos_vel_mag_data_buff_.front().time; 
+    }
 
     bool ValidIMUData();
-    bool ValidGNSSData();
+    bool ValidPosVelMagData();
 
     bool InitLocalization();
     
@@ -77,9 +83,9 @@ class IMUGNSSFilteringFlow {
     // a. IMU:
     std::shared_ptr<IMUSubscriber> imu_sub_ptr_;
     std::deque<IMUData> imu_data_buff_;
-    // b. GNSS:
-    std::shared_ptr<OdometrySubscriber> gnss_sub_ptr_;
-    std::deque<PoseData> gnss_data_buff_;
+    // b. synced GNSS-odo-mag measurement:
+    std::shared_ptr<PosVelMagSubscriber> pos_vel_mag_sub_ptr_;
+    std::deque<PosVelMagData> pos_vel_mag_data_buff_;
     // c. reference trajectory:
     std::shared_ptr<OdometrySubscriber> ref_pose_sub_ptr_;
     std::deque<PoseData> ref_pose_data_buff_;
@@ -92,16 +98,17 @@ class IMUGNSSFilteringFlow {
     // c. standard deviation:
     ros::Publisher fused_std_pub_;
     // filtering instance:
-    std::shared_ptr<IMUGNSSFiltering> filtering_ptr_;
+    std::shared_ptr<GNSSINSSimFiltering> filtering_ptr_;
 
     IMUData current_imu_data_;
-    PoseData current_gnss_data_;
+    PosVelMagData current_pos_vel_mag_data_;
     PoseData current_ref_pose_data_;
     
     // fused odometry:
+    Eigen::Matrix4f gnss_pose_ = Eigen::Matrix4f::Identity();
     Eigen::Matrix4f fused_pose_ = Eigen::Matrix4f::Identity();
     Eigen::Vector3f fused_vel_ = Eigen::Vector3f::Zero();
-    ESKFStd fused_std_;
+    EKFStd fused_std_;
 
     // trajectory for evo evaluation:
     struct {
@@ -116,4 +123,4 @@ class IMUGNSSFilteringFlow {
 
 } // namespace lidar_localization
 
-#endif // LIDAR_LOCALIZATION_FILTERING_IMU_GNSS_FILTERING_FLOW_HPP_
+#endif // LIDAR_LOCALIZATION_FILTERING_GNSS_INS_SIM_FILTERING_FLOW_HPP_

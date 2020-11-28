@@ -34,6 +34,12 @@ class GNSSData {
   public: 
     void InitOriginPosition();
     void UpdateXYZ();
+
+    static void Reverse(
+      const double &local_E, const double &local_N, const double &local_U,
+      double &lat, double &lon, double &alt
+    );
+
     static bool SyncData(std::deque<GNSSData>& UnsyncedData, std::deque<GNSSData>& SyncedData, double sync_time);
 };
 }

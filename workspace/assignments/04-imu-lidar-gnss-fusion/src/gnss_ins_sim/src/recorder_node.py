@@ -11,18 +11,22 @@ import numpy as np
 import pandas as pd
 
 from gnss_ins_sim.geoparams import geoparams
+from gnss_ins_sim.geoparams import geomag
 from gnss_ins_sim.attitude import attitude
 
 from gnss_ins_sim.sim import imu_model
 from gnss_ins_sim.sim import ins_sim
 
 from sensor_msgs.msg import Imu
+from sensor_msgs.msg import MagneticField
 from sensor_msgs.msg import NavSatFix
 from geometry_msgs.msg import TwistStamped
 from nav_msgs.msg import Odometry
 
+
 D2R = math.pi / 180.0
 R2D = 180.0 / math.pi
+
 
 config = {
     'imu': {
@@ -123,13 +127,26 @@ config = {
         'no_error': {
             'scale': 1.00,
             'stdv': 0.0
+        },
+        'high_accuracy': {
+            'scale': 1.00,
+            'stdv': 0.01
+        },
+        'mid_accuracy': {
+            'scale': 1.00,
+            'stdv': 0.05
+        },
+        'low_accuracy': {
+            'scale': 1.00,
+            'stdv': 0.10
         }
     }
 }
 
+
 def get_init_pose(stamp, motion_def_file):
     """
-    Get init pose from motion def file
+    Get init pose from motion def file as ROS nav_msgs::Odometry
     """
     # parse:
     (
@@ -149,6 +166,14 @@ def get_init_pose(stamp, motion_def_file):
         np.array([lat, lon, alt])
     )
 
+    gm = geomag.GeoMag("WMM.COF")
+    # units in nT and deg:
+    geo_mag = gm.GeoMag(lat/D2R, lon/D2R, alt) 
+    # nT to uT:
+    (
+        B_E, B_N, B_U
+    ) = np.array([geo_mag.bx, geo_mag.by, geo_mag.bz]) / 1000.0
+          
     rospy.logwarn(
         """
         Earth Params:
@@ -158,11 +183,16 @@ def get_init_pose(stamp, motion_def_file):
         \tsin(Lat): {}
         \tcos(Lat): {}
         \tw_ie: {}
+        \tMag:
+        \t\tB_E:{}
+        \t\tB_N:{}
+        \t\tB_U:{}
         """.format(
             rm, rn,
             g,
             sl, cl,
-            w_ie
+            w_ie,
+            B_E, B_N, B_U
         )
     )
 
@@ -221,7 +251,7 @@ def get_init_pose(stamp, motion_def_file):
 
 def get_imu_msg(stamp, gyro, accel):
     """
-    Get ROS Imu msg from simulation data
+    Get IMU measurement as ROS sensor_msgs::Imu
     """
     # init:
     imu_msg = Imu()
@@ -254,9 +284,31 @@ def get_imu_msg(stamp, gyro, accel):
     return imu_msg 
 
 
+def get_mag_msg(stamp, mag):
+    """
+    Get magnetometer measurement as ROS sensor_msgs::MagneticField
+    """
+    # init:
+    mag_msg = MagneticField()
+
+    # a. set header:
+    mag_msg.header.stamp = stamp
+    mag_msg.header.frame_id = '/imu_link'
+
+    # b. mag:
+    (
+        mag_msg.magnetic_field.x,
+        mag_msg.magnetic_field.y,
+        mag_msg.magnetic_field.z
+    ) = mag
+
+    # finally:
+    return mag_msg
+
+
 def get_gps_pos_msg(stamp, gps_pos):
     """
-    Get ROS NavSatFix msg from simulation data
+    Get GPS position in LLA as ROS sensor_msgs::NavSatFix
     """
     # init:
     gps_pos_msg = NavSatFix()
@@ -281,7 +333,7 @@ def get_gps_pos_msg(stamp, gps_pos):
 
 def get_gps_vel_msg(stamp, gps_vel):
     """
-    Get ROS TwistStamped msg from simulation data
+    Get vehicle speed in NED frame as ROS geometry_msgs::TwistStamped
     """
     # init:
     gps_vel_msg = TwistStamped()
@@ -300,9 +352,30 @@ def get_gps_vel_msg(stamp, gps_vel):
     return gps_vel_msg
 
 
+def get_odo_msg(stamp, odo):
+    """
+    Get vehicle speed in body frame as ROS geometry_msgs::TwistStamped
+    """
+    # init:
+    odo_msg = TwistStamped()
+
+    # set header:
+    odo_msg.header.stamp = stamp
+    odo_msg.header.frame_id = '/imu_link'
+
+    # set NEU speed:
+    (
+        odo_msg.twist.linear.x,
+        odo_msg.twist.linear.y,
+        odo_msg.twist.linear.z
+    ) = odo 
+
+    return odo_msg
+
+
 def get_pose_msg(stamp, ref_pos, ref_vel, ref_att_quat):
     """
-    Get ROS Odometry msg from simulation data
+    Get reference pose in (P, V, Orientation) as ROS nav_msgs::Odometry
     """
     # init:
     pose_msg = Odometry()
@@ -346,11 +419,16 @@ def get_gnss_ins_sim(
     motion_def_file, 
     fs_imu, fs_gps,
     imu_error_level = 'high_accuracy',
-    mag_error_level = 'mid_accuracy', gps_error_level = 'mid_accuracy', odo_error_level = 'no_error'
+    mag_error_level = 'mid_accuracy', gps_error_level = 'mid_accuracy', odo_error_level = 'mid_accuracy'
 ):
-    '''
-    Generate simulated GNSS/IMU data using specified trajectory.
-    '''
+    """
+    Generate simulated 
+        IMU, 
+        magnetometer, 
+        GPS, 
+        odometer 
+    data using specified trajectory
+    """ 
     #
     # set IMU model:
     #
@@ -444,7 +522,7 @@ def get_gnss_ins_sim(
         # b. GNSS:
         gps_pos, gps_vel,
         # c. odometry:
-        odo,
+        odo_x,
         # d. reference trajectory:
         ref_pos, ref_vel, ref_att_quat
     ) in enumerate(
@@ -472,7 +550,12 @@ def get_gnss_ins_sim(
             stamp, gyro, accel
         )
 
-        # b. GNSS:
+        # b. magnetometer:
+        mag_msg = get_mag_msg(
+            stamp, mag
+        )
+
+        # c. GNSS:
         gps_pos_msg = get_gps_pos_msg(
             stamp, gps_pos
         )
@@ -480,45 +563,72 @@ def get_gnss_ins_sim(
             stamp, gps_vel
         )
 
-        # d. reference trajectory:
+        # d. odometer:
+        odo_msg = get_odo_msg(
+            stamp, 
+            # measurement is only available at forward direction
+            np.array([odo_x, 0.0, 0.0])
+        )
+
+        # e. reference trajectory:
         reference_pose_msg = get_pose_msg(
             stamp, ref_pos, ref_vel, ref_att_quat
         )
 
-        yield (imu_msg, gps_pos_msg, gps_vel_msg, reference_pose_msg)
+        yield (
+            imu_msg, mag_msg,
+            gps_pos_msg, gps_vel_msg, 
+            odo_msg,
+            reference_pose_msg
+        )
 
 
 def gnss_ins_sim_recorder():
     """
-    Record simulated GNSS/IMU data as ROS bag
+    Record simulated sensor data as ROS bag
     """
     # ensure gnss_ins_sim_node is unique:
     rospy.init_node('gnss_ins_sim_recorder_node')
 
+    #
     # parse params:
+    #
+    # a. motion file:
     motion_def_name = rospy.get_param('/gnss_ins_sim_recorder_node/motion_file')
-
+    # b. sample frequency:
     sample_freq_imu = rospy.get_param('/gnss_ins_sim_recorder_node/sample_frequency/imu')
     sample_freq_gps = rospy.get_param('/gnss_ins_sim_recorder_node/sample_frequency/gps')
-
+    # c. device specification:
     imu_error_level = rospy.get_param('/gnss_ins_sim_recorder_node/device_error_level/imu')
     mag_error_level = rospy.get_param('/gnss_ins_sim_recorder_node/device_error_level/mag')
     gps_error_level = rospy.get_param('/gnss_ins_sim_recorder_node/device_error_level/gps')
     odo_error_level = rospy.get_param('/gnss_ins_sim_recorder_node/device_error_level/odo')
-
-    topic_name_init_pose = rospy.get_param('/gnss_ins_sim_recorder_node/topic_name/init_pose')
+    # d. ROS bag topic names:
+    # 1. IMU:
     topic_name_imu = rospy.get_param('/gnss_ins_sim_recorder_node/topic_name/imu')
+    # 2. magnetometer:
+    topic_name_mag = rospy.get_param('/gnss_ins_sim_recorder_node/topic_name/mag')
+    # 3. GNSS
     topic_name_gps_pos = rospy.get_param('/gnss_ins_sim_recorder_node/topic_name/gps_pos')
+    # 4. GNSS/IMU
     topic_name_gps_vel = rospy.get_param('/gnss_ins_sim_recorder_node/topic_name/gps_vel')
+    # 5. odometer:
+    topic_name_odo = rospy.get_param('/gnss_ins_sim_recorder_node/topic_name/odo')
+    # 6. reference trajectory
+    topic_name_init_pose = rospy.get_param('/gnss_ins_sim_recorder_node/topic_name/init_pose')
     topic_name_reference_trajectory = rospy.get_param('/gnss_ins_sim_recorder_node/topic_name/reference_trajectory')
-    
+    # e. output path:
     rosbag_output_path = rospy.get_param('/gnss_ins_sim_recorder_node/output_path')
     rosbag_output_name = rospy.get_param('/gnss_ins_sim_recorder_node/output_name')
 
+    #
     # generate simulated data:
+    #
+    # a. identify motion file:
     motion_def_path = os.path.join(
         rospkg.RosPack().get_path('gnss_ins_sim'), 'config', 'motion_def', motion_def_name
     )
+    # b. init simulator:
     imu_simulator = get_gnss_ins_sim(
         # motion def file:
         motion_def_path,
@@ -532,6 +642,9 @@ def gnss_ins_sim_recorder():
         mag_error_level, gps_error_level, odo_error_level
     )
 
+    #
+    # write to ROS bag:
+    #
     with rosbag.Bag(
         os.path.join(rosbag_output_path, rosbag_output_name), 'w'
     ) as bag:
@@ -542,12 +655,24 @@ def gnss_ins_sim_recorder():
         # write measurements:
         for measurement in imu_simulator:
             # parse:
-            (imu_msg, gps_pos_msg, gps_vel_msg, reference_pose_msg) = measurement
+            (
+                imu_msg, mag_msg,
+                gps_pos_msg, gps_vel_msg, 
+                odo_msg,
+                reference_pose_msg
+            ) = measurement
 
             # write:
+            # a. IMU:
             bag.write(topic_name_imu, imu_msg, imu_msg.header.stamp)
+            # b. mag:
+            bag.write(topic_name_mag, mag_msg, mag_msg.header.stamp)
+            # c. GNSS:
             bag.write(topic_name_gps_pos, gps_pos_msg, gps_pos_msg.header.stamp)
             bag.write(topic_name_gps_vel, gps_vel_msg, gps_vel_msg.header.stamp)
+            # d. odo:
+            bag.write(topic_name_odo, odo_msg, odo_msg.header.stamp)
+            # e. reference pose:
             bag.write(topic_name_reference_trajectory, reference_pose_msg, reference_pose_msg.header.stamp)
 
 

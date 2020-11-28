@@ -143,11 +143,11 @@ topics:      /kitti/camera_color_left/camera_info     4544 msgs    : sensor_msgs
 
 ### Implementation
 
-基于`Eigen`与`Sophus`的`Error-State Kalman Fusion`实现参考[here](src/lidar_localization/src/models/kalman_filter/kalman_filter.cpp)
+基于`Eigen`与`Sophus`的`Error-State Kalman Filter`实现参考[here](src/lidar_localization/src/models/kalman_filter/error_state_kalman_filter.cpp)
 
 ### Demo
 
-`IMU-Lidar Error-State Kalman Fusion Odometry`与`GNSS Groud Truth`的对比如下图所示. 其中`黄色`为`GNSS Groud Truth`, `红色`为`Lidar Odometry`, `蓝色`为`IMU-Lidar Fusion Odometry`:
+`IMU-Lidar Error-State Kalman Filter Odometry`与`GNSS Groud Truth`的对比如下图所示. 其中`黄色`为`GNSS Groud Truth`, `红色`为`Lidar Odometry`, `蓝色`为`IMU-Lidar Fusion Odometry`:
 
 <img src="doc/images/01-IMU-lidar-fusion-macro.png" alt="IMU-Lidar Fusion v.s. GNSS" width="100%">
 
@@ -216,33 +216,37 @@ Lidar Only                 |IMU-Lidar Fusion
 
 #### ROS GNSS-INS-Sim
 
-为了简化算法的比较与分析, 首先重新实现`GNSS-INS-Sim ROS Wrapper Package`, 将`GNSS-INS-Sim`的输出转化为与`KITTI Road Test Data`兼容的格式. 以加减速场景的测试数据为例, 得到的ROS Bag如下. 其中`/init_pose`为起始点, `/reference_pose`为`Groud Truth Trajectory`.
+为了简化算法的比较与分析, 首先重新实现`GNSS-INS-Sim ROS Wrapper Package` [here](src/gnss_ins_sim/src/recorder_node.py), 将`GNSS-INS-Sim`的输出转化为与`KITTI Road Test Data`兼容的格式. 以加减速场景的测试数据为例, 得到的ROS Bag如下. 其中`/init_pose`为起始点, `/reference_pose`为`Groud Truth Trajectory`.
 
 ```bash
-$ rosbag info acc.bag
+$ rosbag info turning.bag
 
-path:        acc.bag
+path:        turning.bag
 version:     2.0
-duration:    40.0s
-start:       Nov 18 2020 15:15:21.78 (1605683721.78)
-end:         Nov 18 2020 15:16:01.77 (1605683761.77)
-size:        5.6 MB
-messages:    16001
-compression: none [8/8 chunks]
+duration:    1:24s (84s)
+start:       Nov 28 2020 13:29:50.35 (1606570190.35)
+end:         Nov 28 2020 13:31:15.35 (1606570275.35)
+size:        57.4 MB
+messages:    204001
+compression: none [74/74 chunks]
 types:       geometry_msgs/TwistStamped [98d34b0043a2093cf9d9345ab6eef12e]
              nav_msgs/Odometry          [cd5e73d190d741a2f92e81eda573aca7]
              sensor_msgs/Imu            [6a62c6daae103f4ff57a132d6f95cec2]
+             sensor_msgs/MagneticField  [2f3b0b43eed0c9501de0fa3ff89a45aa]
              sensor_msgs/NavSatFix      [2d3a8cd499b9b4a0249fb98fd05cfa48]
-topics:      /init_pose               1 msg     : nav_msgs/Odometry         
-             /reference_pose       4000 msgs    : nav_msgs/Odometry         
-             /sim/sensor/gps/fix   4000 msgs    : sensor_msgs/NavSatFix     
-             /sim/sensor/gps/vel   4000 msgs    : geometry_msgs/TwistStamped
-             /sim/sensor/imu       4000 msgs    : sensor_msgs/Imu
+topics:      /init_pose                1 msg     : nav_msgs/Odometry         
+             /reference_pose       34000 msgs    : nav_msgs/Odometry         
+             /sim/sensor/gps/fix   34000 msgs    : sensor_msgs/NavSatFix     
+             /sim/sensor/gps/vel   34000 msgs    : geometry_msgs/TwistStamped
+             /sim/sensor/imu       34000 msgs    : sensor_msgs/Imu           
+             /sim/sensor/imu/mag   34000 msgs    : sensor_msgs/MagneticField 
+             /sim/sensor/odo       34000 msgs    : geometry_msgs/TwistStamped
+
 ```
 
 #### GNSS-INS-Sim Preprocessing Node
 
-同时增加新的数据预处理节点`eskf_preprocess_node` [here](src/lidar_localization/src/apps/eskf_preprocess_node.cpp), 完成:
+同时增加新的数据预处理节点`gnss_ins_sim_preprocess_node` [here](src/lidar_localization/src/apps/gnss_ins_sim_preprocess_node.cpp), 完成:
 
 * `LLA`位置向`ENU`系位置的转换.
 
@@ -252,7 +256,7 @@ topics:      /init_pose               1 msg     : nav_msgs/Odometry
 
 最后, 将`Observability Analysis`分析的逻辑集成至`IMUGNSSFilteringFlow`:
 
-* 首先重构`Kalman Filter`[here](src/lidar_localization/include/lidar_localization/models/kalman_filter/kalman_filter.hpp#L23),  使ESKF可支持GNSS观测值, ESKF可产生融合后的轨迹
+* 首先重构`Error-State Kalman Filter`[here](src/lidar_localization/include/lidar_localization/models/kalman_filter/error_state_kalman_filter.cpp#L714),  使ESKF可支持GNSS观测值, ESKF可产生融合后的轨迹
 
 IMU-GNSS ESKF, Acc         |IMU-GNSS ESKF, Turning
 :-------------------------:|:-------------------------:
@@ -293,18 +297,22 @@ Acc & Deacc, GNSS Only     |Acc & Deacc, IMU-GNSS
 
 `可观测性`和`可观测度`的分析流程如下:
 
-* 首先对给定时刻的`SOM矩阵`进行`SVD`分解;
+* 首先对给定时刻的`Q矩阵`进行`SVD`分解;
 
-* 然后假设观测值存在`方差相同的高斯白噪声`, 反向求解状态值, 确定状态的`可观测度`;
+* 然后根据特征值及其对应的特征向量, 分析每个状态量的可观测度;
 
     ```c++
-    VectorX X = (
-        svd.matrixV()*
-        svd.singularValues().asDiagonal().inverse()*
-        svd.matrixU().transpose()
-    )*Y;
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(Q, Eigen::ComputeFullV);
+
+    Eigen::VectorXd X(DIM_STATE);
+    for (int i = 0; i < DIM_STATE; ++i) {
+        Eigen::MatrixXd::Index sv_index;
+        svd.matrixV().col(i).maxCoeff(&sv_index);
+        X(sv_index) = svd.singularValues()(i);
+    }
+    X = 100.0 / svd.singularValues().maxCoeff() * X;
     ```
-* 将不同时刻采样得到的`奇异值`以及状态的`可观测度`, 以CSV格式写入`可持续性存储`, 汇总为`TOM`所需的分析数据;
+* 将不同时刻采样得到的`奇异值`以及状态的`可观测度`, 以CSV格式写入`可持续性存储`, 汇总为`SOM`所需的分析数据;
 
 * 使用Python工具链, 分析系统的`可观测性`与`可观测度`.
 
@@ -312,46 +320,39 @@ Acc & Deacc, GNSS Only     |Acc & Deacc, IMU-GNSS
 
 四种典型运动模式的`可观测性`与`可观测度`测量数据如下表所示. 完整的测量数据请点击 [here](doc/results/observability). 数据显示:
 
-* 四种典型运动模式下TOM的秩均为`12`
+* 四种典型运动模式下, `IMU-GNSS ESKF Fusion`的`Q`秩均为`12`(Singular Value Threshold @ `1.0e-05`)
 
-* 在不同的运动模式下, 状态量的`可观测度`不同. 
+* `Static` [here](doc/results/observability/static-som.csv)
 
-    * `Static`与`Const. Velocity`模式下可观测度相近且`较低`
+    * 在整个运动过程中, `SOM`的秩始终为`12`
 
-    * `Turning`与`Acc & Deacc`模式下可观测度会提高, 且运动越剧烈, 可观测度越高(参见完整测量数据). 
+    * `Yaw`, `Accel Bias X`与`Accel Bias Y`不可观
 
-| Attribute |    **Static**    | **Const. Velocity** |    **Turning**   |  **Acc & Deacc** |
-|:---------:|:----------------:|:-------------------:|:----------------:|:----------------:|
-|   s.v.01  | **9.845140e+00** |   **9.843860e+01**  | **1.170830e+01** | **1.211910e+01** |
-|   s.v.02  | **9.845140e+00** |   **9.843860e+01**  | **1.170830e+01** | **1.211910e+01** |
-|   s.v.03  | **9.794220e+00** |   **9.792940e+01**  | **1.166550e+01** | **1.207780e+01** |
-|   s.v.04  | **9.794220e+00** |   **9.792940e+01**  | **1.166550e+01** | **1.207780e+01** |
-|   s.v.05  | **1.000000e+00** |   **1.000000e+00**  | **1.000000e+00** | **1.000000e+00** |
-|   s.v.06  | **1.000000e+00** |   **1.000000e+00**  | **1.000000e+00** | **1.000000e+00** |
-|   s.v.07  | **1.000000e+00** |   **1.000000e+00**  | **1.000000e+00** | **1.000000e+00** |
-|   s.v.08  | **1.000000e+00** |   **1.000000e+00**  | **1.000000e+00** | **1.000000e+00** |
-|   s.v.09  | **1.000000e+00** |   **1.000000e+00**  | **1.000000e+00** | **1.000000e+00** |
-|   s.v.10  | **1.000000e+00** |   **1.000000e+00**  | **1.000000e+00** | **1.000000e+00** |
-|   s.v.11  | **1.000000e+00** |   **1.000000e+00**  | **1.000000e+00** | **1.000000e+00** |
-|   s.v.12  | **5.927110e-04** |   **5.675480e-04**  | **4.076120e-04** | **8.804910e-04** |
-|   s.v.13  |   3.291100e-23   |     2.417900e-23    |   1.898810e-19   |   6.792180e-17   |
-|   s.v.14  |   3.019380e-26   |     2.004200e-26    |   5.231300e-25   |   4.125640e-21   |
-|   s.v.15  |   6.692570e-29   |     4.949860e-29    |   2.043330e-27   |   6.474930e-24   |
-|    dPx    | **2.500000e-01** |   **2.500000e-01**  | **2.500000e-01** | **2.500000e-01** |
-|    dPy    | **2.500000e-01** |   **2.500000e-01**  | **2.500000e-01** | **2.500000e-01** |
-|    dPz    | **2.500000e-01** |   **2.500000e-01**  | **2.500000e-01** | **2.500000e-01** |
-|    dVx    | **2.500000e-01** |   **2.500000e-01**  | **2.500000e-01** | **2.500000e-01** |
-|    dVy    | **2.500000e-01** |   **2.500000e-01**  | **2.500000e-01** | **2.500000e-01** |
-|    dVz    | **2.500000e-01** |   **2.500000e-01**  | **2.500000e-01** | **2.500000e-01** |
-|  dThetaE  |   5.221730e+20   |     2.953540e+21    |   3.660580e+21   |   3.180150e+21   |
-|  dThetaN  |   2.648520e+21   |     1.082380e+23    |   6.418890e+20   |   2.288700e+21   |
-|  dThetaU  |   1.609800e+20   |     6.857130e+21    |   1.439400e+21   |   6.538200e+21   |
-|    dGBx   |   1.707300e+18   |     6.725180e+18    |   2.914100e+17   |   5.112470e+17   |
-|    dGBy   |   2.095290e+16   |     6.241560e+16    |   3.408750e+16   |   6.221240e+16   |
-|    dGBz   |   1.254210e+17   |     2.609740e+17    |   2.909930e+16   |   1.782630e+17   |
-|    dABx   |   1.585440e+21   |     9.583680e+23    |   1.896390e+23   |   6.838070e+19   |
-|    dABy   |   4.756790e+20   |     2.708440e+20    |   8.967510e+18   |   3.227030e+20   |
-|    dABz   |   3.638080e+16   |     1.912320e+16    |   6.274590e+18   |   7.822130e+18   | 
+* `Constant Velocity` [here](doc/results/observability/constant-velocity-som.csv)
+
+    * 在整个匀速运动过程中(排除调节速度所需的加/减速阶段), `SOM`的秩始终为`12`
+
+    * `Yaw`, `Accel Bias X`与`Accel Bias Y`不可观
+
+* `Acc / Deacc` [here](doc/results/observability/acc-som.csv)
+
+    * 在最初时刻, 系统静止时, `SOM`的秩为`12`, `Yaw`, `Accel Bias X`与`Accel Bias Y`不可观
+
+    * 当系统有沿Y轴的加/减速运动后, `SOM`的秩提高为`15`, `Yaw`, `Accel Bias X`与`Accel Bias Y`均变得可观, 但`Accel Bias X`的可观测度很低
+
+    * 当系统有沿X轴的加/减速运动后, `Accel Bias X`的可观测度开始增加
+
+    * 在整个运动过程中, 系统的加/减速度幅值越大, 状态的可观测度越高
+
+* `Turning` [here](doc/results/observability/acc-som.csv)
+
+    * 在最初时刻, 系统静止时, `SOM`的秩为`12`, `Yaw`, `Accel Bias X`与`Accel Bias Y`不可观
+
+    * 当系统有沿X轴的加/减速运动后, `SOM`的秩提高为`15`, `Yaw`, `Accel Bias X`与`Accel Bias Y`均变得可观, 但`Accel Bias X`的可观测度很低
+
+    * 当系统有沿Z轴的旋转运动后, `Accel Bias X`的可观测度开始增加
+
+    * 在整个运动过程中, 系统的角速度幅值越大, 状态的可观测度越高
 
 ##### ESKF Convergence
 
@@ -369,12 +370,18 @@ Turning                    |Acc & Deacc
 
 `可观测性`与`可观测度`的分析结果总结如下:
 
-* `IMU-GUSS ESKF Fusion`的`TOM`秩为`12`(Singular Value Threshold @ `1.0e-05`)
+* 在各个时刻
+
+    * `IMU-GUSS ESKF Fusion`的`Q`秩均为`12`(Singular Value Threshold @ `1.0e-05`)
+
+    * `Yaw`, `Accel Bias X`与`Accel Bias Y`不可观
+
+* 当系统的运动过程中存在`加/减速`与`旋转`时, 多个时刻联合的`SOM`的秩将提高为`15`, 此时系统状态将变为完全可观.
 
 * `静止`与`匀速运动`下, 模型的`可观测度`最低, 此时估计值的收敛速度为`最慢`;
 
-* `旋转`与`加/减速`:
+* `加/减速`与`旋转`:
     
     * 均可`提升模型的可观测度`, 进而`提升ESKF的收敛速度`.
     
-    * 在这两种运动模式下, `运动越剧烈, 可观测度越高, ESKF的收敛速度越快`. 
+    * 在这两种运动模式下, `运动越剧烈(加减速幅值越大, 旋转角速度幅值越大), 可观测度越高, ESKF的收敛速度越快`. 

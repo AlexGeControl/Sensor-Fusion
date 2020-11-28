@@ -5,13 +5,13 @@
  */
 #include <ros/ros.h>
 
-#include "lidar_localization/filtering/imu_gnss_filtering_flow.hpp"
+#include "lidar_localization/global_defination/global_defination.h"
+
+#include "lidar_localization/filtering/kitti_filtering_flow.hpp"
 
 #include <lidar_localization/saveOdometry.h>
 
 #include "glog/logging.h"
-
-#include "lidar_localization/global_defination/global_defination.h"
 
 using namespace lidar_localization;
 
@@ -29,22 +29,22 @@ int main(int argc, char *argv[]) {
     FLAGS_log_dir = WORK_SPACE_PATH + "/Log";
     FLAGS_alsologtostderr = 1;
 
-    ros::init(argc, argv, "imu_gnss_filtering_node");
+    ros::init(argc, argv, "kitti_filtering_node");
     ros::NodeHandle nh;
 
-    std::shared_ptr<IMUGNSSFilteringFlow> imu_gnss_filtering_flow_ptr = std::make_shared<IMUGNSSFilteringFlow>(nh);
+    std::shared_ptr<KITTIFilteringFlow> kitti_filtering_flow_ptr = std::make_shared<KITTIFilteringFlow>(nh);
     ros::ServiceServer service = nh.advertiseService("save_odometry", SaveOdometryCB);
 
     ros::Rate rate(100);
     while (ros::ok()) {
         ros::spinOnce();
 
-        imu_gnss_filtering_flow_ptr->Run();
+        kitti_filtering_flow_ptr->Run();
 
         // save odometry estimations for evo evaluation:
-        if ( _need_save_odometry && 
-             imu_gnss_filtering_flow_ptr->SaveOdometry() && 
-             imu_gnss_filtering_flow_ptr->SaveObservabilityAnalysis()
+        if ( 
+            _need_save_odometry && 
+            kitti_filtering_flow_ptr->SaveOdometry()
         ) {
             _need_save_odometry = false;
         }
@@ -52,5 +52,5 @@ int main(int argc, char *argv[]) {
         rate.sleep();
     }
 
-    return EXIT_SUCCESS;
+    return 0;
 }

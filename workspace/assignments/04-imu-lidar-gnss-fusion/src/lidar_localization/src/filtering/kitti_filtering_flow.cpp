@@ -6,7 +6,7 @@
 
 #include "lidar_localization/global_defination/global_defination.h"
 
-#include "lidar_localization/filtering/filtering_flow.hpp"
+#include "lidar_localization/filtering/kitti_filtering_flow.hpp"
 
 #include "lidar_localization/tools/file_manager.hpp"
 
@@ -16,7 +16,7 @@
 
 namespace lidar_localization {
 
-FilteringFlow::FilteringFlow(
+KITTIFilteringFlow::KITTIFilteringFlow(
     ros::NodeHandle& nh
 ) {
     // subscriber:
@@ -24,11 +24,13 @@ FilteringFlow::FilteringFlow(
     imu_raw_sub_ptr_ = std::make_shared<IMUSubscriber>(nh, "/kitti/oxts/imu/extract", 1000000);
     // b. undistorted Velodyne measurement: 
     cloud_sub_ptr_ = std::make_shared<CloudSubscriber>(nh, "/synced_cloud", 100000);
-    // c. lidar pose in map frame:
-    gnss_sub_ptr_ = std::make_shared<OdometrySubscriber>(nh, "/synced_gnss", 100000);
-    // d. IMU synced measurement:
+    // c. IMU synced measurement:
     imu_synced_sub_ptr_ = std::make_shared<IMUSubscriber>(nh, "/synced_imu", 100000); 
-    // e. lidar to imu tf:
+    // d. synced GNSS-odo measurement:
+    pos_vel_sub_ptr_ = std::make_shared<PosVelSubscriber>(nh, "/synced_pos_vel", 100000);
+    // e. lidar pose in map frame:
+    gnss_sub_ptr_ = std::make_shared<OdometrySubscriber>(nh, "/synced_gnss", 100000);
+    // f. lidar to imu tf:
     lidar_to_imu_ptr_ = std::make_shared<TFListener>(nh, "/imu_link", "/velo_link");
     
     // publisher:
@@ -46,10 +48,10 @@ FilteringFlow::FilteringFlow(
     // f. tf:
     laser_tf_pub_ptr_ = std::make_shared<TFBroadCaster>("/map", "/vehicle_link");
 
-    filtering_ptr_ = std::make_shared<Filtering>();
+    filtering_ptr_ = std::make_shared<KITTIFiltering>();
 }
 
-bool FilteringFlow::Run() {
+bool KITTIFilteringFlow::Run() {
     if ( !InitCalibration() ) {
         return false;
     }
@@ -96,7 +98,7 @@ bool FilteringFlow::Run() {
     return true;
 }
 
-bool FilteringFlow::SaveOdometry(void) {
+bool KITTIFilteringFlow::SaveOdometry(void) {
     if ( 0 == trajectory.N ) {
         return false;
     }
@@ -144,7 +146,7 @@ bool FilteringFlow::SaveOdometry(void) {
     return true;
 }
 
-bool FilteringFlow::ReadData() {
+bool KITTIFilteringFlow::ReadData() {
     //
     // pipe raw IMU measurements into buffer:
     // 
@@ -162,16 +164,17 @@ bool FilteringFlow::ReadData() {
     // 
     cloud_sub_ptr_->ParseData(cloud_data_buff_);
     imu_synced_sub_ptr_->ParseData(imu_synced_data_buff_);
+    pos_vel_sub_ptr_->ParseData(pos_vel_data_buff_);
     gnss_sub_ptr_->ParseData(gnss_data_buff_);
 
     return true;
 }
 
-bool FilteringFlow::HasInited(void) {
+bool KITTIFilteringFlow::HasInited(void) {
     return filtering_ptr_->HasInited();
 }
 
-bool FilteringFlow::HasData() {
+bool KITTIFilteringFlow::HasData() {
     if ( !HasInited() ) {
         if ( !HasLidarData() ) {
             return false;
@@ -185,7 +188,7 @@ bool FilteringFlow::HasData() {
     return true;
 }
 
-bool FilteringFlow::ValidIMUData() {
+bool KITTIFilteringFlow::ValidIMUData() {
     current_imu_raw_data_ = imu_raw_data_buff_.front();
 
     imu_raw_data_buff_.pop_front();
@@ -193,13 +196,15 @@ bool FilteringFlow::ValidIMUData() {
     return true;
 }
 
-bool FilteringFlow::ValidLidarData() {
+bool KITTIFilteringFlow::ValidLidarData() {
     current_cloud_data_ = cloud_data_buff_.front();
     current_imu_synced_data_ = imu_synced_data_buff_.front();
+    current_pos_vel_data_ = pos_vel_data_buff_.front();
 
     double diff_imu_time = current_cloud_data_.time - current_imu_synced_data_.time;
+    double diff_pos_vel_time = current_cloud_data_.time - current_pos_vel_data_.time;
 
-    if ( diff_imu_time < -0.05 ) {
+    if ( diff_imu_time < -0.05 || diff_pos_vel_time < -0.05 ) {
         cloud_data_buff_.pop_front();
         return false;
     }
@@ -209,13 +214,19 @@ bool FilteringFlow::ValidLidarData() {
         return false;
     }
 
+    if (diff_pos_vel_time > 0.05) {
+        pos_vel_data_buff_.pop_front();
+        return false;
+    }
+
     cloud_data_buff_.pop_front();
     imu_synced_data_buff_.pop_front();
+    pos_vel_data_buff_.pop_front();
 
     return true;
 }
 
-bool FilteringFlow::InitCalibration() {
+bool KITTIFilteringFlow::InitCalibration() {
     // lookup imu pose in lidar frame:
     static bool calibration_received = false;
 
@@ -228,9 +239,9 @@ bool FilteringFlow::InitCalibration() {
     return calibration_received;
 }
 
-bool FilteringFlow::InitLocalization(void) {
-    // geo ego vehicle velocity in navigation frame:
-    Eigen::Vector3f init_vel = gnss_data_buff_.front().vel;
+bool KITTIFilteringFlow::InitLocalization(void) {
+    // ego vehicle velocity in body frame:
+    Eigen::Vector3f init_vel = current_pos_vel_data_.vel;
 
     // first try to init using scan context query:
     if (
@@ -247,7 +258,7 @@ bool FilteringFlow::InitLocalization(void) {
     return true;
 }
 
-bool FilteringFlow::UpdateLocalization() {
+bool KITTIFilteringFlow::UpdateLocalization() {
     if ( filtering_ptr_->Update(current_imu_raw_data_) ) {
         PublishFusionOdom();
         return true;
@@ -256,15 +267,16 @@ bool FilteringFlow::UpdateLocalization() {
     return false;
 }
 
-bool FilteringFlow::CorrectLocalization() {
+bool KITTIFilteringFlow::CorrectLocalization() {
     bool is_fusion_succeeded = filtering_ptr_->Correct(
         current_imu_synced_data_, 
         current_cloud_data_, 
+        current_pos_vel_data_,
         laser_pose_
     );
     PublishLidarOdom();
 
-    if ( is_fusion_succeeded ) {
+    if ( is_fusion_succeeded ) {        
         PublishFusionOdom();
         
         // add to odometry output for evo evaluation:
@@ -276,7 +288,7 @@ bool FilteringFlow::CorrectLocalization() {
     return false;
 }
 
-bool FilteringFlow::PublishGlobalMap() {
+bool KITTIFilteringFlow::PublishGlobalMap() {
     if (filtering_ptr_->HasNewGlobalMap() && global_map_pub_ptr_->HasSubscribers()) {
         CloudData::CLOUD_PTR global_map_ptr(new CloudData::CLOUD());
         filtering_ptr_->GetGlobalMap(global_map_ptr);
@@ -288,7 +300,7 @@ bool FilteringFlow::PublishGlobalMap() {
     return false;
 }
 
-bool FilteringFlow::PublishLocalMap() {
+bool KITTIFilteringFlow::PublishLocalMap() {
     if (filtering_ptr_->HasNewLocalMap() && local_map_pub_ptr_->HasSubscribers()) {
         local_map_pub_ptr_->Publish(filtering_ptr_->GetLocalMap());
 
@@ -298,7 +310,7 @@ bool FilteringFlow::PublishLocalMap() {
     return false;
 }
 
-bool FilteringFlow::PublishLidarOdom() {
+bool KITTIFilteringFlow::PublishLidarOdom() {
     // a. publish lidar odometry
     laser_odom_pub_ptr_->Publish(laser_pose_, current_cloud_data_.time);
     // b. publish current scan:
@@ -307,7 +319,7 @@ bool FilteringFlow::PublishLidarOdom() {
     return true;
 }
 
-bool FilteringFlow::PublishFusionOdom() {
+bool KITTIFilteringFlow::PublishFusionOdom() {
     // get odometry from Kalman filter:
     filtering_ptr_->GetOdometry(fused_pose_, fused_vel_);
     // a. publish tf:
@@ -318,7 +330,7 @@ bool FilteringFlow::PublishFusionOdom() {
     return true;
 }
 
-bool FilteringFlow::UpdateOdometry(const double &time) {
+bool KITTIFilteringFlow::UpdateOdometry(const double &time) {
     trajectory.time_.push_back(time);
     
     trajectory.fused_.push_back(fused_pose_);
@@ -335,7 +347,7 @@ bool FilteringFlow::UpdateOdometry(const double &time) {
  * @param  ofs, output file stream
  * @return true if success otherwise false
  */
-bool FilteringFlow::SavePose(
+bool KITTIFilteringFlow::SavePose(
     const Eigen::Matrix4f& pose, 
     std::ofstream& ofs
 ) {

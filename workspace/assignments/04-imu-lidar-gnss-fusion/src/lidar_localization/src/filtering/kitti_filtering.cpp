@@ -3,7 +3,7 @@
  * @Author: Ge Yao
  * @Date: 2020-11-12 15:14:07
  */
-#include "lidar_localization/filtering/filtering.hpp"
+#include "lidar_localization/filtering/kitti_filtering.hpp"
 
 #include <pcl/common/transforms.h>
 #include <pcl/io/pcd_io.h>
@@ -16,10 +16,12 @@
 
 #include "lidar_localization/models/registration/ndt_registration.hpp"
 
+#include "lidar_localization/models/kalman_filter/extended_kalman_filter.hpp"
+#include "lidar_localization/models/kalman_filter/error_state_kalman_filter.hpp"
 
 namespace lidar_localization {
 
-Filtering::Filtering() : 
+KITTIFiltering::KITTIFiltering() : 
     global_map_ptr_(new CloudData::CLOUD()),
     local_map_ptr_(new CloudData::CLOUD()),
     current_scan_ptr_(new CloudData::CLOUD()) 
@@ -28,7 +30,7 @@ Filtering::Filtering() :
     InitWithConfig();
 }
 
-bool Filtering::Init(
+bool KITTIFiltering::Init(
     const CloudData& init_scan,
     const Eigen::Vector3f &init_vel,
     const IMUData &init_imu_data
@@ -47,7 +49,7 @@ bool Filtering::Init(
     return false;
 }
 
-bool Filtering::Init(
+bool KITTIFiltering::Init(
     const Eigen::Matrix4f& init_pose,
     const Eigen::Vector3f &init_vel,
     const IMUData &init_imu_data
@@ -66,7 +68,7 @@ bool Filtering::Init(
     return false;
 }
 
-bool Filtering::Update(
+bool KITTIFiltering::Update(
     const IMUData &imu_data
 ) {
     if ( kalman_filter_ptr_->Update(imu_data) ) {
@@ -79,9 +81,10 @@ bool Filtering::Update(
     return false;
 }
 
-bool Filtering::Correct(
+bool KITTIFiltering::Correct(
     const IMUData &imu_data,
     const CloudData& cloud_data, 
+    const PosVelData &pos_vel_data,
     Eigen::Matrix4f& cloud_pose
 ) {
     static Eigen::Matrix4f step_pose = Eigen::Matrix4f::Identity();
@@ -128,34 +131,46 @@ bool Filtering::Correct(
         break;
     }
 
+    // set lidar measurement:
+    current_measurement_.time = cloud_data.time;
+    current_measurement_.T_nb = (init_pose_.inverse() * cloud_pose).cast<double>();
+    current_measurement_.v_b = pos_vel_data.vel.cast<double>();
+    current_measurement_.w_b = Eigen::Vector3d(
+        imu_data.angular_velocity.x,
+        imu_data.angular_velocity.y,
+        imu_data.angular_velocity.z
+    );
+
+    // Kalman correction:
     if (
         kalman_filter_ptr_->Correct(
             imu_data,
-            cloud_data.time, KalmanFilter::MeasurementType::POSE, init_pose_.inverse() * cloud_pose
+            KalmanFilter::MeasurementType::POSE_VEL, current_measurement_
         )
     ) {
         kalman_filter_ptr_->GetOdometry(
             current_pose_, current_vel_
         );
+
         return true;
     }
 
     return false;
 }
 
-void Filtering::GetGlobalMap(CloudData::CLOUD_PTR& global_map) {
+void KITTIFiltering::GetGlobalMap(CloudData::CLOUD_PTR& global_map) {
     // downsample global map for visualization:
     global_map_filter_ptr_->Filter(global_map_ptr_, global_map);
     has_new_global_map_ = false;
 }
 
-void Filtering::GetOdometry(Eigen::Matrix4f &pose, Eigen::Vector3f &vel) {
+void KITTIFiltering::GetOdometry(Eigen::Matrix4f &pose, Eigen::Vector3f &vel) {
     pose = init_pose_ * current_pose_;
     vel = init_pose_.block<3, 3>(0, 0) * current_vel_;
 }
 
-bool Filtering::InitWithConfig(void) {
-    std::string config_file_path = WORK_SPACE_PATH + "/config/filtering/filtering.yaml";
+bool KITTIFiltering::InitWithConfig(void) {
+    std::string config_file_path = WORK_SPACE_PATH + "/config/filtering/kitti_filtering.yaml";
 
     YAML::Node config_node = YAML::LoadFile(config_file_path);
 
@@ -180,7 +195,7 @@ bool Filtering::InitWithConfig(void) {
     return true;
 }
 
-bool Filtering::InitFilter(
+bool KITTIFiltering::InitFilter(
     std::string filter_user, 
     std::shared_ptr<CloudFilterInterface>& filter_ptr, 
     const YAML::Node& config_node
@@ -201,12 +216,12 @@ bool Filtering::InitFilter(
     return true;
 }
 
-bool Filtering::InitLocalMapSegmenter(const YAML::Node& config_node) {
+bool KITTIFiltering::InitLocalMapSegmenter(const YAML::Node& config_node) {
     local_map_segmenter_ptr_ = std::make_shared<BoxFilter>(config_node);
     return true;
 }
 
-bool Filtering::InitFilters(const YAML::Node& config_node) {
+bool KITTIFiltering::InitFilters(const YAML::Node& config_node) {
     // a. global map filter -- downsample point cloud map for visualization:
     InitFilter("global_map", global_map_filter_ptr_, config_node);
     // b. local map filter -- downsample & ROI filtering for scan-map matching:
@@ -218,7 +233,7 @@ bool Filtering::InitFilters(const YAML::Node& config_node) {
     return true;
 }
 
-bool Filtering::InitGlobalMap(const YAML::Node& config_node) {
+bool KITTIFiltering::InitGlobalMap(const YAML::Node& config_node) {
     map_path_ = config_node["map_path"].as<std::string>();
 
     pcl::io::loadPCDFile(map_path_, *global_map_ptr_);
@@ -233,7 +248,7 @@ bool Filtering::InitGlobalMap(const YAML::Node& config_node) {
     return true;
 }
 
-bool Filtering::InitScanContextManager(const YAML::Node& config_node) {
+bool KITTIFiltering::InitScanContextManager(const YAML::Node& config_node) {
     // get loop closure config:
     loop_closure_method_ = config_node["loop_closure_method"].as<std::string>();
 
@@ -247,7 +262,7 @@ bool Filtering::InitScanContextManager(const YAML::Node& config_node) {
     return true;
 }
 
-bool Filtering::InitRegistration(
+bool KITTIFiltering::InitRegistration(
     std::shared_ptr<RegistrationInterface>& registration_ptr, 
     const YAML::Node& config_node
 ) {
@@ -265,17 +280,18 @@ bool Filtering::InitRegistration(
     return true;
 }
 
-bool Filtering::InitFusion(const YAML::Node& config_node) {
-    std::string fusion_method = config_node["fusion_method"].as<std::string>();
-
-    std::cout << "\tIMU-Lidar-GNSS Fusion Method: " << fusion_method << std::endl;
-
-    if (fusion_method == "kalman_filter") {
-        kalman_filter_ptr_ = std::make_shared<KalmanFilter>(config_node[fusion_method]);
+bool KITTIFiltering::InitFusion(const YAML::Node& config_node) {
+    // set up fusion method:
+    CONFIG.FUSION_METHOD = config_node["fusion_method"].as<std::string>();
+    if (CONFIG.FUSION_METHOD == "extended_kalman_filter") {
+        kalman_filter_ptr_ = std::make_shared<ExtendedKalmanFilter>(config_node[CONFIG.FUSION_METHOD]);
+    } else if (CONFIG.FUSION_METHOD == "error_state_kalman_filter") {
+        kalman_filter_ptr_ = std::make_shared<ErrorStateKalmanFilter>(config_node[CONFIG.FUSION_METHOD]);
     } else {
-        LOG(ERROR) << "Fusion method " << fusion_method << " NOT FOUND!";
+        LOG(ERROR) << "Fusion method " << CONFIG.FUSION_METHOD << " NOT FOUND!";
         return false;
     }
+    std::cout << "\tKITTI Localization Fusion Method: " << CONFIG.FUSION_METHOD << std::endl;
 
     return true;
 }
@@ -285,7 +301,7 @@ bool Filtering::InitFusion(const YAML::Node& config_node) {
  * @param  init_scan, init key scan
  * @return true if success otherwise false
  */
-bool Filtering::SetInitScan(const CloudData& init_scan) {
+bool KITTIFiltering::SetInitScan(const CloudData& init_scan) {
     // get init pose proposal using scan context match:
     Eigen::Matrix4f init_pose =  Eigen::Matrix4f::Identity();
     if (
@@ -301,7 +317,7 @@ bool Filtering::SetInitScan(const CloudData& init_scan) {
     return true;
 }
 
-bool Filtering::SetInitGNSS(const Eigen::Matrix4f& gnss_pose) {
+bool KITTIFiltering::SetInitGNSS(const Eigen::Matrix4f& gnss_pose) {
     static int gnss_cnt = 0;
 
     current_gnss_pose_ = gnss_pose;
@@ -316,7 +332,7 @@ bool Filtering::SetInitGNSS(const Eigen::Matrix4f& gnss_pose) {
     return true;
 }
 
-bool Filtering::SetInitPose(const Eigen::Matrix4f& init_pose) {
+bool KITTIFiltering::SetInitPose(const Eigen::Matrix4f& init_pose) {
     init_pose_ = init_pose;
 
     ResetLocalMap(
@@ -328,7 +344,7 @@ bool Filtering::SetInitPose(const Eigen::Matrix4f& init_pose) {
     return true;
 }
 
-bool Filtering::ResetLocalMap(
+bool KITTIFiltering::ResetLocalMap(
     float x, 
     float y, 
     float z

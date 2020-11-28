@@ -14,9 +14,15 @@
 #include "lidar_localization/subscriber/gnss_subscriber.hpp"
 #include "lidar_localization/tf_listener/tf_listener.hpp"
 // publisher
+// a. synced lidar measurement
 #include "lidar_localization/publisher/cloud_publisher.hpp"
-#include "lidar_localization/publisher/odometry_publisher.hpp"
+// b. synced IMU measurement
 #include "lidar_localization/publisher/imu_publisher.hpp"
+// c. synced GNSS-odo measurement:
+#include "lidar_localization/publisher/pos_vel_publisher.hpp"
+// d. synced reference trajectory:
+#include "lidar_localization/publisher/odometry_publisher.hpp"
+
 // models
 #include "lidar_localization/models/scan_adjust/distortion_adjust.hpp"
 
@@ -45,8 +51,9 @@ class DataPretreatFlow {
     std::shared_ptr<TFListener> lidar_to_imu_ptr_;
     // publisher
     std::shared_ptr<CloudPublisher> cloud_pub_ptr_;
-    std::shared_ptr<OdometryPublisher> gnss_pub_ptr_;
     std::shared_ptr<IMUPublisher> imu_pub_ptr_;
+    std::shared_ptr<PosVelPublisher> pos_vel_pub_ptr_;
+    std::shared_ptr<OdometryPublisher> gnss_pub_ptr_;
     // models
     std::shared_ptr<DistortionAdjust> distortion_adjust_ptr_;
 
@@ -62,6 +69,7 @@ class DataPretreatFlow {
     VelocityData current_velocity_data_;
     GNSSData current_gnss_data_;
 
+    PosVelData pos_vel_;
     Eigen::Matrix4f gnss_pose_ = Eigen::Matrix4f::Identity();
 };
 }

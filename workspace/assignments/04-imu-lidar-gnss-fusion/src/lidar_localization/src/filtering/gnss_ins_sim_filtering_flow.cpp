@@ -1,29 +1,31 @@
 /*
- * @Description: IMU-lidar fusion for localization workflow
+ * @Description: Kalman filter based localization on GNSS-INS-Sim workflow
  * @Author: Ge Yao
  * @Date: 2020-11-12 15:14:07
  */
 
-#include "lidar_localization/filtering/imu_gnss_filtering_flow.hpp"
+#include "lidar_localization/filtering/gnss_ins_sim_filtering_flow.hpp"
 
-#include "lidar_localization/filtering/imu_gnss_filtering.hpp"
+#include "lidar_localization/filtering/gnss_ins_sim_filtering.hpp"
 
 #include "lidar_localization/tools/file_manager.hpp"
 
 #include "glog/logging.h"
+
 #include <ostream>
+
 #include "lidar_localization/global_defination/global_defination.h"
 
 namespace lidar_localization {
 
-IMUGNSSFilteringFlow::IMUGNSSFilteringFlow(
+GNSSINSSimFilteringFlow::GNSSINSSimFilteringFlow(
     ros::NodeHandle& nh
 ) {
     // subscriber:
     // a. IMU raw measurement:
     imu_sub_ptr_ = std::make_shared<IMUSubscriber>(nh, "/synced_imu", 1000000);
-    // b. GNSS raw measurement:
-    gnss_sub_ptr_ = std::make_shared<OdometrySubscriber>(nh, "/synced_gnss_pose", 100000);
+    // b. synced GNSS-odo-mag measurement:
+    pos_vel_mag_sub_ptr_ = std::make_shared<PosVelMagSubscriber>(nh, "/synced_pos_vel_mag", 100000);
     // c. reference trajectory:
     ref_pose_sub_ptr_ = std::make_shared<OdometrySubscriber>(nh, "/synced_reference_pose", 100000);
     
@@ -33,39 +35,39 @@ IMUGNSSFilteringFlow::IMUGNSSFilteringFlow(
     // b. tf, map -> imu_link:
     imu_tf_pub_ptr_ = std::make_shared<TFBroadCaster>("/map", "/imu_link");
     // c. covariance:
-    fused_std_pub_ = nh.advertise<lidar_localization::ESKFStd>("/fused_std", 100);
+    fused_std_pub_ = nh.advertise<lidar_localization::EKFStd>("/fused_std", 100);
     fused_std_.header.frame_id = "/imu_link";
 
     // filtering instance:
-    filtering_ptr_ = std::make_shared<IMUGNSSFiltering>();
+    filtering_ptr_ = std::make_shared<GNSSINSSimFiltering>();
 }
 
-bool IMUGNSSFilteringFlow::Run() {
+bool GNSSINSSimFilteringFlow::Run() {
     ReadData();
 
     while( HasData() ) {
         if ( !HasInited() ) {
             if ( 
-                HasGNSSData() && ValidGNSSData() &&
+                HasPosVelMagData() && ValidPosVelMagData() &&
                 HasIMUData() && ValidIMUData()
             ) {
                 InitLocalization();
             }
         } else {
             // TODO: handle timestamp chaos in an more elegant way
-            if (  HasGNSSData() && ValidGNSSData() ) {
+            if (  HasPosVelMagData() && ValidPosVelMagData() ) {
                 if ( HasIMUData() ) {
                     while (
                         HasIMUData() && ValidIMUData() && 
-                        current_imu_data_.time < current_gnss_data_.time
+                        current_imu_data_.time < current_pos_vel_mag_data_.time
                     ) {
                         UpdateLocalization();
                     }
 
                     if (
-                        current_imu_data_.time >= current_gnss_data_.time
+                        current_imu_data_.time >= current_pos_vel_mag_data_.time
                     ) {
-                        gnss_data_buff_.push_back(current_gnss_data_);
+                        imu_data_buff_.push_back(current_imu_data_);
                     }
                 }
 
@@ -81,7 +83,7 @@ bool IMUGNSSFilteringFlow::Run() {
     return true;
 }
 
-bool IMUGNSSFilteringFlow::SaveOdometry(void) {
+bool GNSSINSSimFilteringFlow::SaveOdometry(void) {
     if ( 0 == trajectory.N ) {
         return false;
     }
@@ -121,34 +123,34 @@ bool IMUGNSSFilteringFlow::SaveOdometry(void) {
     return true;
 }
 
-bool IMUGNSSFilteringFlow::SaveObservabilityAnalysis(void) {
+bool GNSSINSSimFilteringFlow::SaveObservabilityAnalysis(void) {
     filtering_ptr_->SaveObservabilityAnalysis();
 
     return true;
 }
 
-bool IMUGNSSFilteringFlow::ReadData() {
+bool GNSSINSSimFilteringFlow::ReadData() {
     //
     // pipe synced IMU-GNSS measurements into buffer:
     // 
     imu_sub_ptr_->ParseData(imu_data_buff_);
-    gnss_sub_ptr_->ParseData(gnss_data_buff_);
+    pos_vel_mag_sub_ptr_->ParseData(pos_vel_mag_data_buff_);
     ref_pose_sub_ptr_->ParseData(ref_pose_data_buff_);
 
     return true;
 }
 
-bool IMUGNSSFilteringFlow::HasInited(void) {
+bool GNSSINSSimFilteringFlow::HasInited(void) {
     return filtering_ptr_->HasInited();
 }
 
-bool IMUGNSSFilteringFlow::HasData() {
+bool GNSSINSSimFilteringFlow::HasData() {
     if ( !HasInited() ) {
-        if ( !HasIMUData() || !HasGNSSData() ) {
+        if ( !HasIMUData() || !HasPosVelMagData() ) {
             return false;
         }
     } else {
-        if ( !HasIMUData() && !HasGNSSData() ) {
+        if ( !HasIMUData() && !HasPosVelMagData() ) {
             return false;
         }
     }
@@ -156,7 +158,7 @@ bool IMUGNSSFilteringFlow::HasData() {
     return true;
 }
 
-bool IMUGNSSFilteringFlow::ValidIMUData() {
+bool GNSSINSSimFilteringFlow::ValidIMUData() {
     current_imu_data_ = imu_data_buff_.front();
 
     imu_data_buff_.pop_front();
@@ -164,28 +166,35 @@ bool IMUGNSSFilteringFlow::ValidIMUData() {
     return true;
 }
 
-bool IMUGNSSFilteringFlow::ValidGNSSData() {
-    current_gnss_data_ = gnss_data_buff_.front();
+bool GNSSINSSimFilteringFlow::ValidPosVelMagData() {
+    current_pos_vel_mag_data_ = pos_vel_mag_data_buff_.front();
     
-    gnss_data_buff_.pop_front();
+    pos_vel_mag_data_buff_.pop_front();
 
     return true;
 }
 
-bool IMUGNSSFilteringFlow::InitLocalization(void) {
-    // 
+bool GNSSINSSimFilteringFlow::InitLocalization(void) {
+    // init pos & vel:
+    gnss_pose_(0, 3) = current_pos_vel_mag_data_.pos.x();
+    gnss_pose_(1, 3) = current_pos_vel_mag_data_.pos.y();
+    gnss_pose_(2, 3) = current_pos_vel_mag_data_.pos.z();
+
+    Eigen::Vector3f init_vel = current_imu_data_.GetOrientationMatrix() * current_pos_vel_mag_data_.vel;
+    
+    // set:
     filtering_ptr_->Init(
-        current_gnss_data_.pose,
-        current_gnss_data_.vel,
+        gnss_pose_,
+        init_vel,
         current_imu_data_
     );
     
-    LOG(INFO) << "Init Error-State Kalman Filter with first GNSS measurement" << std::endl;
+    LOG(INFO) << "Init localization Kalman filter with first IMU & GNSS-odo-mag measurement" << std::endl;
 
     return true;
 }
 
-bool IMUGNSSFilteringFlow::UpdateLocalization() {
+bool GNSSINSSimFilteringFlow::UpdateLocalization() {
     if ( 
         filtering_ptr_->Update(
             current_imu_data_
@@ -200,16 +209,16 @@ bool IMUGNSSFilteringFlow::UpdateLocalization() {
     return false;
 }
 
-bool IMUGNSSFilteringFlow::CorrectLocalization() {
+bool GNSSINSSimFilteringFlow::CorrectLocalization() {
     static int count = 0;
 
     if ( 
         // downsample GNSS measurement:
-        0 == (++count % 10) && 
+        0 == (++count % 40) && 
         // successful correct:
         filtering_ptr_->Correct(
             current_imu_data_, 
-            current_gnss_data_
+            current_pos_vel_mag_data_
         ) 
     ) {
         // reset downsample counter:
@@ -219,7 +228,7 @@ bool IMUGNSSFilteringFlow::CorrectLocalization() {
         PublishFusionOdom();
         
         // add to odometry output for evo evaluation:
-        UpdateOdometry(current_gnss_data_.time);
+        UpdateOdometry(current_pos_vel_mag_data_.time);
 
         return true;
     }
@@ -227,7 +236,7 @@ bool IMUGNSSFilteringFlow::CorrectLocalization() {
     return false;
 }
 
-bool IMUGNSSFilteringFlow::PublishFusionOdom() {
+bool GNSSINSSimFilteringFlow::PublishFusionOdom() {
     // get odometry from Kalman filter:
     filtering_ptr_->GetOdometry(fused_pose_, fused_vel_);
 
@@ -242,7 +251,7 @@ bool IMUGNSSFilteringFlow::PublishFusionOdom() {
     return true;
 }
 
-bool IMUGNSSFilteringFlow::PublishFusionStandardDeviation() {
+bool GNSSINSSimFilteringFlow::PublishFusionStandardDeviation() {
     // get standard deviation from Kalman filter:
     filtering_ptr_->GetStandardDeviation(fused_std_);
     // c. publish standard deviation:
@@ -251,11 +260,16 @@ bool IMUGNSSFilteringFlow::PublishFusionStandardDeviation() {
     return true;
 }
 
-bool IMUGNSSFilteringFlow::UpdateOdometry(const double &time) {
+bool GNSSINSSimFilteringFlow::UpdateOdometry(const double &time) {
     trajectory.time_.push_back(time);
 
     trajectory.fused_.push_back(fused_pose_);
-    trajectory.gnss_.push_back(current_gnss_data_.pose);
+
+    gnss_pose_(0, 3) = current_pos_vel_mag_data_.pos.x();
+    gnss_pose_(1, 3) = current_pos_vel_mag_data_.pos.y();
+    gnss_pose_(2, 3) = current_pos_vel_mag_data_.pos.z();
+
+    trajectory.gnss_.push_back(gnss_pose_);
 
     ++trajectory.N;
 
@@ -268,7 +282,7 @@ bool IMUGNSSFilteringFlow::UpdateOdometry(const double &time) {
  * @param  ofs, output file stream
  * @return true if success otherwise false
  */
-bool IMUGNSSFilteringFlow::SavePose(
+bool GNSSINSSimFilteringFlow::SavePose(
     const Eigen::Matrix4f& pose, 
     std::ofstream& ofs
 ) {
