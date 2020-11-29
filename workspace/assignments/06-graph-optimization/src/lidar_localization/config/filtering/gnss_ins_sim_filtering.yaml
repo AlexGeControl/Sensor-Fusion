@@ -1,0 +1,76 @@
+# select fusion method for IMU-GNSS-Odo-Mag, available methods are:
+#     1. extended_kalman_filter
+#     2. error_state_kalman_filter
+fusion_method: error_state_kalman_filter
+# select fusion strategy for IMU-GNSS-Odo-Mag, available methods are:
+#     1. pose
+#     2. position
+#     3. position_velocity
+#     4. position_magnetic_field
+#     5. position_velocity_magnetic_field
+fusion_strategy: position_velocity
+
+## 1. Iterative Extended Kalman filter for IMU-GNSS-Odo-Mag fusion:
+extended_kalman_filter:
+    earth:
+        # gravity can be calculated from https://www.sensorsone.com/local-gravity-calculator/ using latitude and height:
+        gravity_magnitude: -9.7821972833
+        # rotation speed, rad/s:
+        rotation_speed: 7.292115e-5
+        # latitude:
+        latitude:   31.224361
+        # longitude:
+        longitude: 121.469170
+        # magneto:
+        magneto:
+            B_E:  32.98660  
+            B_N:  -3.56781
+            B_U:  36.07890
+    covariance:
+        prior:
+            pos: 2.5e-1
+            vel: 2.5e-3
+            ori: 1.0e-6
+            epsilon: 1.0e-8
+            delta: 1.0e-8
+        process:
+            gyro: 1.0e-8
+            accel: 1.0e-8
+        measurement:
+            pose:
+                pos: 1.0e-4
+                ori: 1.0e-4
+            pos: 2.5e-1
+            vel: 2.5e-3
+            mag: 1.0e-4
+    motion_constraint: 
+        activated: true
+        w_b_thresh: 0.13
+## 2. Error-State Kalman filter for IMU-GNSS-Odo fusion:
+error_state_kalman_filter:
+    earth:
+        # gravity can be calculated from https://www.sensorsone.com/local-gravity-calculator/ using latitude and height:
+        gravity_magnitude: -9.7821972833
+        # rotation speed, rad/s:
+        rotation_speed: 7.292115e-5
+        # latitude:
+        latitude:   31.224361
+    covariance:
+        prior:
+            pos: 2.5e-1
+            vel: 2.5e-3
+            ori: 1.0e-6
+            epsilon: 1.0e-8
+            delta: 1.0e-8
+        process:
+            gyro: 1.0e-8
+            accel: 1.0e-8
+        measurement:
+            pose:
+                pos: 1.0e-4
+                ori: 1.0e-4
+            pos: 2.5e-1
+            vel: 2.5e-3
+    motion_constraint: 
+        activated: true
+        w_b_thresh: 0.13
