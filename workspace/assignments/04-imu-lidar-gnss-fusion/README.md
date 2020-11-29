@@ -22,8 +22,6 @@ This is the solution of Assignment 04 of Sensor Fusion from [深蓝学院](https
 
 <img src="doc/images/01-error-state-kalman-filtering--architect.png" alt="Error State Kalman Filter for Localization" width="100%" />
 
-算法的`理论推导`以及`针对KITTI Road Test Data`的`伪代码实现`参考 [here](doc/derivations)
-
 ### Data Preprocessing
 
 为了产生`未降频的IMU测量值`:
@@ -212,7 +210,7 @@ Lidar Only                 |IMU-Lidar Fusion
 
 ### Measurement Model Derivation
 
-组合导航(GNSS + IMU)的滤波模型参考 [here](doc/derivations).
+组合导航(IMU + GNSS)的滤波模型参考 [here](doc/derivations/IMU-GNSS.pdf).
 
 ### Data Pre-processing
 
