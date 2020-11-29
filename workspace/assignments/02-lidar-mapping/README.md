@@ -4,6 +4,8 @@ This is the solution of Assignment 02 of Sensor Fusion from [深蓝学院](https
 
 深蓝学院从多传感器融合定位第2节Lidar Mapping答案. 版权归深蓝学院所有. 请勿抄袭.
 
+**WARNING** ONLY Reproducible using Corresponding Docker Environment. Not Responsible for Custom Env. Adaptation.
+
 ---
 
 ## Problem Statement

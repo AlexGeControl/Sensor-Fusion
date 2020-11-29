@@ -43,7 +43,7 @@ void KalmanFilter::AnalyzeQ(
     Eigen::VectorXd X(DIM_STATE);
     for (int i = 0; i < DIM_STATE; ++i) {
         Eigen::MatrixXd::Index sv_index;
-        svd.matrixV().col(i).maxCoeff(&sv_index);
+        svd.matrixV().cwiseAbs().col(i).maxCoeff(&sv_index);
         X(sv_index) = svd.singularValues()(i);
     }
     X = 100.0 / svd.singularValues().maxCoeff() * X;
