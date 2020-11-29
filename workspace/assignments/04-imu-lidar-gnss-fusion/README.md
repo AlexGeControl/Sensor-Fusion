@@ -276,9 +276,9 @@ IMU-GNSS ESKF, Acc         |IMU-GNSS ESKF, Turning
 # device error level:
 device_error_level:
     imu: no_error
-    mag: mid_accuracy
-    gps: mid_accuracy
-    odo: mid_accuracy
+    mag: no_error
+    gps: no_error
+    odo: no_error
 ```
 
 #### Localization Precision
@@ -322,7 +322,7 @@ Acc & Deacc, GNSS Only     |Acc & Deacc, IMU-GNSS
     Eigen::VectorXd X(DIM_STATE);
     for (int i = 0; i < DIM_STATE; ++i) {
         Eigen::MatrixXd::Index sv_index;
-        svd.matrixV().col(i).maxCoeff(&sv_index);
+        svd.matrixV().cwiseAbs().col(i).maxCoeff(&sv_index);
         X(sv_index) = svd.singularValues()(i);
     }
     X = 100.0 / svd.singularValues().maxCoeff() * X;
