@@ -2,7 +2,7 @@
 
 This is the solution of Assignment 06 of Sensor Fusion from [深蓝学院](https://www.shenlanxueyuan.com/course/261).
 
-深蓝学院从多传感器融合定位第6节Graph Optimization for Lidar Mapping & Localization答案. 版权归深蓝学院所有. 请勿抄袭.
+深蓝学院从多传感器融合定位第6节Graph Optimization for Lidar Mapping答案. 版权归深蓝学院所有. 请勿抄袭.
 
 ---
 
@@ -10,7 +10,13 @@ This is the solution of Assignment 06 of Sensor Fusion from [深蓝学院](https
 
 ---
 
-### 1. 基于编码器的预积分方法
+### 1. 在KITTI上, 实现基于IMU的预积分融合激光建图
+
+#### ANS
+
+---
+
+### 2. 基于Odometer的预积融合分方法
 
 推导基于编码器的预积分方法, 包括:
 
@@ -25,12 +31,9 @@ This is the solution of Assignment 06 of Sensor Fusion from [深蓝学院](https
 
 ---
 
-### 2. 使用仿真数据, 验证Q1中模型的正确性
+### 3. 在KITTI上, 实现基于IMU-Odometer的预积分融合激光建图
 
 #### ANS
 
 ---
 
-### 3. 在KITTI中实现基于预积分融合的激光建图
-
-#### ANS
