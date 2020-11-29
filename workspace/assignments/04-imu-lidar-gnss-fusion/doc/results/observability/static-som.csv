@@ -1,2 +1,0 @@
-,command_type,yaw,pitch,roll,x,y,z,duration,gps_visibility,timestamp,motion_stage_id,som_rank,singular_value_max,pE,pN,pU,vE,vN,vU,thetaE,thetaN,thetaU,gyro_bias_x,gyro_bias_y,gyro_bias_z,accel_bias_x,accel_bias_y,accel_bias_z
-0,1,0,0,0,0,0,0,60,1,60,0,12,13.0188833937,10.1573,10.1573,10.1573,10.1573,10.1573,10.1573,99.4828,100.0,1.88788e-23,99.4828,270.061,0.00620383,7.62472e-25,1.82104e-27,10.1573

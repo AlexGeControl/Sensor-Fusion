@@ -266,6 +266,19 @@ IMU-GNSS ESKF, Acc         |IMU-GNSS ESKF, Turning
 
 ### Result & Analysis
 
+#### GNSS-INS-Sim Config
+
+`GNSS-INS-Sim`的配置如下. 注意`IMU`需要选择`no_error`
+
+```yaml
+# device error level:
+device_error_level:
+    imu: no_error
+    mag: mid_accuracy
+    gps: mid_accuracy
+    odo: mid_accuracy
+```
+
 #### Localization Precision
 
 融合前后定位精度的对比如下. 数据显示在四种典型运动模式下, `ESKF`均可显著提升定位精度.
@@ -316,43 +329,27 @@ Acc & Deacc, GNSS Only     |Acc & Deacc, IMU-GNSS
 
 * 使用Python工具链, 分析系统的`可观测性`与`可观测度`.
 
-##### Observability using SVD
+##### Case Analysis
 
 四种典型运动模式的`可观测性`与`可观测度`测量数据如下表所示. 完整的测量数据请点击 [here](doc/results/observability). 数据显示:
 
-* 四种典型运动模式下, `IMU-GNSS ESKF Fusion`的`Q`秩均为`12`(Singular Value Threshold @ `1.0e-05`)
+* 四种典型运动模式下, 在每一时刻
 
-* `Static` [here](doc/results/observability/static-som.csv)
-
-    * 在整个运动过程中, `SOM`的秩始终为`12`
+    * `IMU-GNSS ESKF Fusion`的`Q`秩均为`12`(Singular Value Threshold @ `1.0e-05`)
 
     * `Yaw`, `Accel Bias X`与`Accel Bias Y`不可观
 
-* `Constant Velocity` [here](doc/results/observability/constant-velocity-som.csv)
+* 由于`w_ie`的存在, 四种典型运动模式下, 联合多个时刻, 
+    
+    * `IMU-GNSS ESKF Fusion`的`SOM`秩会变为`15`(Singular Value Threshold @ `1.0e-05`)
 
-    * 在整个匀速运动过程中(排除调节速度所需的加/减速阶段), `SOM`的秩始终为`12`
+    * 但不同运动模式下, `Yaw`, `Accel Bias X`与`Accel Bias Y`的收敛速度不同
 
-    * `Yaw`, `Accel Bias X`与`Accel Bias Y`不可观
+        * `Static`最慢
 
-* `Acc / Deacc` [here](doc/results/observability/acc-som.csv)
+        * `Constant Velocity`次之
 
-    * 在最初时刻, 系统静止时, `SOM`的秩为`12`, `Yaw`, `Accel Bias X`与`Accel Bias Y`不可观
-
-    * 当系统有沿Y轴的加/减速运动后, `SOM`的秩提高为`15`, `Yaw`, `Accel Bias X`与`Accel Bias Y`均变得可观, 但`Accel Bias X`的可观测度很低
-
-    * 当系统有沿X轴的加/减速运动后, `Accel Bias X`的可观测度开始增加
-
-    * 在整个运动过程中, 系统的加/减速度幅值越大, 状态的可观测度越高
-
-* `Turning` [here](doc/results/observability/acc-som.csv)
-
-    * 在最初时刻, 系统静止时, `SOM`的秩为`12`, `Yaw`, `Accel Bias X`与`Accel Bias Y`不可观
-
-    * 当系统有沿X轴的加/减速运动后, `SOM`的秩提高为`15`, `Yaw`, `Accel Bias X`与`Accel Bias Y`均变得可观, 但`Accel Bias X`的可观测度很低
-
-    * 当系统有沿Z轴的旋转运动后, `Accel Bias X`的可观测度开始增加
-
-    * 在整个运动过程中, 系统的角速度幅值越大, 状态的可观测度越高
+        * `Acc / Deacc`与`Turning`最快, 且运动的强度越大, 可观测度越高, 估计的收敛速度越快.
 
 ##### ESKF Convergence
 
@@ -372,16 +369,20 @@ Turning                    |Acc & Deacc
 
 * 在各个时刻
 
-    * `IMU-GUSS ESKF Fusion`的`Q`秩均为`12`(Singular Value Threshold @ `1.0e-05`)
+    * `IMU-GUSS ESKF Fusion`的`Q`秩均为`12`(Singular Value Threshold @ `1.0e-05`).
 
-    * `Yaw`, `Accel Bias X`与`Accel Bias Y`不可观
+    * `Yaw`, `Accel Bias X`与`Accel Bias Y`不可观.
 
-* 当系统的运动过程中存在`加/减速`与`旋转`时, 多个时刻联合的`SOM`的秩将提高为`15`, 此时系统状态将变为完全可观.
-
-* `静止`与`匀速运动`下, 模型的`可观测度`最低, 此时估计值的收敛速度为`最慢`;
-
-* `加/减速`与`旋转`:
+* 由于`w_ie`的存在, 联合多个时刻 
     
-    * 均可`提升模型的可观测度`, 进而`提升ESKF的收敛速度`.
+    * `IMU-GNSS ESKF Fusion`的`SOM`秩会变为`15`(Singular Value Threshold @ `1.0e-05`), 此时系统状态将变为完全可观.
+
+    * 但不同的运动模式下, 系统的可观测度不同, 估计值的收敛速度不同:
+
+        * `静止`与`匀速运动`下, 模型的`可观测度`最低, 此时估计值的收敛速度为`最慢`;
+
+        * `加/减速`与`旋转`:
     
-    * 在这两种运动模式下, `运动越剧烈(加减速幅值越大, 旋转角速度幅值越大), 可观测度越高, ESKF的收敛速度越快`. 
+            * 均可`提升模型的可观测度`, 进而`提升ESKF的收敛速度`.
+    
+            * 在这两种运动模式下, `运动越剧烈(加减速幅值越大, 旋转角速度幅值越大), 可观测度越高, ESKF的收敛速度越快`. 

@@ -40,9 +40,9 @@ extended_kalman_filter:
             pose:
                 pos: 1.0e-4
                 ori: 1.0e-4
-            pos: 2.5e-1
-            vel: 2.5e-3
-            mag: 1.0e-4
+            pos: 1.0e-8
+            vel: 1.0e-8
+            mag: 1.0e-8
     motion_constraint: 
         activated: false
         w_b_thresh: 0.13
@@ -69,8 +69,8 @@ error_state_kalman_filter:
             pose:
                 pos: 1.0e-4
                 ori: 1.0e-4
-            pos: 2.5e-1
-            vel: 2.5e-3
+            pos: 1.0e-8
+            vel: 1.0e-8
     motion_constraint: 
         activated: false
         w_b_thresh: 0.13

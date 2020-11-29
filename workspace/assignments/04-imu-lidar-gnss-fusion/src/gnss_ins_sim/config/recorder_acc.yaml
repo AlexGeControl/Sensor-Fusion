@@ -8,10 +8,10 @@ sample_frequency:
 
 # device error level:
 device_error_level:
-    imu: high_accuracy
-    mag: mid_accuracy
-    gps: mid_accuracy
-    odo: mid_accuracy
+    imu: no_error
+    mag: no_error
+    gps: no_error
+    odo: no_error
 
 # topic name:
 topic_name: 

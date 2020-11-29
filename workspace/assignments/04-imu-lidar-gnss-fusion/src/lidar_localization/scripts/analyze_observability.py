@@ -14,7 +14,7 @@ import pandas as pd
 
 Config = namedtuple(
     'Config', 
-    ['motion_file', 'SOM', 'output_file', 'sv_thresh'], 
+    ['motion_file', 'SOM', 'output_dir', 'sv_thresh'], 
     verbose=False
 )
 
@@ -40,7 +40,7 @@ def get_arguments():
         required=True, type=str
     )
     required.add_argument(
-        "-o", dest="output_file", help="Output filepath of SOM analysis result.",
+        "-o", dest="output_dir", help="Output directory of SOM analysis result.",
         required=True, type=str
     )
 
@@ -67,16 +67,26 @@ def main(config):
     df_motion['motion_stage_id'] = df_motion.index.values
 
     # load SOM data:
-    df_SOM = pd.read_csv(config.SOM)
+    df_Q = pd.read_csv(config.SOM + ".csv")
+    df_SOM = pd.read_csv(config.SOM + "_som.csv")
     # convert to relative time
+    df_Q['T'] = df_Q['T'] - df_Q.iloc[0, 0] + 1
     df_SOM['T'] = df_SOM['T'] - df_SOM.iloc[0, 0] + 1
 
     # get motion stage id of each SOM record:
     motion_stage_bins = df_motion.timestamp.values
+
+    df_Q['motion_stage_id'] = df_Q['T'].apply(lambda x: np.digitize(x, motion_stage_bins))
+
     df_SOM['motion_stage_id'] = df_SOM['T'].apply(lambda x: np.digitize(x, motion_stage_bins))
     # get rank of each SOM record:
-    singular_value_columns = [ col for col in df_SOM.columns if col.startswith('sv') ]
-    df_SOM['som_rank'] = np.sum(
+    singular_value_columns = [ col for col in df_Q.columns if col.startswith('sv') ]
+    df_Q['Q_rank'] = np.sum(
+        df_Q.loc[:, singular_value_columns].values > config.sv_thresh, axis = 1
+    )
+    df_Q['singular_value_max'] = 100.0 / df_Q['sv1'].max() * df_Q['sv1']
+
+    df_SOM['SOM_rank'] = np.sum(
         df_SOM.loc[:, singular_value_columns].values > config.sv_thresh, axis = 1
     )
     df_SOM['singular_value_max'] = 100.0 / df_SOM['sv1'].max() * df_SOM['sv1']
@@ -87,9 +97,17 @@ def main(config):
     #     2. min. degree of observability for each state variable
     # for each motion stage
     #
-    degree_of_observability_columns = [ col for col in df_SOM.columns if col.startswith('doo') ]
+    degree_of_observability_columns = [ col for col in df_Q.columns if col.startswith('doo') ]
+
+    df_Q['SOM_rank'] = df_SOM['SOM_rank']
+    df_Q =  df_Q[
+        ['motion_stage_id', 'SOM_rank', 'Q_rank', 'singular_value_max'] + degree_of_observability_columns
+    ].groupby(
+        ['motion_stage_id']
+    ).min()
+
     df_SOM =  df_SOM[
-        ['motion_stage_id', 'som_rank', 'singular_value_max'] + degree_of_observability_columns
+        ['motion_stage_id', 'SOM_rank', 'singular_value_max'] + degree_of_observability_columns
     ].groupby(
         ['motion_stage_id']
     ).min()
@@ -112,14 +130,23 @@ def main(config):
             'gyro_bias_x', 'gyro_bias_y', 'gyro_bias_z',
             'accel_bias_x', 'accel_bias_y', 'accel_bias_z',
         ]
-    df_SOM.columns = ['som_rank', 'singular_value_max'] + state_variable_columns
+    df_Q.columns = ['SOM_rank', 'Q_rank', 'singular_value_max'] + state_variable_columns
+    df_Q.reset_index(inplace=True, drop=True)
+
+    df_SOM.columns = ['SOM_rank', 'singular_value_max'] + state_variable_columns
     df_SOM.reset_index(inplace=True, drop=True)
 
     # finally:
-    df_output = df_motion.join(df_SOM, how='left')
+    df_output_Q = df_motion.join(df_Q, how='left')
+    df_output_SOM = df_motion.join(df_SOM, how='left')
 
     # write to output:
-    df_output.to_csv(config.output_file)
+    df_output_Q.to_csv(
+        os.path.join(config.output_dir, os.path.basename(config.SOM) + ".csv")
+    )
+    df_output_SOM.to_csv(
+        os.path.join(config.output_dir, os.path.basename(config.SOM) + "_som.csv")
+    )
 
     sys.exit(os.EX_OK) 
 
@@ -132,7 +159,7 @@ if __name__ == '__main__':
         motion_file = arguments.motion_file,
         SOM = arguments.SOM,
         sv_thresh = arguments.sv_thresh,
-        output_file = arguments.output_file
+        output_dir = arguments.output_dir
     )
 
     main(config)
