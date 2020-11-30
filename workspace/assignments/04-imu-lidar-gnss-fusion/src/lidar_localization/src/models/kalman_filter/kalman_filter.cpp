@@ -22,11 +22,11 @@ namespace lidar_localization {
 
 void KalmanFilter::AnalyzeQ(
     const int DIM_STATE,
-    const double &time, const Eigen::MatrixXd &Q,
+    const double &time, const Eigen::MatrixXd &Q, const Eigen::VectorXd &Y,
     std::vector<std::vector<double>> &data
 ) {
-    // perform SVD analysis:
-    Eigen::JacobiSVD<Eigen::MatrixXd> svd(Q, Eigen::ComputeFullV);
+    // perform SVD analysis, thin for rectangular matrix:
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(Q, Eigen::ComputeThinU | Eigen::ComputeThinV);
 
     // add record:
     std::vector<double> record;
@@ -40,16 +40,27 @@ void KalmanFilter::AnalyzeQ(
     }
 
     // c. record degree of observability:
-    Eigen::VectorXd X(DIM_STATE);
+    Eigen::MatrixXd X = (
+        svd.matrixV() * 
+        svd.singularValues().asDiagonal().inverse()
+    ) * (
+        svd.matrixU().transpose() * Y
+    ).asDiagonal();
+
+    Eigen::VectorXd degree_of_observability = Eigen::VectorXd::Zero(DIM_STATE);
     for (int i = 0; i < DIM_STATE; ++i) {
+        // find max. magnitude response in X:
         Eigen::MatrixXd::Index sv_index;
-        svd.matrixV().cwiseAbs().col(i).maxCoeff(&sv_index);
-        X(sv_index) = svd.singularValues()(i);
+        X.col(i).cwiseAbs().maxCoeff(&sv_index);
+
+        // associate with corresponding singular value:
+        degree_of_observability(sv_index) = svd.singularValues()(i);
     }
-    X = 100.0 / svd.singularValues().maxCoeff() * X;
+    // normalize:
+    degree_of_observability = 1.0 / svd.singularValues().maxCoeff() * degree_of_observability;
 
     for (int i = 0; i < DIM_STATE; ++i) {
-        record.push_back(X(i));
+        record.push_back(degree_of_observability(i));
     }
 
     // add to data:

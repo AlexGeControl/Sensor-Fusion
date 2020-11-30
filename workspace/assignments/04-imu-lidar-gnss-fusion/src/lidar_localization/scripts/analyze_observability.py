@@ -46,8 +46,8 @@ def get_arguments():
 
     # add optional
     optional.add_argument(
-        "-t", dest="sv_thresh", help="Singular value threshold. Defaults to 1.0e-5",
-        required=False, default=1.0e-5, type=float, 
+        "-t", dest="sv_thresh", help="Singular value threshold. Defaults to 1.0e-4",
+        required=False, default=1.0e-4, type=float, 
     )
 
     # parse arguments:
@@ -80,14 +80,14 @@ def main(config):
 
     df_SOM['motion_stage_id'] = df_SOM['T'].apply(lambda x: np.digitize(x, motion_stage_bins))
     # get rank of each SOM record:
-    singular_value_columns = [ col for col in df_Q.columns if col.startswith('sv') ]
+    degree_of_observability_columns = [ col for col in df_Q.columns if col.startswith('doo') ]
     df_Q['Q_rank'] = np.sum(
-        df_Q.loc[:, singular_value_columns].values > config.sv_thresh, axis = 1
+        df_Q.loc[:, degree_of_observability_columns].values > config.sv_thresh, axis = 1
     )
     df_Q['singular_value_max'] = 100.0 / df_Q['sv1'].max() * df_Q['sv1']
 
     df_SOM['SOM_rank'] = np.sum(
-        df_SOM.loc[:, singular_value_columns].values > config.sv_thresh, axis = 1
+        df_SOM.loc[:, degree_of_observability_columns].values > config.sv_thresh, axis = 1
     )
     df_SOM['singular_value_max'] = 100.0 / df_SOM['sv1'].max() * df_SOM['sv1']
 
@@ -97,8 +97,6 @@ def main(config):
     #     2. min. degree of observability for each state variable
     # for each motion stage
     #
-    degree_of_observability_columns = [ col for col in df_Q.columns if col.startswith('doo') ]
-
     df_Q['SOM_rank'] = df_SOM['SOM_rank']
     df_Q =  df_Q[
         ['motion_stage_id', 'SOM_rank', 'Q_rank', 'singular_value_max'] + degree_of_observability_columns

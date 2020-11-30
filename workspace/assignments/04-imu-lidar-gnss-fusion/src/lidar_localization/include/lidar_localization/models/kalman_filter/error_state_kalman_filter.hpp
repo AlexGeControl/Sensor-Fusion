@@ -354,28 +354,28 @@ private:
      * @param  void
      * @return void
      */
-    Eigen::MatrixXd GetQPose(void);
+    void GetQPose(Eigen::MatrixXd &Q, Eigen::VectorXd &Y);
 
     /**
      * @brief  get Q for pose & body velocity measurement
      * @param  void
      * @return QPoseVel
      */
-    Eigen::MatrixXd GetQPoseVel(void);
+    void GetQPoseVel(Eigen::MatrixXd &Q, Eigen::VectorXd &Y);
 
     /**
      * @brief  get Q for position measurement
      * @param  void
      * @return QPos
      */
-    Eigen::MatrixXd GetQPosi(void);
+    void GetQPosi(Eigen::MatrixXd &Q, Eigen::VectorXd &Y);
 
     /**
      * @brief  get Q for navigation position & body velocity measurement
      * @param  void
-     * @return void
+     * @return QPosVel
      */
-    Eigen::MatrixXd GetQPosiVel(void);
+    void GetQPosiVel(Eigen::MatrixXd &Q, Eigen::VectorXd &Y);
 
     // odometry estimation from IMU integration:
     Eigen::Matrix4d init_pose_ = Eigen::Matrix4d::Identity();

@@ -159,7 +159,7 @@ protected:
 
     static void AnalyzeQ(
         const int DIM_STATE,
-        const double &time, const Eigen::MatrixXd &Q,
+        const double &time, const Eigen::MatrixXd &Q, const Eigen::VectorXd &Y,
         std::vector<std::vector<double>> &data
     );
 
@@ -184,13 +184,7 @@ protected:
     struct {
         std::vector<double> time_;
         std::vector<Eigen::MatrixXd> Q_;
-        
-        std::vector<std::vector<double>> pose_;
-        std::vector<std::vector<double>> pose_vel_;
-        std::vector<std::vector<double>> posi_;
-        std::vector<std::vector<double>> posi_vel_;
-        std::vector<std::vector<double>> posi_mag_;
-        std::vector<std::vector<double>> posi_vel_mag_;
+        std::vector<Eigen::VectorXd> Y_;
     } observability;
 
     // hyper-params:

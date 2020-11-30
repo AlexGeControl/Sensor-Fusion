@@ -1273,9 +1273,9 @@ bool ExtendedKalmanFilter::SaveObservabilityAnalysis(
 
         Qso.block(i * N, 0, N, DIM_STATE) = Q;
 
-        KalmanFilter::AnalyzeQ(DIM_STATE, time, Q, q_data);
+        // KalmanFilter::AnalyzeQ(DIM_STATE, time, Q, q_data);
 
-        KalmanFilter::AnalyzeQ(DIM_STATE, time, Qso.block(0, 0, (i + 1)*N, DIM_STATE), q_so_data);
+        // KalmanFilter::AnalyzeQ(DIM_STATE, time, Qso.block(0, 0, (i + 1)*N, DIM_STATE), q_so_data);
     }
 
     std::string q_data_csv = WORK_SPACE_PATH + "/slam_data/observability/" + type + ".csv";
