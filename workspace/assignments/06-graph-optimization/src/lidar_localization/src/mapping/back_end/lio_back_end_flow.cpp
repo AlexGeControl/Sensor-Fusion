@@ -1,9 +1,9 @@
 /*
- * @Description: front end 任务管理， 放在类里使代码更清晰
- * @Author: Ren Qian
- * @Date: 2020-02-10 08:38:42
+ * @Description: LIO mapping backend workflow, implementation
+ * @Author: Ge Yao
+ * @Date: 2020-11-29 15:47:49
  */
-#include "lidar_localization/mapping/back_end/back_end_flow.hpp"
+#include "lidar_localization/mapping/back_end/lio_back_end_flow.hpp"
 
 #include "glog/logging.h"
 
@@ -11,7 +11,8 @@
 #include "lidar_localization/global_defination/global_defination.h"
 
 namespace lidar_localization {
-BackEndFlow::BackEndFlow(ros::NodeHandle& nh, std::string cloud_topic, std::string odom_topic) {
+
+LIOBackEndFlow::LIOBackEndFlow(ros::NodeHandle& nh, std::string cloud_topic, std::string odom_topic) {
     //
     // subscribers:
     //
@@ -32,10 +33,10 @@ BackEndFlow::BackEndFlow(ros::NodeHandle& nh, std::string cloud_topic, std::stri
     key_gnss_pub_ptr_ = std::make_shared<KeyFramePublisher>(nh, "/key_gnss", "/map", 100);
     key_frames_pub_ptr_ = std::make_shared<KeyFramesPublisher>(nh, "/optimized_key_frames", "/map", 100);
 
-    back_end_ptr_ = std::make_shared<BackEnd>();
+    back_end_ptr_ = std::make_shared<LIOBackEnd>();
 }
 
-bool BackEndFlow::Run() {
+bool LIOBackEndFlow::Run() {
     // load messages into buffer:
     if (!ReadData())
         return false;
@@ -56,7 +57,7 @@ bool BackEndFlow::Run() {
     return true;
 }
 
-bool BackEndFlow::ForceOptimize() {
+bool LIOBackEndFlow::ForceOptimize() {
     back_end_ptr_->ForceOptimize();
     if (back_end_ptr_->HasNewOptimized()) {
         std::deque<KeyFrame> optimized_key_frames;
@@ -66,7 +67,7 @@ bool BackEndFlow::ForceOptimize() {
     return true;
 }
 
-bool BackEndFlow::ReadData() {
+bool LIOBackEndFlow::ReadData() {
     // a. lidar scan, key frame measurement:
     cloud_sub_ptr_->ParseData(cloud_data_buff_);
     // b. lidar odometry:
@@ -86,7 +87,7 @@ bool BackEndFlow::ReadData() {
  * @param  void
  * @return true if success false otherwise
  */
-bool BackEndFlow::InsertLoopClosurePose() {
+bool LIOBackEndFlow::InsertLoopClosurePose() {
     while (loop_pose_data_buff_.size() > 0) {
         back_end_ptr_->InsertLoopPose(loop_pose_data_buff_.front());
         loop_pose_data_buff_.pop_front();
@@ -95,7 +96,7 @@ bool BackEndFlow::InsertLoopClosurePose() {
     return true;
 }
 
-bool BackEndFlow::HasData() {
+bool LIOBackEndFlow::HasData() {
     if (
         cloud_data_buff_.empty() ||
         laser_odom_data_buff_.empty() ||
@@ -109,7 +110,7 @@ bool BackEndFlow::HasData() {
     return true;
 }
 
-bool BackEndFlow::ValidData() {
+bool LIOBackEndFlow::ValidData() {
     current_cloud_data_ = cloud_data_buff_.front();
     current_gnss_pose_data_ = gnss_pose_data_buff_.front();
     current_laser_odom_data_ = laser_odom_data_buff_.front();
@@ -139,7 +140,7 @@ bool BackEndFlow::ValidData() {
     return true;
 }
 
-bool BackEndFlow::UpdateBackEnd() {
+bool LIOBackEndFlow::UpdateBackEnd() {
     static bool odometry_inited = false;
     static Eigen::Matrix4f odom_init_pose = Eigen::Matrix4f::Identity();
 
@@ -161,7 +162,7 @@ bool BackEndFlow::UpdateBackEnd() {
     );
 }
 
-bool BackEndFlow::PublishData() {
+bool LIOBackEndFlow::PublishData() {
     transformed_odom_pub_ptr_->Publish(current_laser_odom_data_.pose, current_laser_odom_data_.time);
 
     if (back_end_ptr_->HasNewKeyFrame()) {
@@ -187,4 +188,5 @@ bool BackEndFlow::PublishData() {
 
     return true;
 }
-}
+
+} // namespace lidar_localization

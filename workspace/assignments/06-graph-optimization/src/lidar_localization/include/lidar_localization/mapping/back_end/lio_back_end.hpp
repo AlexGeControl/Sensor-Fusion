@@ -1,10 +1,10 @@
 /*
- * @Description: back end 具体实现
- * @Author: Ren Qian
- * @Date: 2020-02-28 01:01:00
+ * @Description: LIO mapping backend, interface
+ * @Author: Ge Yao
+ * @Date: 2020-11-29 15:47:49
  */
-#ifndef LIDAR_LOCALIZATION_MAPPING_BACK_END_BACK_END_HPP_
-#define LIDAR_LOCALIZATION_MAPPING_BACK_END_BACK_END_HPP_
+#ifndef LIDAR_LOCALIZATION_MAPPING_BACK_END_LIO_BACK_END_HPP_
+#define LIDAR_LOCALIZATION_MAPPING_BACK_END_LIO_BACK_END_HPP_
 
 #include <string>
 #include <deque>
@@ -19,9 +19,10 @@
 #include "lidar_localization/models/graph_optimizer/g2o/g2o_graph_optimizer.hpp"
 
 namespace lidar_localization {
-class BackEnd {
+
+class LIOBackEnd {
   public:
-    BackEnd();
+    LIOBackEnd();
 
     bool InsertLoopPose(const LoopPose& loop_pose);
 
@@ -100,6 +101,7 @@ class BackEnd {
     int new_loop_cnt_ = 0;
     int new_key_frame_cnt_ = 0;
 };
-}
 
-#endif
+} // namespace lidar_localization
+
+#endif // LIDAR_LOCALIZATION_MAPPING_BACK_END_LIO_BACK_END_HPP_

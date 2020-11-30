@@ -13,18 +13,6 @@
 namespace lidar_localization {
 class IMUData {
   public:
-    struct LinearAcceleration {
-      double x = 0.0;
-      double y = 0.0;
-      double z = 0.0;
-    };
-
-    struct AngularVelocity {
-      double x = 0.0;
-      double y = 0.0;
-      double z = 0.0;
-    };
-
     class Orientation {
       public:
         double x = 0.0;
@@ -42,11 +30,40 @@ class IMUData {
         }
     };
 
+    struct LinearAcceleration {
+      double x = 0.0;
+      double y = 0.0;
+      double z = 0.0;
+    };
+
+    struct AngularVelocity {
+      double x = 0.0;
+      double y = 0.0;
+      double z = 0.0;
+    };
+
+    struct AccelBias {
+      double x = 0.0;
+      double y = 0.0;
+      double z = 0.0;
+    };
+
+    struct GyroBias {
+      double x = 0.0;
+      double y = 0.0;
+      double z = 0.0;
+    };
+
     double time = 0.0;
+
+    Orientation orientation;
+    
     LinearAcceleration linear_acceleration;
     AngularVelocity angular_velocity;
-    Orientation orientation;
-  
+
+    AccelBias accel_bias;
+    GyroBias gyro_bias;
+    
   public:
     // 把四元数转换成旋转矩阵送出去
     Eigen::Matrix3f GetOrientationMatrix() const;

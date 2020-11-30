@@ -1,9 +1,9 @@
 /*
- * @Description: back end 具体实现
- * @Author: Ren Qian
- * @Date: 2020-02-28 01:02:51
+ * @Description: LIO mapping backend, implementation
+ * @Author: Ge Yao
+ * @Date: 2020-11-29 15:47:49
  */
-#include "lidar_localization/mapping/back_end/back_end.hpp"
+#include "lidar_localization/mapping/back_end/lio_back_end.hpp"
 
 #include <Eigen/Dense>
 #include <pcl/io/pcd_io.h>
@@ -13,15 +13,16 @@
 #include "lidar_localization/tools/file_manager.hpp"
 
 namespace lidar_localization {
-BackEnd::BackEnd() {
+
+LIOBackEnd::LIOBackEnd() {
     InitWithConfig();
 }
 
-bool BackEnd::InitWithConfig() {
-    std::string config_file_path = WORK_SPACE_PATH + "/config/mapping/back_end.yaml";
+bool LIOBackEnd::InitWithConfig() {
+    std::string config_file_path = WORK_SPACE_PATH + "/config/mapping/lio_back_end.yaml";
     YAML::Node config_node = YAML::LoadFile(config_file_path);
 
-    std::cout << "-----------------Init Backend-------------------" << std::endl;
+    std::cout << "-----------------Init LIO Backend-------------------" << std::endl;
     InitParam(config_node);
     InitGraphOptimizer(config_node);
     InitDataPath(config_node);
@@ -29,13 +30,13 @@ bool BackEnd::InitWithConfig() {
     return true;
 }
 
-bool BackEnd::InitParam(const YAML::Node& config_node) {
+bool LIOBackEnd::InitParam(const YAML::Node& config_node) {
     key_frame_distance_ = config_node["key_frame_distance"].as<float>();
 
     return true;
 }
 
-bool BackEnd::InitGraphOptimizer(const YAML::Node& config_node) {
+bool LIOBackEnd::InitGraphOptimizer(const YAML::Node& config_node) {
     std::string graph_optimizer_type = config_node["graph_optimizer_type"].as<std::string>();
     if (graph_optimizer_type == "g2o") {
         graph_optimizer_ptr_ = std::make_shared<G2oGraphOptimizer>("lm_var");
@@ -69,7 +70,7 @@ bool BackEnd::InitGraphOptimizer(const YAML::Node& config_node) {
     return true;
 }
 
-bool BackEnd::InitDataPath(const YAML::Node& config_node) {
+bool LIOBackEnd::InitDataPath(const YAML::Node& config_node) {
     std::string data_path = config_node["data_path"].as<std::string>();
     if (data_path == "./") {
         data_path = WORK_SPACE_PATH;
@@ -97,7 +98,7 @@ bool BackEnd::InitDataPath(const YAML::Node& config_node) {
     return true;
 }
 
-bool BackEnd::InsertLoopPose(const LoopPose& loop_pose) {
+bool LIOBackEnd::InsertLoopPose(const LoopPose& loop_pose) {
     if (!graph_optimizer_config_.use_loop_close)
         return false;
 
@@ -116,7 +117,7 @@ bool BackEnd::InsertLoopPose(const LoopPose& loop_pose) {
     return true;
 }
 
-bool BackEnd::Update(const CloudData& cloud_data, const PoseData& laser_odom, const PoseData& gnss_pose) {
+bool LIOBackEnd::Update(const CloudData& cloud_data, const PoseData& laser_odom, const PoseData& gnss_pose) {
     ResetParam();
 
     if (MaybeNewKeyFrame(cloud_data, laser_odom, gnss_pose)) {
@@ -133,12 +134,12 @@ bool BackEnd::Update(const CloudData& cloud_data, const PoseData& laser_odom, co
     return true;
 }
 
-void BackEnd::ResetParam() {
+void LIOBackEnd::ResetParam() {
     has_new_key_frame_ = false;
     has_new_optimized_ = false;
 }
 
-bool BackEnd::MaybeNewKeyFrame(const CloudData& cloud_data, const PoseData& laser_odom, const PoseData& gnss_odom) {
+bool LIOBackEnd::MaybeNewKeyFrame(const CloudData& cloud_data, const PoseData& laser_odom, const PoseData& gnss_odom) {
     static Eigen::Matrix4f last_key_pose = laser_odom.pose;
 
     if (key_frames_deque_.size() == 0) {
@@ -182,7 +183,7 @@ bool BackEnd::MaybeNewKeyFrame(const CloudData& cloud_data, const PoseData& lase
     return has_new_key_frame_;
 }
 
-bool BackEnd::AddNodeAndEdge(const PoseData& gnss_data) {
+bool LIOBackEnd::AddNodeAndEdge(const PoseData& gnss_data) {
     static KeyFrame last_key_frame = current_key_frame_;
 
     // add node for new key frame pose:
@@ -218,7 +219,7 @@ bool BackEnd::AddNodeAndEdge(const PoseData& gnss_data) {
     return true;
 }
 
-bool BackEnd::MaybeOptimized() {
+bool LIOBackEnd::MaybeOptimized() {
     bool need_optimize = false; 
 
     if (
@@ -241,7 +242,7 @@ bool BackEnd::MaybeOptimized() {
     return true;
 }
 
-bool BackEnd::SavePose(std::ofstream& ofs, const Eigen::Matrix4f& pose) {
+bool LIOBackEnd::SavePose(std::ofstream& ofs, const Eigen::Matrix4f& pose) {
     for (int i = 0; i < 3; ++i) {
         for (int j = 0; j < 4; ++j) {
             ofs << pose(i, j);
@@ -257,7 +258,7 @@ bool BackEnd::SavePose(std::ofstream& ofs, const Eigen::Matrix4f& pose) {
     return true;
 }
 
-bool BackEnd::SaveOptimizedPose() {
+bool LIOBackEnd::SaveOptimizedPose() {
     if (graph_optimizer_ptr_->GetNodeNum() == 0)
         return false;
 
@@ -273,7 +274,7 @@ bool BackEnd::SaveOptimizedPose() {
     return true;
 }
 
-bool BackEnd::ForceOptimize() {
+bool LIOBackEnd::ForceOptimize() {
     if (graph_optimizer_ptr_->Optimize())
         has_new_optimized_ = true;
 
@@ -282,7 +283,7 @@ bool BackEnd::ForceOptimize() {
     return has_new_optimized_;
 }
 
-void BackEnd::GetOptimizedKeyFrames(std::deque<KeyFrame>& key_frames_deque) {
+void LIOBackEnd::GetOptimizedKeyFrames(std::deque<KeyFrame>& key_frames_deque) {
     KeyFrame key_frame;
     for (size_t i = 0; i < optimized_pose_.size(); ++i) {
         key_frame.pose = optimized_pose_.at(i);
@@ -291,26 +292,27 @@ void BackEnd::GetOptimizedKeyFrames(std::deque<KeyFrame>& key_frames_deque) {
     }
 }
 
-bool BackEnd::HasNewKeyFrame() {
+bool LIOBackEnd::HasNewKeyFrame() {
     return has_new_key_frame_;
 }
 
-bool BackEnd::HasNewOptimized() {
+bool LIOBackEnd::HasNewOptimized() {
     return has_new_optimized_;
 }
 
-void BackEnd::GetLatestKeyScan(CloudData& key_scan) {
+void LIOBackEnd::GetLatestKeyScan(CloudData& key_scan) {
     key_scan.time = current_key_scan_.time;
     key_scan.cloud_ptr.reset(
         new CloudData::CLOUD(*current_key_scan_.cloud_ptr)
     );
 }
 
-void BackEnd::GetLatestKeyFrame(KeyFrame& key_frame) {
+void LIOBackEnd::GetLatestKeyFrame(KeyFrame& key_frame) {
     key_frame = current_key_frame_;
 }
 
-void BackEnd::GetLatestKeyGNSS(KeyFrame& key_frame) {
+void LIOBackEnd::GetLatestKeyGNSS(KeyFrame& key_frame) {
     key_frame = current_key_gnss_;
 }
-}
+
+} // namespace lidar_localization
