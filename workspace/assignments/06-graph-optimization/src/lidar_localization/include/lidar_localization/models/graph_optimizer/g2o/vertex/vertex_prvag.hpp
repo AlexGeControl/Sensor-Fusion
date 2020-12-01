@@ -15,6 +15,8 @@
 
 #include <g2o/core/base_vertex.h>
 
+#include "lidar_localization/sensor_data/key_frame.hpp"
+
 namespace g2o {
 
 struct PRVAG {
@@ -34,6 +36,16 @@ struct PRVAG {
         vel = Eigen::Vector3d(data[INDEX_VEL + 0], data[INDEX_VEL + 1], data[INDEX_VEL + 2]);
         b_a = Eigen::Vector3d(data[INDEX_B_A + 0], data[INDEX_B_A + 1], data[INDEX_B_A + 2]);
         b_g = Eigen::Vector3d(data[INDEX_B_G + 0], data[INDEX_B_G + 1], data[INDEX_B_G + 2]);
+    }
+
+    explicit PRVAG(const lidar_localization::KeyFrame &key_frame) {
+        pos = key_frame.pose.block<3, 1>(0, 3).cast<double>();
+        vel = key_frame.vel.cast<double>();
+        ori = Sophus::SO3d(
+            Eigen::Quaterniond(key_frame.pose.block<3, 3>(0, 0).cast<double>())
+        );
+        b_a = key_frame.bias.accel.cast<double>();
+        b_g = key_frame.bias.gyro.cast<double>();
     }
 
     void WriteTo(double *data) {

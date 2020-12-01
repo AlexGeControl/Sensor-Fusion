@@ -206,7 +206,10 @@ bool LIOBackEnd::MaybeNewKeyFrame(
             // this is critical to IMU pre-integration verification
             //
             if ( 0 == (++count) % 10 ) {
-                ShowIMUPreIntegrationResidual(last_gnss_pose, gnss_odom, imu_pre_integration_); 
+                // ShowIMUPreIntegrationResidual(last_gnss_pose, gnss_odom, imu_pre_integration_); 
+
+                // reset counter:
+                count = 0;
             } 
             
             last_laser_pose = laser_odom;
@@ -226,54 +229,82 @@ bool LIOBackEnd::MaybeNewKeyFrame(
             new CloudData::CLOUD(*cloud_data.cloud_ptr)
         );
 
-        // b. create key frame index for lidar scan:
+        // b. create key frame index for lidar scan, relative pose measurement:
         KeyFrame key_frame;
         key_frame.time = laser_odom.time;
         key_frame.index = (unsigned int)key_frames_deque_.size();
+
         key_frame.pose = laser_odom.pose;
         key_frames_deque_.push_back(key_frame);
         current_key_frame_ = key_frame;
 
-        // c. create key frame index for GNSS/IMU pose:
+        // c. create key frame index for GNSS measurement, full LIO state:
         current_key_gnss_.time = gnss_odom.time;
         current_key_gnss_.index = key_frame.index;
+
         current_key_gnss_.pose = gnss_odom.pose;
+        current_key_gnss_.vel = gnss_odom.pose.block<3, 3>(0, 0) * gnss_odom.vel;
     }
 
     return has_new_key_frame_;
 }
 
 bool LIOBackEnd::AddNodeAndEdge(const PoseData& gnss_data) {
-    static KeyFrame last_key_frame = current_key_frame_;
+    static KeyFrame last_key_frame_ = current_key_frame_;
 
+    //
     // add node for new key frame pose:
-    Eigen::Isometry3d isometry;
-    isometry.matrix() = current_key_frame_.pose.cast<double>();
-    // fix the pose of the first key frame:
+    //
+    // fix the pose of the first key frame for lidar only mapping:
     if (!graph_optimizer_config_.use_gnss && graph_optimizer_ptr_->GetNodeNum() == 0)
-        graph_optimizer_ptr_->AddSe3Node(isometry, true);
+        graph_optimizer_ptr_->AddPRVAGNode(current_key_frame_, true);
     else
-        graph_optimizer_ptr_->AddSe3Node(isometry, false);
-    new_key_frame_cnt_ ++;
+        graph_optimizer_ptr_->AddPRVAGNode(current_key_gnss_, false);
+    ++new_key_frame_cnt_;
 
-    // add edge for new key frame:
-    int node_num = graph_optimizer_ptr_->GetNodeNum();
-    if (node_num > 1) {
-        Eigen::Matrix4f relative_pose = last_key_frame.pose.inverse() * current_key_frame_.pose;
-        isometry.matrix() = relative_pose.cast<double>();
-        graph_optimizer_ptr_->AddSe3Edge(node_num-2, node_num-1, isometry, graph_optimizer_config_.odom_edge_noise);
-    }
-    last_key_frame = current_key_frame_;
-
-    // add prior for new key frame pose using GNSS position:
-    if (graph_optimizer_config_.use_gnss) {
-        Eigen::Vector3d xyz(
-            static_cast<double>(gnss_data.pose(0,3)),
-            static_cast<double>(gnss_data.pose(1,3)),
-            static_cast<double>(gnss_data.pose(2,3))
+    //
+    // add constraints:
+    //
+    // a. lidar frontend / loop closure detection:
+    const int N = graph_optimizer_ptr_->GetNodeNum();
+    if ( N > 1 ) {
+        // get vertex IDs:
+        const int vertex_index_i = N - 2;
+        const int vertex_index_j = N - 1;
+        // get relative pose measurement:
+        Eigen::Matrix4d relative_pose = (last_key_frame_.pose.inverse() * current_key_frame_.pose).cast<double>();
+        // add constraint, lidar frontend / loop closure detection:
+        graph_optimizer_ptr_->AddPRVAGRelativePoseEdge(
+            vertex_index_i, vertex_index_j, 
+            relative_pose, graph_optimizer_config_.odom_edge_noise
         );
-        graph_optimizer_ptr_->AddSe3PriorXYZEdge(node_num - 1, xyz, graph_optimizer_config_.gnss_noise);
-        new_gnss_cnt_ ++;
+    }
+    last_key_frame_ = current_key_frame_;
+
+    // b. GNSS position:
+    if ( graph_optimizer_config_.use_gnss ) {
+        // get vertex ID:
+        const int vertex_index = N - 1;
+        // get prior position measurement:
+        Eigen::Vector3d pos = gnss_data.pose.block<3, 1>(0, 3).cast<double>();
+        // add constraint, GNSS position:
+        graph_optimizer_ptr_->AddPRVAGPriorPosEdge(
+            vertex_index, 
+            pos, graph_optimizer_config_.gnss_noise
+        );
+        ++new_gnss_cnt_;
+    }
+
+    // c. IMU pre-integration:
+    if ( graph_optimizer_config_.use_imu_pre_integration ) {
+        // get vertex IDs:
+        const int vertex_index_i = N - 2;
+        const int vertex_index_j = N - 1;
+        // add constraint, IMU pre-integraion:
+        graph_optimizer_ptr_->AddPRVAGIMUPreIntegrationEdge(
+            vertex_index_i, vertex_index_j,
+            imu_pre_integration_
+        );
     }
 
     return true;

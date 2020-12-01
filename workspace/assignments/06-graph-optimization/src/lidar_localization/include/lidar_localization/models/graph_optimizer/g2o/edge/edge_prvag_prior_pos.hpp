@@ -31,7 +31,7 @@ class EdgePRVAGPriorPos : public g2o::BaseUnaryEdge<3, Eigen::Vector3d, g2o::Ver
 	virtual void computeError() override {
 		const g2o::VertexPRVAG* v = static_cast<const g2o::VertexPRVAG*>(_vertices[0]);
 
-		Eigen::Vector3d estimate = v->estimate().pos;
+		const Eigen::Vector3d &estimate = v->estimate().pos;
 
 		_error = estimate - _measurement;
 	}

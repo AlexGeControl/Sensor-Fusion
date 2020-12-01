@@ -19,6 +19,7 @@
 #include <g2o/types/slam3d/edge_se3_pointxyz.h>
 #include <g2o/types/slam3d_addons/types_slam3d_addons.h>
 
+// G2O vertex for LIO state variable:
 #include "lidar_localization/models/graph_optimizer/g2o/vertex/vertex_prvag.hpp"
 
 #include "lidar_localization/models/graph_optimizer/g2o/edge/edge_prvag_relative_pose.hpp"
@@ -30,17 +31,17 @@
 #include "lidar_localization/models/graph_optimizer/interface_graph_optimizer.hpp"
 
 namespace g2o {
-class VertexSE3;
-class VertexPlane;
-class VertexPointXYZ;
-class EdgeSE3;
-class EdgeSE3Plane;
-class EdgeSE3PointXYZ;
-class EdgeSE3PriorXY;
-class EdgeSE3PriorXYZ;
-class EdgeSE3PriorVec;
-class EdgeSE3PriorQuat;
-class RobustKernelFactory;
+  class VertexSE3;
+  class VertexPlane;
+  class VertexPointXYZ;
+  class EdgeSE3;
+  class EdgeSE3Plane;
+  class EdgeSE3PointXYZ;
+  class EdgeSE3PriorXY;
+  class EdgeSE3PriorXYZ;
+  class EdgeSE3PriorVec;
+  class EdgeSE3PriorQuat;
+  class RobustKernelFactory;
 } // namespace g2o
 
 G2O_USE_TYPE_GROUP(slam3d);
@@ -55,35 +56,62 @@ G2O_USE_OPTIMIZATION_LIBRARY(csparse)
 // } // namespace g2o
 
 namespace lidar_localization {
+  
 class G2oGraphOptimizer: public InterfaceGraphOptimizer {
-  public:
+public:
     G2oGraphOptimizer(const std::string &solver_type = "lm_var");
+
     // 优化
     bool Optimize() override;
-    // 输出数据
-    bool GetOptimizedPose(std::deque<Eigen::Matrix4f>& optimized_pose) override;
+
+    // 输出数据:
     int GetNodeNum() override;
     // 添加节点、边、鲁棒核
     void SetEdgeRobustKernel(std::string robust_kernel_name, double robust_kernel_size) override;
-    void AddSe3Node(const Eigen::Isometry3d &pose, bool need_fix) override;
-    void AddSe3Edge(int vertex_index1,
-                    int vertex_index2,
-                    const Eigen::Isometry3d &relative_pose,
-                    const Eigen::VectorXd noise) override;
-    void AddSe3PriorXYZEdge(int se3_vertex_index,
-                            const Eigen::Vector3d &xyz,
-                            Eigen::VectorXd noise) override;
-    void AddSe3PriorQuaternionEdge(int se3_vertex_index,
-                                   const Eigen::Quaterniond &quat,
-                                   Eigen::VectorXd noise) override;
 
-  private:
+    // SE3:
+    bool GetOptimizedPose(std::deque<Eigen::Matrix4f>& optimized_pose) override;
+    void AddSe3Node(
+      const Eigen::Isometry3d &pose, const bool need_fix
+    ) override;
+    void AddSe3Edge(
+      const int vertex_index1, const int vertex_index2,
+      const Eigen::Isometry3d &relative_pose, const Eigen::VectorXd &noise
+    ) override;
+    void AddSe3PriorXYZEdge(
+      const int se3_vertex_index,
+      const Eigen::Vector3d &xyz, const Eigen::VectorXd &noise
+    ) override;
+    void AddSe3PriorQuaternionEdge(
+      const int se3_vertex_index,
+      const Eigen::Quaterniond &quat, const Eigen::VectorXd &noise
+    ) override;
+
+    // LIO state:
+    bool GetOptimizedKeyFrame(std::deque<KeyFrame> &optimized_key_frames);
+    void AddPRVAGNode(
+      const KeyFrame &lio_key_frame, const bool need_fix
+    );
+    void AddPRVAGRelativePoseEdge(
+      const int vertex_index_i, const int vertex_index_j,
+      const Eigen::Matrix4d &relative_pose, const Eigen::VectorXd &noise
+    );
+    void AddPRVAGPriorPosEdge(
+      const int vertex_index,
+      const Eigen::Vector3d &pos, const Eigen::Vector3d &noise
+    );
+    void AddPRVAGIMUPreIntegrationEdge(
+      const int vertex_index_i, const int vertex_index_j,
+      const IMUPreIntegrator::IMUPreIntegration &imu_pre_integration
+    );
+    
+private:
     Eigen::MatrixXd CalculateSe3EdgeInformationMatrix(Eigen::VectorXd noise);
     Eigen::MatrixXd CalculateSe3PriorQuaternionEdgeInformationMatrix(Eigen::VectorXd noise);
     Eigen::MatrixXd CalculateDiagMatrix(Eigen::VectorXd noise);
     void AddRobustKernel(g2o::OptimizableGraph::Edge *edge, const std::string &kernel_type, double kernel_size);
 
-  private:
+private:
     g2o::RobustKernelFactory *robust_kernel_factory_;
     std::unique_ptr<g2o::SparseOptimizer> graph_ptr_;
 

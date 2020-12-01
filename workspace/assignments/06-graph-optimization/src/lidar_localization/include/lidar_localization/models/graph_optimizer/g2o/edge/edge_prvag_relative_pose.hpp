@@ -49,10 +49,7 @@ public:
 		const Eigen::Vector3d &ori_ij = _measurement.block<3, 1>(INDEX_R, 0);
 
 		_error.block(INDEX_P, 0, 3, 1) = ori_i.inverse() * (pos_j - pos_i) - pos_ij;
-
-		auto r = (Sophus::SO3d::exp(ori_ij).inverse()*ori_i.inverse()*ori_j).log();
-		for (size_t i = 0; i < 3; ++i) 
-			_error(INDEX_R + i, 0) = r[i];
+		_error.block(INDEX_R, 0, 3, 1) = (Sophus::SO3d::exp(ori_ij).inverse()*ori_i.inverse()*ori_j).log();
     }
 
     virtual void setMeasurement(const Vector6d& m) override {

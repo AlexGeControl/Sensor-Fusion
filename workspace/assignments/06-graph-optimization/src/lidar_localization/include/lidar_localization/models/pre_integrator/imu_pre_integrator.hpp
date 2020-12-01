@@ -11,6 +11,8 @@
 
 #include "lidar_localization/sensor_data/imu_data.hpp"
 
+#include "lidar_localization/models/graph_optimizer/g2o/edge/edge_prvag_imu_pre_integration.hpp"
+
 #include <sophus/so3.hpp>
 
 namespace lidar_localization {
@@ -45,6 +47,24 @@ public:
         MatrixP P_;
         // c. Jacobian for update caused by bias:
         MatrixJ J_;
+
+        double GetT(void) const { return T_; }
+        
+        Eigen::Vector3d GetGravity(void) const { return g_; }
+
+        Vector15d GetMeasurement(void) const {
+            Vector15d measurement = Vector15d::Zero();
+
+            measurement.block<3, 1>(g2o::EdgePRVAGIMUPreIntegration::INDEX_P, 0) = alpha_ij_;
+            measurement.block<3, 1>(g2o::EdgePRVAGIMUPreIntegration::INDEX_R, 0) = theta_ij_.log();
+            measurement.block<3, 1>(g2o::EdgePRVAGIMUPreIntegration::INDEX_V, 0) = beta_ij_;
+
+            return measurement;
+        }
+
+        Eigen::MatrixXd GetInformation(void) const {
+            return P_.inverse();
+        }
     };
 
     IMUPreIntegrator(const YAML::Node& node);
