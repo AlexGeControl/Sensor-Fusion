@@ -68,6 +68,10 @@ class LIOBackEnd {
 
     bool MaybeOptimized();
     bool SaveOptimizedPose();
+    void ShowIMUPreIntegrationResidual(
+      const PoseData &last_gnss_pose, const PoseData& curr_gnss_pose,
+      const IMUPreIntegrator::IMUPreIntegration &imu_pre_integration
+    );
 
   private:
     std::string key_frames_path_ = "";

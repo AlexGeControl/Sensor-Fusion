@@ -179,111 +179,38 @@ bool LIOBackEnd::MaybeNewKeyFrame(
     const IMUData &imu_data
 ) {
     static int count = 0;
-    static double last_key_pose_time = laser_odom.time;
-    static Eigen::Matrix4f last_key_pose = laser_odom.pose;
+    static PoseData last_laser_pose = laser_odom;
+    static PoseData last_gnss_pose = gnss_odom;
 
     if (key_frames_deque_.size() == 0) {
         if ( imu_pre_integrator_ptr_ ) {
             imu_pre_integrator_ptr_->Init(imu_data);
         }
 
-        last_key_pose_time = laser_odom.time;
-        last_key_pose = laser_odom.pose;
+        last_laser_pose = laser_odom;
+        last_gnss_pose = gnss_odom;
 
         has_new_key_frame_ = true;
     }
 
     // whether the current scan is far away enough from last key frame:
-    if (fabs(laser_odom.pose(0,3) - last_key_pose(0,3)) + 
-        fabs(laser_odom.pose(1,3) - last_key_pose(1,3)) +
-        fabs(laser_odom.pose(2,3) - last_key_pose(2,3)) > key_frame_distance_) {
+    if (fabs(laser_odom.pose(0,3) - last_laser_pose.pose(0,3)) + 
+        fabs(laser_odom.pose(1,3) - last_laser_pose.pose(1,3)) +
+        fabs(laser_odom.pose(2,3) - last_laser_pose.pose(2,3)) > key_frame_distance_) {
 
         if ( imu_pre_integrator_ptr_ ) {
             imu_pre_integrator_ptr_->Reset(imu_data, imu_pre_integration_);
 
             //
             // for IMU pre-integration debugging ONLY:
+            // this is critical to IMU pre-integration verification
             //
             if ( 0 == (++count) % 10 ) {
-                LOG(INFO) << "IMU Pre-Integration Measurement: " << std::endl
-                          << "\tT: " << imu_pre_integration_.T_ << " --- " << laser_odom.time - last_key_pose_time << std::endl
-                          << "\talpha:" 
-                            << imu_pre_integration_.alpha_ij_.x() << ", "
-                            << imu_pre_integration_.alpha_ij_.y() << ", " 
-                            << imu_pre_integration_.alpha_ij_.z()
-                          << std::endl
-                          << "\ttheta:" 
-                            << imu_pre_integration_.theta_ij_.angleX() << ", "
-                            << imu_pre_integration_.theta_ij_.angleY() << ", " 
-                            << imu_pre_integration_.theta_ij_.angleZ()
-                          << std::endl
-                          << "\tbeta:" 
-                            << imu_pre_integration_.beta_ij_.x() << ", "
-                            << imu_pre_integration_.beta_ij_.y() << ", " 
-                            << imu_pre_integration_.beta_ij_.z()
-                          << std::endl
-                          << "\tbias_accel:" 
-                            << imu_pre_integration_.b_a_i_.x() << ", "
-                            << imu_pre_integration_.b_a_i_.y() << ", " 
-                            << imu_pre_integration_.b_a_i_.z()
-                          << std::endl
-                          << "\tbias_gyro:" 
-                            << imu_pre_integration_.b_g_i_.x() << ", "
-                            << imu_pre_integration_.b_g_i_.y() << ", " 
-                            << imu_pre_integration_.b_g_i_.z()
-                          << std::endl
-                          << "\tcovariance:" << std::endl
-                          << "\t\talpha: "
-                            << imu_pre_integration_.P_( 0,  0) << ", "
-                            << imu_pre_integration_.P_( 1,  1) << ", " 
-                            << imu_pre_integration_.P_( 2,  3)
-                          << std::endl
-                          << "\t\ttheta: "
-                            << imu_pre_integration_.P_( 3,  3) << ", "
-                            << imu_pre_integration_.P_( 4,  4) << ", " 
-                            << imu_pre_integration_.P_( 5,  5)
-                          << std::endl
-                          << "\t\tbeta: "
-                            << imu_pre_integration_.P_( 6,  6) << ", "
-                            << imu_pre_integration_.P_( 7,  7) << ", " 
-                            << imu_pre_integration_.P_( 8,  8)
-                          << std::endl
-                          << "\t\tbias_accel: "
-                            << imu_pre_integration_.P_( 9,  9) << ", "
-                            << imu_pre_integration_.P_(10, 10) << ", " 
-                            << imu_pre_integration_.P_(11, 11)
-                          << std::endl
-                          << "\t\tbias_gyro: "
-                            << imu_pre_integration_.P_(12, 12) << ", "
-                            << imu_pre_integration_.P_(13, 13) << ", " 
-                            << imu_pre_integration_.P_(14, 14)
-                          << std::endl
-                          << "\tJacobian:" << std::endl
-                          << "\t\td_alpha_d_b_a: " << std::endl
-                            << "\t\t\t" << imu_pre_integration_.J_( 0,  9) << ", " << imu_pre_integration_.J_( 0, 10) << ", " << imu_pre_integration_.J_( 0, 11) << std::endl
-                            << "\t\t\t" << imu_pre_integration_.J_( 1,  9) << ", " << imu_pre_integration_.J_( 1, 10) << ", " << imu_pre_integration_.J_( 1, 11) << std::endl
-                            << "\t\t\t" << imu_pre_integration_.J_( 2,  9) << ", " << imu_pre_integration_.J_( 2, 10) << ", " << imu_pre_integration_.J_( 2, 11) << std::endl
-                          << "\t\td_alpha_d_b_g: " << std::endl
-                            << "\t\t\t" << imu_pre_integration_.J_( 0, 12) << ", " << imu_pre_integration_.J_( 0, 13) << ", " << imu_pre_integration_.J_( 0, 14) << std::endl
-                            << "\t\t\t" << imu_pre_integration_.J_( 1, 12) << ", " << imu_pre_integration_.J_( 1, 13) << ", " << imu_pre_integration_.J_( 1, 14) << std::endl
-                            << "\t\t\t" << imu_pre_integration_.J_( 2, 12) << ", " << imu_pre_integration_.J_( 2, 13) << ", " << imu_pre_integration_.J_( 2, 14) << std::endl
-                          << "\t\td_theta_d_b_g: " << std::endl
-                            << "\t\t\t" << imu_pre_integration_.J_( 3, 12) << ", " << imu_pre_integration_.J_( 3, 13) << ", " << imu_pre_integration_.J_( 3, 14) << std::endl
-                            << "\t\t\t" << imu_pre_integration_.J_( 4, 12) << ", " << imu_pre_integration_.J_( 4, 13) << ", " << imu_pre_integration_.J_( 4, 14) << std::endl
-                            << "\t\t\t" << imu_pre_integration_.J_( 5, 12) << ", " << imu_pre_integration_.J_( 5, 13) << ", " << imu_pre_integration_.J_( 5, 14) << std::endl
-                          << "\t\td_beta_d_b_a: " << std::endl
-                            << "\t\t\t" << imu_pre_integration_.J_( 6,  9) << ", " << imu_pre_integration_.J_( 6, 10) << ", " << imu_pre_integration_.J_( 6, 11) << std::endl
-                            << "\t\t\t" << imu_pre_integration_.J_( 7,  9) << ", " << imu_pre_integration_.J_( 7, 10) << ", " << imu_pre_integration_.J_( 7, 11) << std::endl
-                            << "\t\t\t" << imu_pre_integration_.J_( 8,  9) << ", " << imu_pre_integration_.J_( 8, 10) << ", " << imu_pre_integration_.J_( 8, 11) << std::endl
-                          << "\t\td_beta_d_b_a: " << std::endl
-                            << "\t\t\t" << imu_pre_integration_.J_( 6, 12) << ", " << imu_pre_integration_.J_( 6, 13) << ", " << imu_pre_integration_.J_( 6, 14) << std::endl
-                            << "\t\t\t" << imu_pre_integration_.J_( 7, 12) << ", " << imu_pre_integration_.J_( 7, 13) << ", " << imu_pre_integration_.J_( 7, 14) << std::endl
-                            << "\t\t\t" << imu_pre_integration_.J_( 8, 12) << ", " << imu_pre_integration_.J_( 8, 13) << ", " << imu_pre_integration_.J_( 8, 14) << std::endl
-                          << std::endl;
+                ShowIMUPreIntegrationResidual(last_gnss_pose, gnss_odom, imu_pre_integration_); 
             } 
             
-            last_key_pose_time = laser_odom.time;
-            last_key_pose = laser_odom.pose;
+            last_laser_pose = laser_odom;
+            last_gnss_pose = gnss_odom;
         
             has_new_key_frame_ = true;
         }
@@ -446,6 +373,99 @@ void LIOBackEnd::GetLatestKeyFrame(KeyFrame& key_frame) {
 
 void LIOBackEnd::GetLatestKeyGNSS(KeyFrame& key_frame) {
     key_frame = current_key_gnss_;
+}
+
+void LIOBackEnd::ShowIMUPreIntegrationResidual(
+    const PoseData &last_gnss_pose, const PoseData& curr_gnss_pose,
+    const IMUPreIntegrator::IMUPreIntegration &imu_pre_integration
+) {
+    const double &T = imu_pre_integration.T_;
+    const Eigen::Vector3d &g = imu_pre_integration.g_;
+
+    Eigen::Vector3d r_p = last_gnss_pose.pose.block<3, 3>(0, 0).transpose().cast<double>() * (
+        curr_gnss_pose.pose.block<3, 1>(0, 3).cast<double>() - last_gnss_pose.pose.block<3, 1>(0, 3).cast<double>() - 
+        ( last_gnss_pose.pose.block<3, 3>(0, 0).cast<double>()*last_gnss_pose.vel.cast<double>() - 0.50 * g * T ) * T
+    );
+
+    Sophus::SO3d prev_theta(Eigen::Quaterniond(last_gnss_pose.pose.block<3, 3>(0, 0).cast<double>()));
+    Sophus::SO3d curr_theta(Eigen::Quaterniond(curr_gnss_pose.pose.block<3, 3>(0, 0).cast<double>()));
+    Sophus::SO3d r_q = prev_theta.inverse() * curr_theta;
+
+    Eigen::Vector3d r_v = last_gnss_pose.pose.block<3, 3>(0, 0).transpose().cast<double>() * (
+        curr_gnss_pose.pose.block<3, 3>(0, 0).cast<double>()*curr_gnss_pose.vel.cast<double>() - 
+        last_gnss_pose.pose.block<3, 3>(0, 0).cast<double>()*last_gnss_pose.vel.cast<double>() + 
+        g * T
+    );
+
+    LOG(INFO) << "IMU Pre-Integration Measurement: " << std::endl
+                << "\tT: " << T << " --- " << curr_gnss_pose.time - last_gnss_pose.time << std::endl
+                << "\talpha:" << std::endl
+                << "\t\t" << imu_pre_integration.alpha_ij_.x() << ", " << imu_pre_integration.alpha_ij_.y() << ", " << imu_pre_integration.alpha_ij_.z() << std::endl
+                << "\t\t" << r_p.x() << ", " << r_p.y() << ", " << r_p.z() << std::endl
+                << "\ttheta:" << std::endl
+                << "\t\t" << imu_pre_integration.theta_ij_.angleX() << ", " << imu_pre_integration.theta_ij_.angleY() << ", " << imu_pre_integration.theta_ij_.angleZ() << std::endl
+                << "\t\t" << r_q.angleX() << ", " << r_q.angleY() << ", " << r_q.angleZ() << std::endl
+                << "\tbeta:" << std::endl
+                << "\t\t" << imu_pre_integration.beta_ij_.x() << ", " << imu_pre_integration.beta_ij_.y() << ", " << imu_pre_integration.beta_ij_.z() << std::endl
+                << "\t\t" << r_v.x() << ", " << r_v.y() << ", " << r_v.z() << std::endl
+                << "\tbias_accel:" 
+                << imu_pre_integration.b_a_i_.x() << ", "
+                << imu_pre_integration.b_a_i_.y() << ", " 
+                << imu_pre_integration.b_a_i_.z()
+                << std::endl
+                << "\tbias_gyro:" 
+                << imu_pre_integration.b_g_i_.x() << ", "
+                << imu_pre_integration.b_g_i_.y() << ", " 
+                << imu_pre_integration.b_g_i_.z()
+                << std::endl
+                << "\tcovariance:" << std::endl
+                << "\t\talpha: "
+                << imu_pre_integration.P_( 0,  0) << ", "
+                << imu_pre_integration.P_( 1,  1) << ", " 
+                << imu_pre_integration.P_( 2,  3)
+                << std::endl
+                << "\t\ttheta: "
+                << imu_pre_integration.P_( 3,  3) << ", "
+                << imu_pre_integration.P_( 4,  4) << ", " 
+                << imu_pre_integration.P_( 5,  5)
+                << std::endl
+                << "\t\tbeta: "
+                << imu_pre_integration.P_( 6,  6) << ", "
+                << imu_pre_integration.P_( 7,  7) << ", " 
+                << imu_pre_integration.P_( 8,  8)
+                << std::endl
+                << "\t\tbias_accel: "
+                << imu_pre_integration.P_( 9,  9) << ", "
+                << imu_pre_integration.P_(10, 10) << ", " 
+                << imu_pre_integration.P_(11, 11)
+                << std::endl
+                << "\t\tbias_gyro: "
+                << imu_pre_integration.P_(12, 12) << ", "
+                << imu_pre_integration.P_(13, 13) << ", " 
+                << imu_pre_integration.P_(14, 14)
+                << std::endl
+                << "\tJacobian:" << std::endl
+                << "\t\td_alpha_d_b_a: " << std::endl
+                << "\t\t\t" << imu_pre_integration.J_( 0,  9) << ", " << imu_pre_integration.J_( 0, 10) << ", " << imu_pre_integration.J_( 0, 11) << std::endl
+                << "\t\t\t" << imu_pre_integration.J_( 1,  9) << ", " << imu_pre_integration.J_( 1, 10) << ", " << imu_pre_integration.J_( 1, 11) << std::endl
+                << "\t\t\t" << imu_pre_integration.J_( 2,  9) << ", " << imu_pre_integration.J_( 2, 10) << ", " << imu_pre_integration.J_( 2, 11) << std::endl
+                << "\t\td_alpha_d_b_g: " << std::endl
+                << "\t\t\t" << imu_pre_integration.J_( 0, 12) << ", " << imu_pre_integration.J_( 0, 13) << ", " << imu_pre_integration.J_( 0, 14) << std::endl
+                << "\t\t\t" << imu_pre_integration.J_( 1, 12) << ", " << imu_pre_integration.J_( 1, 13) << ", " << imu_pre_integration.J_( 1, 14) << std::endl
+                << "\t\t\t" << imu_pre_integration.J_( 2, 12) << ", " << imu_pre_integration.J_( 2, 13) << ", " << imu_pre_integration.J_( 2, 14) << std::endl
+                << "\t\td_theta_d_b_g: " << std::endl
+                << "\t\t\t" << imu_pre_integration.J_( 3, 12) << ", " << imu_pre_integration.J_( 3, 13) << ", " << imu_pre_integration.J_( 3, 14) << std::endl
+                << "\t\t\t" << imu_pre_integration.J_( 4, 12) << ", " << imu_pre_integration.J_( 4, 13) << ", " << imu_pre_integration.J_( 4, 14) << std::endl
+                << "\t\t\t" << imu_pre_integration.J_( 5, 12) << ", " << imu_pre_integration.J_( 5, 13) << ", " << imu_pre_integration.J_( 5, 14) << std::endl
+                << "\t\td_beta_d_b_a: " << std::endl
+                << "\t\t\t" << imu_pre_integration.J_( 6,  9) << ", " << imu_pre_integration.J_( 6, 10) << ", " << imu_pre_integration.J_( 6, 11) << std::endl
+                << "\t\t\t" << imu_pre_integration.J_( 7,  9) << ", " << imu_pre_integration.J_( 7, 10) << ", " << imu_pre_integration.J_( 7, 11) << std::endl
+                << "\t\t\t" << imu_pre_integration.J_( 8,  9) << ", " << imu_pre_integration.J_( 8, 10) << ", " << imu_pre_integration.J_( 8, 11) << std::endl
+                << "\t\td_beta_d_b_a: " << std::endl
+                << "\t\t\t" << imu_pre_integration.J_( 6, 12) << ", " << imu_pre_integration.J_( 6, 13) << ", " << imu_pre_integration.J_( 6, 14) << std::endl
+                << "\t\t\t" << imu_pre_integration.J_( 7, 12) << ", " << imu_pre_integration.J_( 7, 13) << ", " << imu_pre_integration.J_( 7, 14) << std::endl
+                << "\t\t\t" << imu_pre_integration.J_( 8, 12) << ", " << imu_pre_integration.J_( 8, 13) << ", " << imu_pre_integration.J_( 8, 14) << std::endl
+                << std::endl;
 }
 
 } // namespace lidar_localization
