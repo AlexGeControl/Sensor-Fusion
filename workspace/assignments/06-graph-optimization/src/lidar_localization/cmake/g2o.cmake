@@ -1,5 +1,8 @@
 # Find the header files
-FIND_PATH(G2O_INCLUDE_DIR g2o/core/base_vertex.h
+FIND_PATH(G2O_INCLUDE_DIR 
+  g2o/core/base_vertex.h
+  g2o/core/base_unary_edge.h
+  g2o/core/base_binary_edge.h
   ${G2O_ROOT}/include
   $ENV{G2O_ROOT}/include
   $ENV{G2O_ROOT}
@@ -10,7 +13,7 @@ FIND_PATH(G2O_INCLUDE_DIR g2o/core/base_vertex.h
   /sw/include
   # /opt/ros/$ENV{ROS_DISTRO}/include
   NO_DEFAULT_PATH
-  )
+)
 
 # Macro to unify finding both the debug and release versions of the
 # libraries; this is adapted from the OpenSceneGraph FIND_LIBRARY

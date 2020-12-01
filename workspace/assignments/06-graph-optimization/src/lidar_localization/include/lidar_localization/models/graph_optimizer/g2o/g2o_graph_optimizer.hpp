@@ -19,6 +19,11 @@
 #include <g2o/types/slam3d/edge_se3_pointxyz.h>
 #include <g2o/types/slam3d_addons/types_slam3d_addons.h>
 
+#include "lidar_localization/models/graph_optimizer/g2o/vertex/vertex_prvag.hpp"
+
+#include "lidar_localization/models/graph_optimizer/g2o/edge/edge_prvag_relative_pose.hpp"
+#include "lidar_localization/models/graph_optimizer/g2o/edge/edge_prvag_prior_pos.hpp"
+#include "lidar_localization/models/graph_optimizer/g2o/edge/edge_prvag_imu_pre_integration.hpp"
 #include "lidar_localization/models/graph_optimizer/g2o/edge/edge_se3_priorxyz.hpp"
 #include "lidar_localization/models/graph_optimizer/g2o/edge/edge_se3_priorquat.hpp"
 

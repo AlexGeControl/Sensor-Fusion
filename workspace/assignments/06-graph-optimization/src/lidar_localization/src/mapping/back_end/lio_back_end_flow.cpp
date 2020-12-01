@@ -157,6 +157,8 @@ bool LIOBackEndFlow::UpdateIMUPreIntegration(void) {
     ) {
         imu_raw_data_buff_.pop_front();
     }
+
+    return true;
 }
 
 bool LIOBackEndFlow::UpdateBackEnd() {
