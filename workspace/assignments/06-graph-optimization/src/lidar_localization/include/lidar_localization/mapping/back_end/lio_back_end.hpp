@@ -15,6 +15,9 @@
 #include "lidar_localization/sensor_data/pose_data.hpp"
 #include "lidar_localization/sensor_data/key_frame.hpp"
 #include "lidar_localization/sensor_data/loop_pose.hpp"
+#include "lidar_localization/sensor_data/imu_data.hpp"
+
+#include "lidar_localization/models/pre_integrator/imu_pre_integrator.hpp"
 
 #include "lidar_localization/models/graph_optimizer/g2o/g2o_graph_optimizer.hpp"
 
@@ -25,8 +28,14 @@ class LIOBackEnd {
     LIOBackEnd();
 
     bool InsertLoopPose(const LoopPose& loop_pose);
-
-    bool Update(const CloudData& cloud_data, const PoseData& laser_odom, const PoseData& gnss_pose);
+    bool UpdateIMUPreIntegration(const IMUData &imu_data);
+    
+    bool Update(
+      const CloudData& cloud_data, 
+      const PoseData& laser_odom, 
+      const PoseData& gnss_pose,
+      const IMUData &imu_data
+    );
 
     bool ForceOptimize();
 
@@ -39,14 +48,22 @@ class LIOBackEnd {
 
   private:
     bool InitWithConfig();
+
+    bool InitDataPath(const YAML::Node& config_node);
     bool InitParam(const YAML::Node& config_node);
     bool InitGraphOptimizer(const YAML::Node& config_node);
-    bool InitDataPath(const YAML::Node& config_node);
+    bool InitIMUPreIntegrator(const YAML::Node& config_node);
 
     void ResetParam();
     bool SavePose(std::ofstream& ofs, const Eigen::Matrix4f& pose);
     
-    bool MaybeNewKeyFrame(const CloudData& cloud_data, const PoseData& laser_odom, const PoseData& gnss_pose);
+    bool MaybeNewKeyFrame(
+      const CloudData& cloud_data, 
+      const PoseData& laser_odom, 
+      const PoseData& gnss_pose,
+      const IMUData &imu_data
+    );
+    
     bool AddNodeAndEdge(const PoseData& gnss_data);
 
     bool MaybeOptimized();
@@ -72,7 +89,11 @@ class LIOBackEnd {
     std::deque<KeyFrame> key_frames_deque_;
     std::deque<Eigen::Matrix4f> optimized_pose_;
 
-    // 优化器
+    // pre-integrator:
+    std::shared_ptr<IMUPreIntegrator> imu_pre_integrator_ptr_;
+    IMUPreIntegrator::IMUPreIntegration imu_pre_integration_;
+    
+    // optimizer:
     std::shared_ptr<InterfaceGraphOptimizer> graph_optimizer_ptr_;
 
     class GraphOptimizerConfig {
@@ -86,6 +107,7 @@ class LIOBackEnd {
       public:
         bool use_gnss = true;
         bool use_loop_close = false;
+        bool use_imu_pre_integration = false;
 
         Eigen::VectorXd odom_edge_noise;
         Eigen::VectorXd close_loop_noise;

@@ -23,49 +23,11 @@ bool LIOBackEnd::InitWithConfig() {
     YAML::Node config_node = YAML::LoadFile(config_file_path);
 
     std::cout << "-----------------Init LIO Backend-------------------" << std::endl;
+
+    InitDataPath(config_node);
     InitParam(config_node);
     InitGraphOptimizer(config_node);
-    InitDataPath(config_node);
-
-    return true;
-}
-
-bool LIOBackEnd::InitParam(const YAML::Node& config_node) {
-    key_frame_distance_ = config_node["key_frame_distance"].as<float>();
-
-    return true;
-}
-
-bool LIOBackEnd::InitGraphOptimizer(const YAML::Node& config_node) {
-    std::string graph_optimizer_type = config_node["graph_optimizer_type"].as<std::string>();
-    if (graph_optimizer_type == "g2o") {
-        graph_optimizer_ptr_ = std::make_shared<G2oGraphOptimizer>("lm_var");
-    } else {
-        LOG(ERROR) << "Optimizer " << graph_optimizer_type << " NOT FOUND!";
-        return false;
-    }
-    std::cout << "\tOptimizer:" << graph_optimizer_type << std::endl << std::endl;
-
-    graph_optimizer_config_.use_gnss = config_node["use_gnss"].as<bool>();
-    graph_optimizer_config_.use_loop_close = config_node["use_loop_close"].as<bool>();
-
-    graph_optimizer_config_.optimize_step_with_key_frame = config_node["optimize_step_with_key_frame"].as<int>();
-    graph_optimizer_config_.optimize_step_with_gnss = config_node["optimize_step_with_gnss"].as<int>();
-    graph_optimizer_config_.optimize_step_with_loop = config_node["optimize_step_with_loop"].as<int>();
-
-    // x-y-z & yaw-roll-pitch
-    for (int i = 0; i < 6; ++i) {
-        graph_optimizer_config_.odom_edge_noise(i) =
-            config_node[graph_optimizer_type + "_param"]["odom_edge_noise"][i].as<double>();
-        graph_optimizer_config_.close_loop_noise(i) =
-            config_node[graph_optimizer_type + "_param"]["close_loop_noise"][i].as<double>();
-    }
-
-    // x-y-z:
-    for (int i = 0; i < 3; i++) {
-        graph_optimizer_config_.gnss_noise(i) =
-            config_node[graph_optimizer_type + "_param"]["gnss_noise"][i].as<double>();
-    }
+    InitIMUPreIntegrator(config_node);
 
     return true;
 }
@@ -98,6 +60,58 @@ bool LIOBackEnd::InitDataPath(const YAML::Node& config_node) {
     return true;
 }
 
+
+bool LIOBackEnd::InitParam(const YAML::Node& config_node) {
+    key_frame_distance_ = config_node["key_frame_distance"].as<float>();
+
+    return true;
+}
+
+bool LIOBackEnd::InitGraphOptimizer(const YAML::Node& config_node) {
+    std::string graph_optimizer_type = config_node["graph_optimizer_type"].as<std::string>();
+    if (graph_optimizer_type == "g2o") {
+        graph_optimizer_ptr_ = std::make_shared<G2oGraphOptimizer>("lm_var");
+    } else {
+        LOG(ERROR) << "Optimizer " << graph_optimizer_type << " NOT FOUND!";
+        return false;
+    }
+    std::cout << "\tOptimizer:" << graph_optimizer_type << std::endl << std::endl;
+
+    graph_optimizer_config_.use_gnss = config_node["use_gnss"].as<bool>();
+    graph_optimizer_config_.use_loop_close = config_node["use_loop_close"].as<bool>();
+    graph_optimizer_config_.use_imu_pre_integration = config_node["use_imu_pre_integration"].as<bool>();
+
+    graph_optimizer_config_.optimize_step_with_key_frame = config_node["optimize_step_with_key_frame"].as<int>();
+    graph_optimizer_config_.optimize_step_with_gnss = config_node["optimize_step_with_gnss"].as<int>();
+    graph_optimizer_config_.optimize_step_with_loop = config_node["optimize_step_with_loop"].as<int>();
+
+    // x-y-z & yaw-roll-pitch
+    for (int i = 0; i < 6; ++i) {
+        graph_optimizer_config_.odom_edge_noise(i) =
+            config_node[graph_optimizer_type + "_param"]["odom_edge_noise"][i].as<double>();
+        graph_optimizer_config_.close_loop_noise(i) =
+            config_node[graph_optimizer_type + "_param"]["close_loop_noise"][i].as<double>();
+    }
+
+    // x-y-z:
+    for (int i = 0; i < 3; i++) {
+        graph_optimizer_config_.gnss_noise(i) =
+            config_node[graph_optimizer_type + "_param"]["gnss_noise"][i].as<double>();
+    }
+
+    return true;
+}
+
+bool LIOBackEnd::InitIMUPreIntegrator(const YAML::Node& config_node) {
+    imu_pre_integrator_ptr_ = nullptr;
+    
+    if (graph_optimizer_config_.use_imu_pre_integration) {
+        imu_pre_integrator_ptr_ = std::make_shared<IMUPreIntegrator>(config_node["imu_pre_integration"]);
+    }
+
+    return true;
+}
+
 bool LIOBackEnd::InsertLoopPose(const LoopPose& loop_pose) {
     if (!graph_optimizer_config_.use_loop_close)
         return false;
@@ -117,10 +131,29 @@ bool LIOBackEnd::InsertLoopPose(const LoopPose& loop_pose) {
     return true;
 }
 
-bool LIOBackEnd::Update(const CloudData& cloud_data, const PoseData& laser_odom, const PoseData& gnss_pose) {
+bool LIOBackEnd::UpdateIMUPreIntegration(const IMUData &imu_data) {
+    if ( !graph_optimizer_config_.use_imu_pre_integration || nullptr == imu_pre_integrator_ptr_ )
+        return false;
+    
+    if (
+        !imu_pre_integrator_ptr_->IsInited() ||
+        imu_pre_integrator_ptr_->Update(imu_data)
+    ) {
+        return true;
+    }
+
+    return false;
+}
+
+bool LIOBackEnd::Update(
+    const CloudData& cloud_data, 
+    const PoseData& laser_odom, 
+    const PoseData& gnss_pose,
+    const IMUData &imu_data
+) {
     ResetParam();
 
-    if (MaybeNewKeyFrame(cloud_data, laser_odom, gnss_pose)) {
+    if ( MaybeNewKeyFrame(cloud_data, laser_odom, gnss_pose, imu_data) ) {
         // write GNSS/IMU pose and lidar odometry estimation as trajectory for evo evaluation:
         SavePose(ground_truth_ofs_, gnss_pose.pose);
         SavePose(laser_odom_ofs_, laser_odom.pose);
@@ -139,12 +172,25 @@ void LIOBackEnd::ResetParam() {
     has_new_optimized_ = false;
 }
 
-bool LIOBackEnd::MaybeNewKeyFrame(const CloudData& cloud_data, const PoseData& laser_odom, const PoseData& gnss_odom) {
+bool LIOBackEnd::MaybeNewKeyFrame(
+    const CloudData& cloud_data, 
+    const PoseData& laser_odom, 
+    const PoseData& gnss_odom,
+    const IMUData &imu_data
+) {
+    static int count = 0;
+    static double last_key_pose_time = laser_odom.time;
     static Eigen::Matrix4f last_key_pose = laser_odom.pose;
 
     if (key_frames_deque_.size() == 0) {
-        has_new_key_frame_ = true;
+        if ( imu_pre_integrator_ptr_ ) {
+            imu_pre_integrator_ptr_->Init(imu_data);
+        }
+
+        last_key_pose_time = laser_odom.time;
         last_key_pose = laser_odom.pose;
+
+        has_new_key_frame_ = true;
     }
 
     // whether the current scan is far away enough from last key frame:
@@ -152,8 +198,95 @@ bool LIOBackEnd::MaybeNewKeyFrame(const CloudData& cloud_data, const PoseData& l
         fabs(laser_odom.pose(1,3) - last_key_pose(1,3)) +
         fabs(laser_odom.pose(2,3) - last_key_pose(2,3)) > key_frame_distance_) {
 
-        has_new_key_frame_ = true;
-        last_key_pose = laser_odom.pose;
+        if ( imu_pre_integrator_ptr_ ) {
+            imu_pre_integrator_ptr_->Reset(imu_data, imu_pre_integration_);
+
+            //
+            // for IMU pre-integration debugging ONLY:
+            //
+            if ( 0 == (++count) % 10 ) {
+                LOG(INFO) << "IMU Pre-Integration Measurement: " << std::endl
+                          << "\tT: " << imu_pre_integration_.T_ << " --- " << laser_odom.time - last_key_pose_time << std::endl
+                          << "\talpha:" 
+                            << imu_pre_integration_.alpha_ij_.x() << ", "
+                            << imu_pre_integration_.alpha_ij_.y() << ", " 
+                            << imu_pre_integration_.alpha_ij_.z()
+                          << std::endl
+                          << "\ttheta:" 
+                            << imu_pre_integration_.theta_ij_.angleX() << ", "
+                            << imu_pre_integration_.theta_ij_.angleY() << ", " 
+                            << imu_pre_integration_.theta_ij_.angleZ()
+                          << std::endl
+                          << "\tbeta:" 
+                            << imu_pre_integration_.beta_ij_.x() << ", "
+                            << imu_pre_integration_.beta_ij_.y() << ", " 
+                            << imu_pre_integration_.beta_ij_.z()
+                          << std::endl
+                          << "\tbias_accel:" 
+                            << imu_pre_integration_.b_a_i_.x() << ", "
+                            << imu_pre_integration_.b_a_i_.y() << ", " 
+                            << imu_pre_integration_.b_a_i_.z()
+                          << std::endl
+                          << "\tbias_gyro:" 
+                            << imu_pre_integration_.b_g_i_.x() << ", "
+                            << imu_pre_integration_.b_g_i_.y() << ", " 
+                            << imu_pre_integration_.b_g_i_.z()
+                          << std::endl
+                          << "\tcovariance:" << std::endl
+                          << "\t\talpha: "
+                            << imu_pre_integration_.P_( 0,  0) << ", "
+                            << imu_pre_integration_.P_( 1,  1) << ", " 
+                            << imu_pre_integration_.P_( 2,  3)
+                          << std::endl
+                          << "\t\ttheta: "
+                            << imu_pre_integration_.P_( 3,  3) << ", "
+                            << imu_pre_integration_.P_( 4,  4) << ", " 
+                            << imu_pre_integration_.P_( 5,  5)
+                          << std::endl
+                          << "\t\tbeta: "
+                            << imu_pre_integration_.P_( 6,  6) << ", "
+                            << imu_pre_integration_.P_( 7,  7) << ", " 
+                            << imu_pre_integration_.P_( 8,  8)
+                          << std::endl
+                          << "\t\tbias_accel: "
+                            << imu_pre_integration_.P_( 9,  9) << ", "
+                            << imu_pre_integration_.P_(10, 10) << ", " 
+                            << imu_pre_integration_.P_(11, 11)
+                          << std::endl
+                          << "\t\tbias_gyro: "
+                            << imu_pre_integration_.P_(12, 12) << ", "
+                            << imu_pre_integration_.P_(13, 13) << ", " 
+                            << imu_pre_integration_.P_(14, 14)
+                          << std::endl
+                          << "\tJacobian:" << std::endl
+                          << "\t\td_alpha_d_b_a: " << std::endl
+                            << "\t\t\t" << imu_pre_integration_.J_( 0,  9) << ", " << imu_pre_integration_.J_( 0, 10) << ", " << imu_pre_integration_.J_( 0, 11) << std::endl
+                            << "\t\t\t" << imu_pre_integration_.J_( 1,  9) << ", " << imu_pre_integration_.J_( 1, 10) << ", " << imu_pre_integration_.J_( 1, 11) << std::endl
+                            << "\t\t\t" << imu_pre_integration_.J_( 2,  9) << ", " << imu_pre_integration_.J_( 2, 10) << ", " << imu_pre_integration_.J_( 2, 11) << std::endl
+                          << "\t\td_alpha_d_b_g: " << std::endl
+                            << "\t\t\t" << imu_pre_integration_.J_( 0, 12) << ", " << imu_pre_integration_.J_( 0, 13) << ", " << imu_pre_integration_.J_( 0, 14) << std::endl
+                            << "\t\t\t" << imu_pre_integration_.J_( 1, 12) << ", " << imu_pre_integration_.J_( 1, 13) << ", " << imu_pre_integration_.J_( 1, 14) << std::endl
+                            << "\t\t\t" << imu_pre_integration_.J_( 2, 12) << ", " << imu_pre_integration_.J_( 2, 13) << ", " << imu_pre_integration_.J_( 2, 14) << std::endl
+                          << "\t\td_theta_d_b_g: " << std::endl
+                            << "\t\t\t" << imu_pre_integration_.J_( 3, 12) << ", " << imu_pre_integration_.J_( 3, 13) << ", " << imu_pre_integration_.J_( 3, 14) << std::endl
+                            << "\t\t\t" << imu_pre_integration_.J_( 4, 12) << ", " << imu_pre_integration_.J_( 4, 13) << ", " << imu_pre_integration_.J_( 4, 14) << std::endl
+                            << "\t\t\t" << imu_pre_integration_.J_( 5, 12) << ", " << imu_pre_integration_.J_( 5, 13) << ", " << imu_pre_integration_.J_( 5, 14) << std::endl
+                          << "\t\td_beta_d_b_a: " << std::endl
+                            << "\t\t\t" << imu_pre_integration_.J_( 6,  9) << ", " << imu_pre_integration_.J_( 6, 10) << ", " << imu_pre_integration_.J_( 6, 11) << std::endl
+                            << "\t\t\t" << imu_pre_integration_.J_( 7,  9) << ", " << imu_pre_integration_.J_( 7, 10) << ", " << imu_pre_integration_.J_( 7, 11) << std::endl
+                            << "\t\t\t" << imu_pre_integration_.J_( 8,  9) << ", " << imu_pre_integration_.J_( 8, 10) << ", " << imu_pre_integration_.J_( 8, 11) << std::endl
+                          << "\t\td_beta_d_b_a: " << std::endl
+                            << "\t\t\t" << imu_pre_integration_.J_( 6, 12) << ", " << imu_pre_integration_.J_( 6, 13) << ", " << imu_pre_integration_.J_( 6, 14) << std::endl
+                            << "\t\t\t" << imu_pre_integration_.J_( 7, 12) << ", " << imu_pre_integration_.J_( 7, 13) << ", " << imu_pre_integration_.J_( 7, 14) << std::endl
+                            << "\t\t\t" << imu_pre_integration_.J_( 8, 12) << ", " << imu_pre_integration_.J_( 8, 13) << ", " << imu_pre_integration_.J_( 8, 14) << std::endl
+                          << std::endl;
+            } 
+            
+            last_key_pose_time = laser_odom.time;
+            last_key_pose = laser_odom.pose;
+        
+            has_new_key_frame_ = true;
+        }
     }
 
     // if so:

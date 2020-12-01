@@ -41,6 +41,7 @@ class LIOBackEndFlow {
     bool InsertLoopClosurePose();
     bool HasData();
     bool ValidData();
+    bool UpdateIMUPreIntegration(void);
     bool UpdateBackEnd();
     bool PublishData();
 
@@ -61,8 +62,10 @@ class LIOBackEndFlow {
     std::shared_ptr<LoopPoseSubscriber> loop_pose_sub_ptr_;
     std::deque<LoopPose> loop_pose_data_buff_;
     // e. IMU measurement, for pre-integration:
-    std::shared_ptr<IMUSubscriber> imu_sub_ptr_;
-    std::deque<IMUData> imu_data_buff_;
+    std::shared_ptr<IMUSubscriber> imu_raw_sub_ptr_;
+    std::deque<IMUData> imu_raw_data_buff_;
+    std::shared_ptr<IMUSubscriber> imu_synced_sub_ptr_;
+    std::deque<IMUData> imu_synced_data_buff_;
     
     std::shared_ptr<OdometryPublisher> transformed_odom_pub_ptr_;
     std::shared_ptr<CloudPublisher> key_scan_pub_ptr_;
@@ -74,6 +77,7 @@ class LIOBackEndFlow {
     CloudData current_cloud_data_;
     PoseData current_laser_odom_data_;
     PoseData current_gnss_pose_data_;
+    IMUData current_imu_data_;
 };
 
 } // namespace lidar_localization

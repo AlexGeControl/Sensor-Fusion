@@ -17,7 +17,37 @@ namespace lidar_localization {
 
 class IMUPreIntegrator : public PreIntegrator {
 public:
-    IMUPreIntegrator(void);
+    static const int DIM_STATE = 15;
+
+    typedef Eigen::Matrix<double, DIM_STATE, DIM_STATE> MatrixP;
+    typedef Eigen::Matrix<double, DIM_STATE, DIM_STATE> MatrixJ;
+
+    struct IMUPreIntegration {
+        // time delta:
+        double T_;
+        
+        // gravity constant:
+        Eigen::Vector3d g_;
+
+        // a. measurement:
+        // a.1. relative translation:
+        Eigen::Vector3d alpha_ij_;
+        // a.2. relative orientation:
+        Sophus::SO3d theta_ij_;
+        // a.3. relative velocity:
+        Eigen::Vector3d beta_ij_;
+        // a.4. accel bias:
+        Eigen::Vector3d b_a_i_;
+        // a.5. gyro bias:
+        Eigen::Vector3d b_g_i_;
+
+        // b. information:
+        MatrixP P_;
+        // c. Jacobian for update caused by bias:
+        MatrixJ J_;
+    };
+
+    IMUPreIntegrator(const YAML::Node& node);
 
     /**
      * @brief  init IMU pre-integrator
@@ -31,25 +61,18 @@ public:
      * @param  imu_data, current IMU measurements
      * @return true if success false otherwise
      */
-    bool Update(const IMUData &init_imu_data);
+    bool Update(const IMUData &imu_data);
 
     /**
-     * @brief  get measurement for IMU pre-integration edge
-     * @param  void
+     * @brief  reset IMU pre-integrator using new init IMU measurement
+     * @param  init_imu_data, new init IMU measurements
+     * @param  output pre-integration result for constraint building as IMUPreIntegration
      * @return true if success false otherwise
      */
-    bool GetMeasurement(void);
-
-    /**
-     * @brief  get information matrix for IMU pre-integration edge
-     * @param  void
-     * @return true if success false otherwise
-     */
-    bool GetInformation(void);
+    bool Reset(const IMUData &init_imu_data, IMUPreIntegration &imu_pre_integration);
 
 private:
-    static const int DIM_STATE = 15;
-    static const int DIM_NOISE = 15;
+    static const int DIM_NOISE = 18;
 
     static const int INDEX_ALPHA = 0;
     static const int INDEX_THETA = 3;
@@ -57,32 +80,66 @@ private:
     static const int INDEX_B_A = 9;
     static const int INDEX_B_G = 12;
 
+    static const int INDEX_M_ACC_PREV = 0;
+    static const int INDEX_M_GYR_PREV = 3;
+    static const int INDEX_M_ACC_CURR = 6;
+    static const int INDEX_M_GYR_CURR = 9;
+    static const int INDEX_R_ACC_PREV = 12;
+    static const int INDEX_R_GYR_PREV = 15;
+
     typedef Eigen::Matrix<double, DIM_STATE, DIM_STATE> MatrixF;
-    typedef Eigen::Matrix<double, DIM_STATE, DIM_STATE> MatrixP;
-    typedef Eigen::Matrix<double, DIM_STATE, DIM_NOISE> MatrixG;
-    typedef Eigen::Matrix<double, DIM_NOISE, DIM_NOISE> MatrixR;
+    typedef Eigen::Matrix<double, DIM_STATE, DIM_NOISE> MatrixB;
+    typedef Eigen::Matrix<double, DIM_NOISE, DIM_NOISE> MatrixQ;
 
     // data buff:
     std::deque<IMUData> imu_data_buff_;
 
+    // hyper-params:
+    // a. earth constants:
+    struct {
+        double GRAVITY_MAGNITUDE;
+    } EARTH;
+    // b. prior state covariance, process & measurement noise:
+    struct {
+        struct {
+            double ACCEL;
+            double GYRO;
+        } RANDOM_WALK;
+        struct {
+            double ACCEL;
+            double GYRO;
+        } MEASUREMENT;
+    } COV;
+
     // pre-integration state:
     struct {
-        Eigen::Vector3d alpha_ij;
-        Eigen::Vector3d beta_ij;
-        // here works on so3 for simplicity:
-        Sophus::SO3d theta_ij;
-        Eigen::Vector3d b_a_i;
-        Eigen::Vector3d b_g_i;
-    } state_;
+        // gravity constant:
+        Eigen::Vector3d g_;
 
-    // gravity:
-    Eigen::Vector3d g_;
+        // a. relative translation:
+        Eigen::Vector3d alpha_ij_;
+        // b. relative orientation:
+        Sophus::SO3d theta_ij_;
+        // c. relative velocity:
+        Eigen::Vector3d beta_ij_;
+        // d. accel bias:
+        Eigen::Vector3d b_a_i_;
+        // e. gyro bias:
+        Eigen::Vector3d b_g_i_;
+    } state;
+
+    // state covariance:
+    MatrixP P_ = MatrixP::Zero();
+
+    // Jacobian:
+    MatrixJ J_ = MatrixJ::Identity();
+
+    // process noise:
+    MatrixQ Q_ = MatrixQ::Zero();
 
     // process equation:
     MatrixF F_ = MatrixF::Zero();
-    MatrixG G_ = MatrixG::Zero();
-    MatrixP P_ = MatrixP::Zero();
-    MatrixR R_ = MatrixR::Zero();
+    MatrixB B_ = MatrixB::Zero();
 
     /**
      * @brief  reset pre-integrator state using IMU measurements

@@ -14,7 +14,7 @@ use_gnss: true
 # b. loop closure
 use_loop_close: true
 # c. IMU pre-integration
-use_imu: true
+use_imu_pre_integration: true
 
 optimize_step_with_key_frame: 10000 # 没有其他信息时，每隔 step 发送一次优化的位姿
 optimize_step_with_gnss: 950 # 每累计 step 个 gnss 观测时，优化一次
@@ -24,3 +24,15 @@ g2o_param:
     odom_edge_noise: [0.5, 0.5, 0.5, 0.001, 0.001, 0.001] # 噪声：x y z yaw roll pitch
     close_loop_noise: [0.3, 0.3, 0.3, 0.001, 0.001, 0.001] # 噪声：x y z yaw roll pitch
     gnss_noise: [2.0, 2.0, 2.0] # 噪声：x y z
+
+imu_pre_integration:
+    earth:
+        # gravity can be calculated from https://www.sensorsone.com/local-gravity-calculator/ using latitude and height:
+        gravity_magnitude: 9.80943
+    covariance:
+        measurement:
+            accel: 2.5e-3
+            gyro: 1.0e-4
+        random_walk:
+            accel: 1.0e-8
+            gyro: 1.0e-8
