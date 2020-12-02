@@ -1,4 +1,4 @@
-# Sensor Fusion: Graph Optimization for Lidar Mapping & Localization -- 多传感器融合定位: 基于图优化的建图与定位
+# Sensor Fusion: Graph Optimization for Lidar Mapping -- 多传感器融合定位: 基于图优化的建图
 
 This is the solution of Assignment 06 of Sensor Fusion from [深蓝学院](https://www.shenlanxueyuan.com/course/261).
 
