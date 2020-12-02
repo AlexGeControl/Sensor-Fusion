@@ -49,7 +49,7 @@ int main(int argc, char *argv[]) {
         "optimize_map", OptimizeMapCb
     );
 
-    ros::Rate rate(100);
+    ros::Rate rate(10);
     while (ros::ok()) {
         ros::spinOnce();
 

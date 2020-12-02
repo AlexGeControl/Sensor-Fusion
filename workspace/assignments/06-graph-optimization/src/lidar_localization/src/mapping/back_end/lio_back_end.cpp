@@ -69,6 +69,7 @@ bool LIOBackEnd::InitParam(const YAML::Node& config_node) {
 
 bool LIOBackEnd::InitGraphOptimizer(const YAML::Node& config_node) {
     std::string graph_optimizer_type = config_node["graph_optimizer_type"].as<std::string>();
+
     if (graph_optimizer_type == "g2o") {
         graph_optimizer_ptr_ = std::make_shared<G2oGraphOptimizer>("lm_var");
     } else {
@@ -81,9 +82,8 @@ bool LIOBackEnd::InitGraphOptimizer(const YAML::Node& config_node) {
     graph_optimizer_config_.use_loop_close = config_node["use_loop_close"].as<bool>();
     graph_optimizer_config_.use_imu_pre_integration = config_node["use_imu_pre_integration"].as<bool>();
 
-    graph_optimizer_config_.optimize_step_with_key_frame = config_node["optimize_step_with_key_frame"].as<int>();
-    graph_optimizer_config_.optimize_step_with_gnss = config_node["optimize_step_with_gnss"].as<int>();
-    graph_optimizer_config_.optimize_step_with_loop = config_node["optimize_step_with_loop"].as<int>();
+    graph_optimizer_config_.optimization_step_size.key_frame = config_node["optimization_step_size"]["key_frame"].as<int>();
+    graph_optimizer_config_.optimization_step_size.loop_closure = config_node["optimization_step_size"]["loop_closure"].as<int>();
 
     // x-y-z & yaw-roll-pitch
     for (int i = 0; i < 6; ++i) {
@@ -116,15 +116,19 @@ bool LIOBackEnd::InsertLoopPose(const LoopPose& loop_pose) {
     if (!graph_optimizer_config_.use_loop_close)
         return false;
 
-    Eigen::Isometry3d isometry;
-    isometry.matrix() = loop_pose.pose.cast<double>();
-    graph_optimizer_ptr_->AddSe3Edge(
-        loop_pose.index0, loop_pose.index1, 
-        isometry, 
-        graph_optimizer_config_.close_loop_noise
+    // get vertex IDs:
+    const int vertex_index_i = loop_pose.index0;
+    const int vertex_index_j = loop_pose.index1;
+    // get relative pose measurement:
+    Eigen::Matrix4d relative_pose = loop_pose.pose.cast<double>();
+    // add constraint, lidar frontend / loop closure detection:
+    graph_optimizer_ptr_->AddPRVAGRelativePoseEdge(
+        vertex_index_i, vertex_index_j, 
+        relative_pose, graph_optimizer_config_.close_loop_noise
     );
 
-    new_loop_cnt_ ++;
+    // update loop closure count:
+    ++counter_.loop_closure;
     
     LOG(INFO) << "Add loop closure: " << loop_pose.index0 << "," << loop_pose.index1 << std::endl;
 
@@ -206,6 +210,7 @@ bool LIOBackEnd::MaybeNewKeyFrame(
             // this is critical to IMU pre-integration verification
             //
             if ( 0 == (++count) % 10 ) {
+                // display IMU pre-integration:
                 // ShowIMUPreIntegrationResidual(last_gnss_pose, gnss_odom, imu_pre_integration_); 
 
                 // reset counter:
@@ -256,11 +261,11 @@ bool LIOBackEnd::AddNodeAndEdge(const PoseData& gnss_data) {
     // add node for new key frame pose:
     //
     // fix the pose of the first key frame for lidar only mapping:
-    if (!graph_optimizer_config_.use_gnss && graph_optimizer_ptr_->GetNodeNum() == 0)
+    if (!graph_optimizer_config_.use_gnss && graph_optimizer_ptr_->GetNodeNum() == 0) {
         graph_optimizer_ptr_->AddPRVAGNode(current_key_frame_, true);
-    else
+    } else {
         graph_optimizer_ptr_->AddPRVAGNode(current_key_gnss_, false);
-    ++new_key_frame_cnt_;
+    }
 
     //
     // add constraints:
@@ -279,20 +284,18 @@ bool LIOBackEnd::AddNodeAndEdge(const PoseData& gnss_data) {
             relative_pose, graph_optimizer_config_.odom_edge_noise
         );
     }
-    last_key_frame_ = current_key_frame_;
 
     // b. GNSS position:
     if ( graph_optimizer_config_.use_gnss ) {
         // get vertex ID:
         const int vertex_index = N - 1;
         // get prior position measurement:
-        Eigen::Vector3d pos = gnss_data.pose.block<3, 1>(0, 3).cast<double>();
+        Eigen::Vector3d pos = current_key_gnss_.pose.block<3, 1>(0, 3).cast<double>();
         // add constraint, GNSS position:
         graph_optimizer_ptr_->AddPRVAGPriorPosEdge(
             vertex_index, 
             pos, graph_optimizer_config_.gnss_noise
         );
-        ++new_gnss_cnt_;
     }
 
     // c. IMU pre-integration:
@@ -307,6 +310,10 @@ bool LIOBackEnd::AddNodeAndEdge(const PoseData& gnss_data) {
         );
     }
 
+    // move forward:
+    last_key_frame_ = current_key_frame_;
+    ++counter_.key_frame;
+
     return true;
 }
 
@@ -314,23 +321,23 @@ bool LIOBackEnd::MaybeOptimized() {
     bool need_optimize = false; 
 
     if (
-        new_key_frame_cnt_ >= graph_optimizer_config_.optimize_step_with_key_frame ||
-        new_gnss_cnt_ >= graph_optimizer_config_.optimize_step_with_gnss ||
-        new_loop_cnt_ >= graph_optimizer_config_.optimize_step_with_loop
+        counter_.HasEnoughKeyFrames(
+            graph_optimizer_config_.optimization_step_size.key_frame
+        ) ||
+        counter_.HasEnoughLoopClosures(
+            graph_optimizer_config_.optimization_step_size.loop_closure
+        )
     ) {
         need_optimize = true;
     }
     
-    if (!need_optimize)
-        return false;
-
-    // reset key frame counters:
-    new_key_frame_cnt_ = new_gnss_cnt_ = new_loop_cnt_ = 0;
-
-    if (graph_optimizer_ptr_->Optimize())
+    if ( need_optimize && graph_optimizer_ptr_->Optimize() ) {
         has_new_optimized_ = true;
 
-    return true;
+        return true;
+    }
+    
+    return false;
 }
 
 bool LIOBackEnd::SavePose(std::ofstream& ofs, const Eigen::Matrix4f& pose) {
@@ -356,10 +363,10 @@ bool LIOBackEnd::SaveOptimizedPose() {
     if (!FileManager::CreateFile(optimized_pose_ofs_, trajectory_path_ + "/optimized.txt"))
         return false;
 
-    graph_optimizer_ptr_->GetOptimizedPose(optimized_pose_);
+    graph_optimizer_ptr_->GetOptimizedKeyFrame(optimized_key_frames_);
 
-    for (size_t i = 0; i < optimized_pose_.size(); ++i) {
-        SavePose(optimized_pose_ofs_, optimized_pose_.at(i));
+    for (size_t i = 0; i < optimized_key_frames_.size(); ++i) {
+        SavePose(optimized_pose_ofs_, optimized_key_frames_.at(i).pose);
     }
 
     return true;
@@ -375,12 +382,12 @@ bool LIOBackEnd::ForceOptimize() {
 }
 
 void LIOBackEnd::GetOptimizedKeyFrames(std::deque<KeyFrame>& key_frames_deque) {
-    KeyFrame key_frame;
-    for (size_t i = 0; i < optimized_pose_.size(); ++i) {
-        key_frame.pose = optimized_pose_.at(i);
-        key_frame.index = (unsigned int)i;
-        key_frames_deque.push_back(key_frame);
-    }
+    key_frames_deque.clear();
+
+    key_frames_deque.insert(
+        key_frames_deque.end(), 
+        optimized_key_frames_.begin(), optimized_key_frames_.end()
+    );
 }
 
 bool LIOBackEnd::HasNewKeyFrame() {
@@ -416,28 +423,25 @@ void LIOBackEnd::ShowIMUPreIntegrationResidual(
     Eigen::Vector3d r_p = last_gnss_pose.pose.block<3, 3>(0, 0).transpose().cast<double>() * (
         curr_gnss_pose.pose.block<3, 1>(0, 3).cast<double>() - last_gnss_pose.pose.block<3, 1>(0, 3).cast<double>() - 
         ( last_gnss_pose.pose.block<3, 3>(0, 0).cast<double>()*last_gnss_pose.vel.cast<double>() - 0.50 * g * T ) * T
-    );
+    ) - imu_pre_integration.alpha_ij_;
 
     Sophus::SO3d prev_theta(Eigen::Quaterniond(last_gnss_pose.pose.block<3, 3>(0, 0).cast<double>()));
     Sophus::SO3d curr_theta(Eigen::Quaterniond(curr_gnss_pose.pose.block<3, 3>(0, 0).cast<double>()));
-    Sophus::SO3d r_q = prev_theta.inverse() * curr_theta;
+    Eigen::Vector3d r_q = (imu_pre_integration.theta_ij_.inverse()*prev_theta.inverse() * curr_theta).log();
 
     Eigen::Vector3d r_v = last_gnss_pose.pose.block<3, 3>(0, 0).transpose().cast<double>() * (
         curr_gnss_pose.pose.block<3, 3>(0, 0).cast<double>()*curr_gnss_pose.vel.cast<double>() - 
         last_gnss_pose.pose.block<3, 3>(0, 0).cast<double>()*last_gnss_pose.vel.cast<double>() + 
         g * T
-    );
+    ) - imu_pre_integration.beta_ij_;
 
     LOG(INFO) << "IMU Pre-Integration Measurement: " << std::endl
                 << "\tT: " << T << " --- " << curr_gnss_pose.time - last_gnss_pose.time << std::endl
                 << "\talpha:" << std::endl
-                << "\t\t" << imu_pre_integration.alpha_ij_.x() << ", " << imu_pre_integration.alpha_ij_.y() << ", " << imu_pre_integration.alpha_ij_.z() << std::endl
                 << "\t\t" << r_p.x() << ", " << r_p.y() << ", " << r_p.z() << std::endl
                 << "\ttheta:" << std::endl
-                << "\t\t" << imu_pre_integration.theta_ij_.angleX() << ", " << imu_pre_integration.theta_ij_.angleY() << ", " << imu_pre_integration.theta_ij_.angleZ() << std::endl
-                << "\t\t" << r_q.angleX() << ", " << r_q.angleY() << ", " << r_q.angleZ() << std::endl
+                << "\t\t" << r_q.x() << ", " << r_q.y() << ", " << r_q.z() << std::endl
                 << "\tbeta:" << std::endl
-                << "\t\t" << imu_pre_integration.beta_ij_.x() << ", " << imu_pre_integration.beta_ij_.y() << ", " << imu_pre_integration.beta_ij_.z() << std::endl
                 << "\t\t" << r_v.x() << ", " << r_v.y() << ", " << r_v.z() << std::endl
                 << "\tbias_accel:" 
                 << imu_pre_integration.b_a_i_.x() << ", "
@@ -475,6 +479,7 @@ void LIOBackEnd::ShowIMUPreIntegrationResidual(
                 << imu_pre_integration.P_(13, 13) << ", " 
                 << imu_pre_integration.P_(14, 14)
                 << std::endl
+                /*
                 << "\tJacobian:" << std::endl
                 << "\t\td_alpha_d_b_a: " << std::endl
                 << "\t\t\t" << imu_pre_integration.J_( 0,  9) << ", " << imu_pre_integration.J_( 0, 10) << ", " << imu_pre_integration.J_( 0, 11) << std::endl
@@ -496,6 +501,7 @@ void LIOBackEnd::ShowIMUPreIntegrationResidual(
                 << "\t\t\t" << imu_pre_integration.J_( 6, 12) << ", " << imu_pre_integration.J_( 6, 13) << ", " << imu_pre_integration.J_( 6, 14) << std::endl
                 << "\t\t\t" << imu_pre_integration.J_( 7, 12) << ", " << imu_pre_integration.J_( 7, 13) << ", " << imu_pre_integration.J_( 7, 14) << std::endl
                 << "\t\t\t" << imu_pre_integration.J_( 8, 12) << ", " << imu_pre_integration.J_( 8, 13) << ", " << imu_pre_integration.J_( 8, 14) << std::endl
+                */
                 << std::endl;
 }
 

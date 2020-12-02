@@ -7,6 +7,7 @@
 #include "lidar_localization/models/graph_optimizer/g2o/g2o_graph_optimizer.hpp"
 #include "glog/logging.h"
 #include "lidar_localization/tools/tic_toc.hpp"
+#include <ostream>
 
 namespace lidar_localization {
 
@@ -52,24 +53,29 @@ void G2oGraphOptimizer::AddRobustKernel(g2o::OptimizableGraph::Edge *edge, const
 
 bool G2oGraphOptimizer::Optimize() {
     static int optimize_cnt = 0;
+
     if(graph_ptr_->edges().size() < 1) {
         return false;
     }
 
     TicToc optimize_time;
+
     graph_ptr_->initializeOptimization();
     graph_ptr_->computeInitialGuess();
     graph_ptr_->computeActiveErrors();
     graph_ptr_->setVerbose(false);
 
     double chi2 = graph_ptr_->chi2();
+
     int iterations = graph_ptr_->optimize(max_iterations_num_);
 
-    LOG(INFO) << std::endl << "------ Finish Iteration " << ++optimize_cnt << " of Backend Optimization -------" << std::endl
-              << "Num. Vertices: " << graph_ptr_->vertices().size() << ", Num. Edges: " << graph_ptr_->edges().size() << std::endl
-              << "Num. Iterations: " << iterations << "/" << max_iterations_num_ << std::endl
-              << "Time Consumption: " << optimize_time.toc() << std::endl
-              << "Cost Change: " << chi2 << "--->" << graph_ptr_->chi2()
+    LOG(INFO) << std::endl 
+              << "------ Finish Iteration " << ++optimize_cnt << " of Backend Optimization -------" << std::endl
+              << "\tNum. Vertices: " << graph_ptr_->vertices().size() << std::endl 
+              << "\tNum. Edges: " << graph_ptr_->edges().size() << std::endl
+              << "\tNum. Iterations: " << iterations << "/" << max_iterations_num_ << std::endl
+              << "\tTime Consumption: " << optimize_time.toc() << std::endl
+              << "\tCost Change: " << chi2 << "--->" << graph_ptr_->chi2()
               << std::endl << std::endl;
 
     return true;
@@ -151,10 +157,33 @@ void G2oGraphOptimizer::AddSe3PriorQuaternionEdge(
     graph_ptr_->addEdge(edge);
 }
 
+/**
+ * @brief  get optimized LIO key frame state estimation
+ * @param  optimized_key_frames, output optimized LIO key frames
+ * @return true if success false otherwise
+ */
 bool G2oGraphOptimizer::GetOptimizedKeyFrame(std::deque<KeyFrame> &optimized_key_frames) {
+    optimized_key_frames.clear();
+
+    const int N = graph_ptr_->vertices().size();
+
+    for (int vertex_id = 0; vertex_id < N; vertex_id++) {
+        g2o::VertexPRVAG* v = dynamic_cast<g2o::VertexPRVAG*>(graph_ptr_->vertex(vertex_id));
+
+        const g2o::PRVAG &key_frame_state = v->estimate();
+
+        optimized_key_frames.emplace_back( vertex_id, key_frame_state );
+    }
+
     return true;
 }
 
+/**
+ * @brief  add vertex for LIO key frame
+ * @param  lio_key_frame, LIO key frame with (pos, ori, vel, b_a and b_g)
+ * @param  need_fix, shall the vertex be fixed to eliminate trajectory estimation ambiguity
+ * @return void
+ */
 void G2oGraphOptimizer::AddPRVAGNode(
     const KeyFrame &lio_key_frame, const bool need_fix
 ) {
@@ -164,7 +193,16 @@ void G2oGraphOptimizer::AddPRVAGNode(
     // a. set vertex ID:
     vertex->setId(graph_ptr_->vertices().size());
     // b. set vertex state:
-    g2o::PRVAG measurement(lio_key_frame);
+    g2o::PRVAG measurement;
+
+    measurement.pos = lio_key_frame.pose.block<3, 1>(0, 3).cast<double>();
+    measurement.ori = Sophus::SO3d(
+        Eigen::Quaterniond(lio_key_frame.pose.block<3, 3>(0, 0).cast<double>())
+    );
+    measurement.vel = lio_key_frame.vel.cast<double>();
+    measurement.b_a = lio_key_frame.bias.accel.cast<double>();
+    measurement.b_g = lio_key_frame.bias.gyro.cast<double>();
+    
     vertex->setEstimate(measurement);
 
     // for first vertex:
@@ -176,6 +214,14 @@ void G2oGraphOptimizer::AddPRVAGNode(
     graph_ptr_->addVertex(vertex);
 }
 
+/**
+ * @brief  add edge for relative pose constraint from lidar frontend / loop closure detection
+ * @param  vertex_index_i, vertex ID of previous key frame
+ * @param  vertex_index_j, vertex ID of current key frame
+ * @param  relative_pose, relative pose measurement
+ * @param  noise, relative pose measurement noise
+ * @return void
+ */
 void G2oGraphOptimizer::AddPRVAGRelativePoseEdge(
     const int vertex_index_i, const int vertex_index_j,
     const Eigen::Matrix4d &relative_pose, const Eigen::VectorXd &noise
@@ -212,6 +258,13 @@ void G2oGraphOptimizer::AddPRVAGRelativePoseEdge(
     graph_ptr_->addEdge(edge);
 }
 
+/**
+ * @brief  add edge for prior position constraint from GNSS measurement
+ * @param  vertex_index, vertex ID of current key frame
+ * @param  pos, prior position measurement
+ * @param  noise, prior position measurement noise
+ * @return void
+ */
 void G2oGraphOptimizer::AddPRVAGPriorPosEdge(
     const int vertex_index,
     const Eigen::Vector3d &pos, const Eigen::Vector3d &noise
@@ -239,6 +292,13 @@ void G2oGraphOptimizer::AddPRVAGPriorPosEdge(
     graph_ptr_->addEdge(edge);
 }
 
+/**
+ * @brief  add edge for IMU pre-integration constraint from IMU measurement
+ * @param  vertex_index_i, vertex ID of previous key frame
+ * @param  vertex_index_j, vertex ID of current key frame
+ * @param  imu_pre_integration, IMU pre-integration measurement
+ * @return void
+ */
 void G2oGraphOptimizer::AddPRVAGIMUPreIntegrationEdge(
     const int vertex_index_i, const int vertex_index_j,
     const IMUPreIntegrator::IMUPreIntegration &imu_pre_integration
@@ -275,6 +335,98 @@ void G2oGraphOptimizer::AddPRVAGIMUPreIntegrationEdge(
 
     // add edge:
     graph_ptr_->addEdge(edge);
+}
+
+void G2oGraphOptimizer::ShowIMUPreIntegrationResidual(
+    const int vertex_index_i, const int vertex_index_j,
+    const IMUPreIntegrator::IMUPreIntegration &imu_pre_integration
+) {
+    const g2o::VertexPRVAG* vertex_i = dynamic_cast<g2o::VertexPRVAG*>(graph_ptr_->vertex(vertex_index_i));
+    const g2o::VertexPRVAG* vertex_j = dynamic_cast<g2o::VertexPRVAG*>(graph_ptr_->vertex(vertex_index_j));
+
+    const Eigen::Vector3d &pos_i = vertex_i->estimate().pos;
+    const Sophus::SO3d    &ori_i = vertex_i->estimate().ori;
+    const Eigen::Vector3d &vel_i = vertex_i->estimate().vel;
+
+    const Eigen::Vector3d &pos_j = vertex_j->estimate().pos;
+    const Sophus::SO3d    &ori_j = vertex_j->estimate().ori;
+    const Eigen::Vector3d &vel_j = vertex_j->estimate().vel;
+
+    const double &T = imu_pre_integration.T_;
+    const Eigen::Vector3d &g = imu_pre_integration.g_;
+
+    Eigen::Vector3d r_p = ori_i.inverse() * (pos_j - pos_i - (vel_i - 0.50 * g * T) * T) - imu_pre_integration.alpha_ij_;
+    Eigen::Vector3d r_q = (imu_pre_integration.theta_ij_.inverse()*ori_i.inverse()*ori_j).log();
+    Eigen::Vector3d r_v = ori_i.inverse() * (vel_j - vel_i + g * T) - imu_pre_integration.beta_ij_;
+
+    LOG(INFO) << "IMU Pre-Integration Measurement: " << std::endl
+                << "\tT: " << T << std::endl
+                << "\talpha:" << std::endl
+                << "\t\t" << r_p.x() << ", " << r_p.y() << ", " << r_p.z() << std::endl
+                << "\ttheta:" << std::endl
+                << "\t\t" << r_q.x() << ", " << r_q.y() << ", " << r_q.z() << std::endl
+                << "\tbeta:" << std::endl
+                << "\t\t" << r_v.x() << ", " << r_v.y() << ", " << r_v.z() << std::endl
+                << "\tbias_accel:" 
+                << imu_pre_integration.b_a_i_.x() << ", "
+                << imu_pre_integration.b_a_i_.y() << ", " 
+                << imu_pre_integration.b_a_i_.z()
+                << std::endl
+                << "\tbias_gyro:" 
+                << imu_pre_integration.b_g_i_.x() << ", "
+                << imu_pre_integration.b_g_i_.y() << ", " 
+                << imu_pre_integration.b_g_i_.z()
+                << std::endl
+                << "\tcovariance:" << std::endl
+                << "\t\talpha: "
+                << imu_pre_integration.P_( 0,  0) << ", "
+                << imu_pre_integration.P_( 1,  1) << ", " 
+                << imu_pre_integration.P_( 2,  3)
+                << std::endl
+                << "\t\ttheta: "
+                << imu_pre_integration.P_( 3,  3) << ", "
+                << imu_pre_integration.P_( 4,  4) << ", " 
+                << imu_pre_integration.P_( 5,  5)
+                << std::endl
+                << "\t\tbeta: "
+                << imu_pre_integration.P_( 6,  6) << ", "
+                << imu_pre_integration.P_( 7,  7) << ", " 
+                << imu_pre_integration.P_( 8,  8)
+                << std::endl
+                << "\t\tbias_accel: "
+                << imu_pre_integration.P_( 9,  9) << ", "
+                << imu_pre_integration.P_(10, 10) << ", " 
+                << imu_pre_integration.P_(11, 11)
+                << std::endl
+                << "\t\tbias_gyro: "
+                << imu_pre_integration.P_(12, 12) << ", "
+                << imu_pre_integration.P_(13, 13) << ", " 
+                << imu_pre_integration.P_(14, 14)
+                << std::endl
+                /*
+                << "\tJacobian:" << std::endl
+                << "\t\td_alpha_d_b_a: " << std::endl
+                << "\t\t\t" << imu_pre_integration.J_( 0,  9) << ", " << imu_pre_integration.J_( 0, 10) << ", " << imu_pre_integration.J_( 0, 11) << std::endl
+                << "\t\t\t" << imu_pre_integration.J_( 1,  9) << ", " << imu_pre_integration.J_( 1, 10) << ", " << imu_pre_integration.J_( 1, 11) << std::endl
+                << "\t\t\t" << imu_pre_integration.J_( 2,  9) << ", " << imu_pre_integration.J_( 2, 10) << ", " << imu_pre_integration.J_( 2, 11) << std::endl
+                << "\t\td_alpha_d_b_g: " << std::endl
+                << "\t\t\t" << imu_pre_integration.J_( 0, 12) << ", " << imu_pre_integration.J_( 0, 13) << ", " << imu_pre_integration.J_( 0, 14) << std::endl
+                << "\t\t\t" << imu_pre_integration.J_( 1, 12) << ", " << imu_pre_integration.J_( 1, 13) << ", " << imu_pre_integration.J_( 1, 14) << std::endl
+                << "\t\t\t" << imu_pre_integration.J_( 2, 12) << ", " << imu_pre_integration.J_( 2, 13) << ", " << imu_pre_integration.J_( 2, 14) << std::endl
+                << "\t\td_theta_d_b_g: " << std::endl
+                << "\t\t\t" << imu_pre_integration.J_( 3, 12) << ", " << imu_pre_integration.J_( 3, 13) << ", " << imu_pre_integration.J_( 3, 14) << std::endl
+                << "\t\t\t" << imu_pre_integration.J_( 4, 12) << ", " << imu_pre_integration.J_( 4, 13) << ", " << imu_pre_integration.J_( 4, 14) << std::endl
+                << "\t\t\t" << imu_pre_integration.J_( 5, 12) << ", " << imu_pre_integration.J_( 5, 13) << ", " << imu_pre_integration.J_( 5, 14) << std::endl
+                << "\t\td_beta_d_b_a: " << std::endl
+                << "\t\t\t" << imu_pre_integration.J_( 6,  9) << ", " << imu_pre_integration.J_( 6, 10) << ", " << imu_pre_integration.J_( 6, 11) << std::endl
+                << "\t\t\t" << imu_pre_integration.J_( 7,  9) << ", " << imu_pre_integration.J_( 7, 10) << ", " << imu_pre_integration.J_( 7, 11) << std::endl
+                << "\t\t\t" << imu_pre_integration.J_( 8,  9) << ", " << imu_pre_integration.J_( 8, 10) << ", " << imu_pre_integration.J_( 8, 11) << std::endl
+                << "\t\td_beta_d_b_a: " << std::endl
+                << "\t\t\t" << imu_pre_integration.J_( 6, 12) << ", " << imu_pre_integration.J_( 6, 13) << ", " << imu_pre_integration.J_( 6, 14) << std::endl
+                << "\t\t\t" << imu_pre_integration.J_( 7, 12) << ", " << imu_pre_integration.J_( 7, 13) << ", " << imu_pre_integration.J_( 7, 14) << std::endl
+                << "\t\t\t" << imu_pre_integration.J_( 8, 12) << ", " << imu_pre_integration.J_( 8, 13) << ", " << imu_pre_integration.J_( 8, 14) << std::endl
+                */
+                << std::endl;
 }
 
 Eigen::MatrixXd G2oGraphOptimizer::CalculateDiagMatrix(Eigen::VectorXd noise) {

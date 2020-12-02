@@ -50,6 +50,12 @@ public:
     
     // LIO state:
     virtual bool GetOptimizedKeyFrame(std::deque<KeyFrame> &optimized_key_frames) = 0;
+    /**
+     * @brief  add vertex for LIO key frame
+     * @param  lio_key_frame, LIO key frame with (pos, ori, vel, b_a and b_g)
+     * @param  need_fix, shall the vertex be fixed to eliminate trajectory estimation ambiguity
+     * @return true if success false otherwise
+     */
     virtual void AddPRVAGNode(
       const KeyFrame &lio_key_frame, const bool need_fix
     ) = 0;

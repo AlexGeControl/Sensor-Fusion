@@ -8,9 +8,12 @@
 
 #include <Eigen/Dense>
 
+#include "lidar_localization/models/graph_optimizer/g2o/vertex/vertex_prvag.hpp"
+
 namespace lidar_localization {
-class KeyFrame {
-  public:
+
+struct KeyFrame {
+public:
     double time = 0.0;
 
     // key frame ID:
@@ -28,10 +31,23 @@ class KeyFrame {
       Eigen::Vector3f gyro = Eigen::Vector3f::Zero();
     } bias;
 
-  public:
+    KeyFrame() {}
+
+    explicit KeyFrame(const int vertex_id, const g2o::PRVAG &prvag) {
+      // set seq. ID:
+      index = vertex_id;
+      // set state:
+      pose.block<3, 1>(0, 3) = prvag.pos.cast<float>();
+      pose.block<3, 3>(0, 0) = prvag.ori.matrix().cast<float>();
+      vel = vel.cast<float>();
+      bias.accel = prvag.b_a.cast<float>();
+      bias.gyro = prvag.b_g.cast<float>();
+    }
+
     Eigen::Quaternionf GetQuaternion() const;
     Eigen::Vector3f GetTranslation() const;
 };
+
 }
 
 #endif

@@ -88,27 +88,66 @@ public:
     ) override;
 
     // LIO state:
+    /**
+     * @brief  get optimized LIO key frame state estimation
+     * @param  optimized_key_frames, output optimized LIO key frames
+     * @return true if success false otherwise
+     */
     bool GetOptimizedKeyFrame(std::deque<KeyFrame> &optimized_key_frames);
+    /**
+     * @brief  add vertex for LIO key frame
+     * @param  lio_key_frame, LIO key frame with (pos, ori, vel, b_a and b_g)
+     * @param  need_fix, shall the vertex be fixed to eliminate trajectory estimation ambiguity
+     * @return true if success false otherwise
+     */
     void AddPRVAGNode(
       const KeyFrame &lio_key_frame, const bool need_fix
     );
+    /**
+     * @brief  add edge for relative pose constraint from lidar frontend / loop closure detection
+     * @param  vertex_index_i, vertex ID of previous key frame
+     * @param  vertex_index_j, vertex ID of current key frame
+     * @param  relative_pose, relative pose measurement
+     * @param  noise, relative pose measurement noise
+     * @return void
+     */
     void AddPRVAGRelativePoseEdge(
       const int vertex_index_i, const int vertex_index_j,
       const Eigen::Matrix4d &relative_pose, const Eigen::VectorXd &noise
     );
+    /**
+     * @brief  add edge for prior position constraint from GNSS measurement
+     * @param  vertex_index, vertex ID of current key frame
+     * @param  pos, prior position measurement
+     * @param  noise, prior position measurement noise
+     * @return void
+     */
     void AddPRVAGPriorPosEdge(
       const int vertex_index,
       const Eigen::Vector3d &pos, const Eigen::Vector3d &noise
     );
+    /**
+     * @brief  add edge for IMU pre-integration constraint from IMU measurement
+     * @param  vertex_index_i, vertex ID of previous key frame
+     * @param  vertex_index_j, vertex ID of current key frame
+     * @param  imu_pre_integration, IMU pre-integration measurement
+     * @return void
+     */
     void AddPRVAGIMUPreIntegrationEdge(
       const int vertex_index_i, const int vertex_index_j,
       const IMUPreIntegrator::IMUPreIntegration &imu_pre_integration
     );
     
 private:
+    void ShowIMUPreIntegrationResidual(
+      const int vertex_index_i, const int vertex_index_j,
+      const IMUPreIntegrator::IMUPreIntegration &imu_pre_integration
+    );
+
     Eigen::MatrixXd CalculateSe3EdgeInformationMatrix(Eigen::VectorXd noise);
     Eigen::MatrixXd CalculateSe3PriorQuaternionEdgeInformationMatrix(Eigen::VectorXd noise);
     Eigen::MatrixXd CalculateDiagMatrix(Eigen::VectorXd noise);
+
     void AddRobustKernel(g2o::OptimizableGraph::Edge *edge, const std::string &kernel_type, double kernel_size);
 
 private:

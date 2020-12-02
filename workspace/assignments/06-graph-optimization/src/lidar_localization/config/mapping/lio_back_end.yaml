@@ -16,9 +16,9 @@ use_loop_close: true
 # c. IMU pre-integration
 use_imu_pre_integration: true
 
-optimize_step_with_key_frame: 10000 # 没有其他信息时，每隔 step 发送一次优化的位姿
-optimize_step_with_gnss: 950 # 每累计 step 个 gnss 观测时，优化一次
-optimize_step_with_loop: 100  # 每累计 step 个闭环约束时优化一次
+optimization_step_size:
+    key_frame: 100      # optimize per key frames
+    loop_closure: 10    # optimize per loop closure detections
 
 g2o_param:
     odom_edge_noise: [0.5, 0.5, 0.5, 0.001, 0.001, 0.001] # 噪声：x y z yaw roll pitch
