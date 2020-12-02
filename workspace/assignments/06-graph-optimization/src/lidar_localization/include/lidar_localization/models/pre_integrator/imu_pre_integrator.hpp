@@ -65,6 +65,10 @@ public:
         Eigen::MatrixXd GetInformation(void) const {
             return P_.inverse();
         }
+
+        Eigen::MatrixXd GetJacobian(void) const {
+            return J_;
+        }
     };
 
     IMUPreIntegrator(const YAML::Node& node);

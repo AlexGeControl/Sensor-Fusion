@@ -319,6 +319,9 @@ void G2oGraphOptimizer::AddPRVAGIMUPreIntegrationEdge(
     edge->setGravitiy(
         imu_pre_integration.GetGravity()
     );
+    edge->setJacobian(
+        imu_pre_integration.GetJacobian()
+    );
     edge->setMeasurement(
         imu_pre_integration.GetMeasurement()
     );

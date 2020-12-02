@@ -56,6 +56,20 @@ public:
 		const Eigen::Vector3d &b_a_j = v1->estimate().b_a;
 		const Eigen::Vector3d &b_g_j = v1->estimate().b_g;
 
+		// update pre-integration measurement caused by bias change:
+		/*
+		_measurement.block<3, 1>(INDEX_P, 0) += (
+			J_.block<3, 3>(INDEX_P, INDEX_A)*d_b_a_i + J_.block<3, 3>(INDEX_P, INDEX_G)*d_b_g_i
+		);
+		_measurement.block<3, 1>(INDEX_R, 0) = (
+			Sophus::SO3d::exp(_measurement.block<3, 1>(INDEX_R, 0)) * 
+			Sophus::SO3d::exp(J_.block<3, 3>(INDEX_R, INDEX_G)*d_b_g_i)
+		).log();
+		_measurement.block<3, 1>(INDEX_V, 0) += (
+			J_.block<3, 3>(INDEX_V, INDEX_A)*d_b_a_i + J_.block<3, 3>(INDEX_V, INDEX_G)*d_b_g_i
+		);
+		*/
+
 		const Eigen::Vector3d &alpha_ij = _measurement.block<3, 1>(INDEX_P, 0);
 		const Eigen::Vector3d &theta_ij = _measurement.block<3, 1>(INDEX_R, 0);
 		const Eigen::Vector3d  &beta_ij = _measurement.block<3, 1>(INDEX_V, 0);
@@ -73,6 +87,10 @@ public:
 
 	void setGravitiy(const Eigen::Vector3d &g) {
 		g_ = g;
+	}
+
+	void setJacobian(const Eigen::MatrixXd &J) {
+		J_ = J;
 	}
 
     virtual void setMeasurement(const Vector15d& m) override {
@@ -132,7 +150,10 @@ public:
 
 private:
 	double T_ = 0.0;
+
 	Eigen::Vector3d g_ = Eigen::Vector3d::Zero();
+
+	Eigen::MatrixXd J_;
 };
 
 } // namespace g2o
