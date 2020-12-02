@@ -10,13 +10,44 @@ This is the solution of Assignment 06 of Sensor Fusion from [深蓝学院](https
 
 ---
 
-### 1. 在KITTI上, 实现基于IMU的预积分融合激光建图
+## 1. 在KITTI上, 实现基于IMU的预积分融合激光建图
 
-#### ANS
+### ANS
+
+#### LIO-G2O Implementation
+
+首先实现基于G2O的LIO Mapping. 包括:
+
+* IMU Pre-Integration [here](src/lidar_localization/src/models/pre_integrator/imu_pre_integrator.cpp#178)
+* G2O Vertex / Edge for IMU Pre-Integration
+    * LIO Key Frame Vertex [here](src/lidar_localization/include/lidar_localization/models/graph_optimizer/g2o/vertex/vertex_prvag.hpp)
+    * IMU Pre-Integration Edge [here](src/lidar_localization/include/lidar_localization/models/graph_optimizer/g2o/edge/edge_prvag_imu_pre_integration.hpp)
+
+然后实现`LIO Backend`, 将`IMU Pre-Integration`集成至Mapping框架.
+
+#### Results & Analysis
+
+`LIO Mapping`得到的轨迹估计如下图所示:
+
+<img src="doc/images/01-optimized-trajectory-using-lio.png" width="%100" alt="Trajectory Estimation using LIO">
+
+在`LIO Mapping`得到的地图上
+
+* 系统基于`ESKF`与`IEKF`的融合定位能够稳定运行
+* 观测到的点云与地图中的点云重合度良好
+
+测试的结果如下图所示. 结果显示`LIO Mapping 建图质量良好`.
+
+![Localiztion & Map Integrity Demo](doc/images/02-localization-demo-a.png)
+![Localiztion & Map Integrity Demo](doc/images/02-localization-demo-b.png)
+![Localiztion & Map Integrity Demo](doc/images/02-localization-demo-c.png)
+![Localiztion & Map Integrity Demo](doc/images/02-localization-demo-d.png)
+![Localiztion & Map Integrity Demo](doc/images/02-localization-demo-e.png)
+![Localiztion & Map Integrity Demo](doc/images/02-localization-demo-f.png)
 
 ---
 
-### 2. 基于Odometer的预积融合分方法
+## 2. 基于Odometer的预积融合分方法
 
 推导基于编码器的预积分方法, 包括:
 
@@ -27,13 +58,13 @@ This is the solution of Assignment 06 of Sensor Fusion from [深蓝学院](https
 
 推导思路可参考论文 `VINS on wheels`
 
-#### ANS
+### ANS
 
 ---
 
-### 3. 在KITTI上, 实现基于IMU-Odometer的预积分融合激光建图
+## 3. 在KITTI上, 实现基于IMU-Odometer的预积分融合激光建图
 
-#### ANS
+### ANS
 
 ---
 
