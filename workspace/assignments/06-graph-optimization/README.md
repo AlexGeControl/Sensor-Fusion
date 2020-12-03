@@ -27,9 +27,22 @@ This is the solution of Assignment 06 of Sensor Fusion from [深蓝学院](https
 
 #### Results & Analysis
 
-`LIO Mapping`得到的轨迹估计如下图所示:
+`LIO Mapping`得到的轨迹估计如下图所示. 其中红色为`Lidar Frontend`的估计, 绿色为`LIO Mapping`的估计. 优化后的轨迹与黄色的`GNSS Ground Truth`重合较好:
 
 <img src="doc/images/01-optimized-trajectory-using-lio.png" width="%100" alt="Trajectory Estimation using LIO">
+
+使用`IMU Pre-Integration`修正前后, 轨迹估计误差的对比如下所示:
+
+Before                     |After
+:-------------------------:|:-------------------------:
+![Before](doc/images/01-evo-lidar-frontend--time-series-plot.png)  |  ![EVO APE ICP](doc/images/01-evo-optimized--time-series-plot.png)
+![Before](doc/images/01-evo-lidar-frontend--map-plot.png)  |  ![EVO APE ICP](doc/images/01-evo-optimized--map-plot.png)
+
+|  Prop. |   Before      |  After        |
+|:------:|:-------------:|:-------------:|
+|   std  |   10.509073   |   10.371566   |
+
+由上述结果可知, `IMU Pre-Integration`的使用, `可以显著提升轨迹估计精度`.
 
 在`LIO Mapping`得到的地图上
 
@@ -38,12 +51,12 @@ This is the solution of Assignment 06 of Sensor Fusion from [深蓝学院](https
 
 测试的结果如下图所示. 结果显示`LIO Mapping 建图质量良好`.
 
-![Localiztion & Map Integrity Demo](doc/images/02-localization-demo-a.png)
-![Localiztion & Map Integrity Demo](doc/images/02-localization-demo-b.png)
-![Localiztion & Map Integrity Demo](doc/images/02-localization-demo-c.png)
-![Localiztion & Map Integrity Demo](doc/images/02-localization-demo-d.png)
-![Localiztion & Map Integrity Demo](doc/images/02-localization-demo-e.png)
-![Localiztion & Map Integrity Demo](doc/images/02-localization-demo-f.png)
+![Localiztion & Map Integrity Demo](doc/images/01-localization-demo-a.png)
+![Localiztion & Map Integrity Demo](doc/images/01-localization-demo-b.png)
+![Localiztion & Map Integrity Demo](doc/images/01-localization-demo-c.png)
+![Localiztion & Map Integrity Demo](doc/images/01-localization-demo-d.png)
+![Localiztion & Map Integrity Demo](doc/images/01-localization-demo-e.png)
+![Localiztion & Map Integrity Demo](doc/images/01-localization-demo-f.png)
 
 ---
 

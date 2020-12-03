@@ -38,6 +38,7 @@ class LIOBackEnd {
     );
 
     bool ForceOptimize();
+    bool SaveOptimizedPose();
 
     void GetOptimizedKeyFrames(std::deque<KeyFrame>& key_frames_deque);
     bool HasNewKeyFrame();
@@ -67,7 +68,6 @@ class LIOBackEnd {
     bool AddNodeAndEdge(const PoseData& gnss_data);
 
     bool MaybeOptimized();
-    bool SaveOptimizedPose();
     void ShowIMUPreIntegrationResidual(
       const PoseData &last_gnss_pose, const PoseData& curr_gnss_pose,
       const IMUPreIntegrator::IMUPreIntegration &imu_pre_integration
@@ -91,6 +91,7 @@ class LIOBackEnd {
     KeyFrame current_key_frame_;
     KeyFrame current_key_gnss_;
     std::deque<KeyFrame> key_frames_deque_;
+    std::deque<KeyFrame> key_gnss_deque_;
     std::deque<KeyFrame> optimized_key_frames_;
 
     // pre-integrator:

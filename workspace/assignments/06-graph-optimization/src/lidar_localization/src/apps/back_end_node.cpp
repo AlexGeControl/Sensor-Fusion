@@ -33,7 +33,9 @@ int main(int argc, char *argv[]) {
     nh.param<std::string>("cloud_topic", cloud_topic, "/synced_cloud");
     nh.param<std::string>("odom_topic", odom_topic, "/laser_odom");
 
+    //
     // subscribe to:
+    // 
     // a. undistorted Velodyne measurement:
     // b. lidar pose in map frame:
     // c. lidar odometry estimation:

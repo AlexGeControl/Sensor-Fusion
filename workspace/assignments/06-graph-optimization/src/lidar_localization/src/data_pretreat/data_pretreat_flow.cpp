@@ -25,7 +25,7 @@ DataPretreatFlow::DataPretreatFlow(ros::NodeHandle& nh, std::string cloud_topic)
     cloud_pub_ptr_ = std::make_shared<CloudPublisher>(nh, cloud_topic, "/velo_link", 100);
     imu_pub_ptr_ = std::make_shared<IMUPublisher>(nh, "/synced_imu", "/imu_link", 100);
     pos_vel_pub_ptr_ = std::make_shared<PosVelPublisher>(nh, "/synced_pos_vel", "/map", "/imu_link", 100);
-    gnss_pub_ptr_ = std::make_shared<OdometryPublisher>(nh, "/synced_gnss", "/map", "/velo_link", 100);
+    gnss_pub_ptr_ = std::make_shared<OdometryPublisher>(nh, "/synced_gnss", "/map", "/map", 100);
 
     // motion compensation for lidar measurement:
     distortion_adjust_ptr_ = std::make_shared<DistortionAdjust>();
@@ -207,7 +207,7 @@ bool DataPretreatFlow::PublishData() {
     // b. lidar frame's velocity 
     gnss_pub_ptr_->Publish(gnss_pose_, current_velocity_data_, current_cloud_data_.time);
 
-    
     return true;
 }
+
 }

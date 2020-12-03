@@ -41,8 +41,8 @@ public:
 	 }
 
 	virtual void computeError() override {
-        const g2o::VertexPRVAG* v0 = static_cast<const g2o::VertexPRVAG*>(_vertices[0]);
-        const g2o::VertexPRVAG* v1 = static_cast<const g2o::VertexPRVAG*>(_vertices[1]);
+        g2o::VertexPRVAG* v0 = dynamic_cast<g2o::VertexPRVAG*>(_vertices[0]);
+        g2o::VertexPRVAG* v1 = dynamic_cast<g2o::VertexPRVAG*>(_vertices[1]);
 
 		const Eigen::Vector3d &pos_i = v0->estimate().pos;
 		const Sophus::SO3d    &ori_i = v0->estimate().ori;
@@ -57,19 +57,14 @@ public:
 		const Eigen::Vector3d &b_g_j = v1->estimate().b_g;
 
 		// update pre-integration measurement caused by bias change:
-		/*
-		_measurement.block<3, 1>(INDEX_P, 0) += (
-			J_.block<3, 3>(INDEX_P, INDEX_A)*d_b_a_i + J_.block<3, 3>(INDEX_P, INDEX_G)*d_b_g_i
-		);
-		_measurement.block<3, 1>(INDEX_R, 0) = (
-			Sophus::SO3d::exp(_measurement.block<3, 1>(INDEX_R, 0)) * 
-			Sophus::SO3d::exp(J_.block<3, 3>(INDEX_R, INDEX_G)*d_b_g_i)
-		).log();
-		_measurement.block<3, 1>(INDEX_V, 0) += (
-			J_.block<3, 3>(INDEX_V, INDEX_A)*d_b_a_i + J_.block<3, 3>(INDEX_V, INDEX_G)*d_b_g_i
-		);
-		*/
+		if ( v0->isUpdated() ) {
+			Eigen::Vector3d d_b_a_i, d_b_g_i;
 
+			v0->getDeltaBiases(d_b_a_i, d_b_g_i);
+
+			updateMeasurement(d_b_a_i, d_b_g_i);
+		}
+		
 		const Eigen::Vector3d &alpha_ij = _measurement.block<3, 1>(INDEX_P, 0);
 		const Eigen::Vector3d &theta_ij = _measurement.block<3, 1>(INDEX_R, 0);
 		const Eigen::Vector3d  &beta_ij = _measurement.block<3, 1>(INDEX_V, 0);
@@ -95,6 +90,22 @@ public:
 
     virtual void setMeasurement(const Vector15d& m) override {
 		_measurement = m;
+	}
+
+	void updateMeasurement(
+		const Eigen::Vector3d &d_b_a_i,
+		const Eigen::Vector3d &d_b_g_i
+	) {
+		_measurement.block<3, 1>(INDEX_P, 0) += (
+			J_.block<3, 3>(INDEX_P, INDEX_A)*d_b_a_i + J_.block<3, 3>(INDEX_P, INDEX_G)*d_b_g_i
+		);
+		_measurement.block<3, 1>(INDEX_R, 0) = (
+			Sophus::SO3d::exp(_measurement.block<3, 1>(INDEX_R, 0)) * 
+			Sophus::SO3d::exp(J_.block<3, 3>(INDEX_R, INDEX_G)*d_b_g_i)
+		).log();
+		_measurement.block<3, 1>(INDEX_V, 0) += (
+			J_.block<3, 3>(INDEX_V, INDEX_A)*d_b_a_i + J_.block<3, 3>(INDEX_V, INDEX_G)*d_b_g_i
+		);
 	}
 
 	virtual bool read(std::istream& is) override {

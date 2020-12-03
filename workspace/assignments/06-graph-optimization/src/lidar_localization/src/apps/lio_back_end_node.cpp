@@ -35,7 +35,9 @@ int main(int argc, char *argv[]) {
     nh.param<std::string>("cloud_topic", cloud_topic, "/synced_cloud");
     nh.param<std::string>("odom_topic", odom_topic, "/laser_odom");
 
+    //
     // subscribe to:
+    // 
     // a. undistorted Velodyne measurement:
     // b. lidar pose in map frame:
     // c. lidar odometry estimation:
@@ -44,7 +46,9 @@ int main(int argc, char *argv[]) {
     // a. lidar odometry in map frame:
     // b. key frame pose and corresponding GNSS/IMU pose
     // c. optimized key frame sequence as trajectory
-    std::shared_ptr<LIOBackEndFlow> lio_back_end_flow_ptr = std::make_shared<LIOBackEndFlow>(nh, cloud_topic, odom_topic);
+    std::shared_ptr<LIOBackEndFlow> lio_back_end_flow_ptr = std::make_shared<LIOBackEndFlow>(
+        nh, cloud_topic, odom_topic
+    );
     ros::ServiceServer service = nh.advertiseService(
         "optimize_map", OptimizeMapCb
     );
@@ -57,6 +61,8 @@ int main(int argc, char *argv[]) {
 
         if (_need_optimize_map) {
             lio_back_end_flow_ptr->ForceOptimize();
+            lio_back_end_flow_ptr->SaveOptimizedOdometry();
+            
             _need_optimize_map = false;
         }
 

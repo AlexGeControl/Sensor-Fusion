@@ -30,12 +30,13 @@
 namespace lidar_localization {
 
 class LIOBackEndFlow {
-  public:
+public:
     LIOBackEndFlow(ros::NodeHandle& nh, std::string cloud_topic, std::string odom_topic);
 
     bool Run();
     bool ForceOptimize();
-
+    bool SaveOptimizedOdometry();
+    
   private:
     bool ReadData();
     bool InsertLoopClosurePose();

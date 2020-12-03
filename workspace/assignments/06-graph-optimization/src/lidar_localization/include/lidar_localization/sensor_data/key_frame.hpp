@@ -34,6 +34,8 @@ public:
     KeyFrame() {}
 
     explicit KeyFrame(const int vertex_id, const g2o::PRVAG &prvag) {
+      // set time:
+      time = prvag.time;
       // set seq. ID:
       index = vertex_id;
       // set state:

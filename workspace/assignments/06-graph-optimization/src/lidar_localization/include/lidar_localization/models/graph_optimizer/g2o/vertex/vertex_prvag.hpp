@@ -15,6 +15,7 @@
 
 #include <g2o/core/base_vertex.h>
 
+#include <mutex>
 
 namespace g2o {
 
@@ -50,6 +51,8 @@ struct PRVAG {
         }
     }
 
+    double time = 0.0;
+
     Eigen::Vector3d pos = Eigen::Vector3d::Zero();
     Sophus::SO3d ori = Sophus::SO3d();
     Eigen::Vector3d vel = Eigen::Vector3d::Zero();
@@ -77,17 +80,55 @@ public:
         _estimate.vel += Eigen::Vector3d(
             update[PRVAG::INDEX_VEL + 0], update[PRVAG::INDEX_VEL + 1], update[PRVAG::INDEX_VEL + 2]
         );
-        _estimate.b_a += Eigen::Vector3d(
+
+        Eigen::Vector3d d_b_a_i(
             update[PRVAG::INDEX_B_A + 0], update[PRVAG::INDEX_B_A + 1], update[PRVAG::INDEX_B_A + 2]
         );
-        _estimate.b_g += Eigen::Vector3d(
+        Eigen::Vector3d d_b_g_i(
             update[PRVAG::INDEX_B_G + 0], update[PRVAG::INDEX_B_G + 1], update[PRVAG::INDEX_B_G + 2]
         );
+
+        _estimate.b_a += d_b_a_i;
+        _estimate.b_g += d_b_g_i;
+
+        updateDeltaBiases(d_b_a_i, d_b_g_i);
+    }
+
+    bool isUpdated(void) const { return _is_updated; }
+
+    void updateDeltaBiases(
+        const Eigen::Vector3d &d_b_a_i, 
+        const Eigen::Vector3d &d_b_g_i
+    ) {
+        std::lock_guard<std::mutex> l(_m);
+
+        _is_updated = true;
+
+        _d_b_a_i += d_b_a_i;
+        _d_b_g_i += d_b_g_i;
+    }
+
+    void getDeltaBiases(Eigen::Vector3d &d_b_a_i, Eigen::Vector3d &d_b_g_i) {
+        std::lock_guard<std::mutex> l(_m);
+
+        d_b_a_i = _d_b_a_i;
+        d_b_g_i = _d_b_g_i;
+
+        _d_b_a_i = _d_b_g_i = Eigen::Vector3d::Zero();
+
+        _is_updated = false;
     }
 
     virtual bool read(std::istream &in) { return true; }
 
     virtual bool write(std::ostream &out) const { return true; }
+
+private:
+    std::mutex _m;
+    bool _is_updated = false;
+
+    Eigen::Vector3d _d_b_a_i = Eigen::Vector3d::Zero();
+    Eigen::Vector3d _d_b_g_i = Eigen::Vector3d::Zero();
 };
 
 } // namespace g2o

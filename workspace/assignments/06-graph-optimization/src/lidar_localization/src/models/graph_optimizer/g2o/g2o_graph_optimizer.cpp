@@ -195,6 +195,8 @@ void G2oGraphOptimizer::AddPRVAGNode(
     // b. set vertex state:
     g2o::PRVAG measurement;
 
+    measurement.time = lio_key_frame.time;
+
     measurement.pos = lio_key_frame.pose.block<3, 1>(0, 3).cast<double>();
     measurement.ori = Sophus::SO3d(
         Eigen::Quaterniond(lio_key_frame.pose.block<3, 3>(0, 0).cast<double>())

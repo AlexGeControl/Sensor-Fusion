@@ -52,11 +52,6 @@ bool LIOBackEnd::InitDataPath(const YAML::Node& config_node) {
     if (!FileManager::InitDirectory(trajectory_path_, "Estimated Trajectory"))
         return false;
 
-    if (!FileManager::CreateFile(ground_truth_ofs_, trajectory_path_ + "/ground_truth.txt"))
-        return false;
-    if (!FileManager::CreateFile(laser_odom_ofs_, trajectory_path_ + "/laser_odom.txt"))
-        return false;
-
     return true;
 }
 
@@ -82,8 +77,12 @@ bool LIOBackEnd::InitGraphOptimizer(const YAML::Node& config_node) {
     graph_optimizer_config_.use_loop_close = config_node["use_loop_close"].as<bool>();
     graph_optimizer_config_.use_imu_pre_integration = config_node["use_imu_pre_integration"].as<bool>();
 
-    graph_optimizer_config_.optimization_step_size.key_frame = config_node["optimization_step_size"]["key_frame"].as<int>();
-    graph_optimizer_config_.optimization_step_size.loop_closure = config_node["optimization_step_size"]["loop_closure"].as<int>();
+    graph_optimizer_config_.optimization_step_size.key_frame = (
+        config_node["optimization_step_size"]["key_frame"].as<int>()
+    );
+    graph_optimizer_config_.optimization_step_size.loop_closure = (
+        config_node["optimization_step_size"]["loop_closure"].as<int>()
+    );
 
     // x-y-z & yaw-roll-pitch
     for (int i = 0; i < 6; ++i) {
@@ -158,14 +157,8 @@ bool LIOBackEnd::Update(
     ResetParam();
 
     if ( MaybeNewKeyFrame(cloud_data, laser_odom, gnss_pose, imu_data) ) {
-        // write GNSS/IMU pose and lidar odometry estimation as trajectory for evo evaluation:
-        SavePose(ground_truth_ofs_, gnss_pose.pose);
-        SavePose(laser_odom_ofs_, laser_odom.pose);
         AddNodeAndEdge(gnss_pose);
-        
-        if (MaybeOptimized()) {
-            SaveOptimizedPose();
-        }
+        MaybeOptimized();
     }
 
     return true;
@@ -234,21 +227,19 @@ bool LIOBackEnd::MaybeNewKeyFrame(
             new CloudData::CLOUD(*cloud_data.cloud_ptr)
         );
 
-        // b. create key frame index for lidar scan, relative pose measurement:
-        KeyFrame key_frame;
-        key_frame.time = laser_odom.time;
-        key_frame.index = (unsigned int)key_frames_deque_.size();
+        current_key_gnss_.time = current_key_frame_.time = laser_odom.time;
+        current_key_gnss_.index = current_key_frame_.index = key_frames_deque_.size();
 
-        key_frame.pose = laser_odom.pose;
-        key_frames_deque_.push_back(key_frame);
-        current_key_frame_ = key_frame;
+        // b. create key frame index for lidar scan, relative pose measurement:
+        current_key_frame_.pose = laser_odom.pose;
 
         // c. create key frame index for GNSS measurement, full LIO state:
-        current_key_gnss_.time = gnss_odom.time;
-        current_key_gnss_.index = key_frame.index;
-
         current_key_gnss_.pose = gnss_odom.pose;
         current_key_gnss_.vel = gnss_odom.pose.block<3, 3>(0, 0) * gnss_odom.vel;
+
+        // add to cache for later evo evaluation:
+        key_frames_deque_.push_back(current_key_frame_);
+        key_gnss_deque_.push_back(current_key_gnss_);
     }
 
     return has_new_key_frame_;
@@ -356,29 +347,37 @@ bool LIOBackEnd::SavePose(std::ofstream& ofs, const Eigen::Matrix4f& pose) {
     return true;
 }
 
-bool LIOBackEnd::SaveOptimizedPose() {
-    if (graph_optimizer_ptr_->GetNodeNum() == 0)
-        return false;
-
-    if (!FileManager::CreateFile(optimized_pose_ofs_, trajectory_path_ + "/optimized.txt"))
-        return false;
-
-    graph_optimizer_ptr_->GetOptimizedKeyFrame(optimized_key_frames_);
-
-    for (size_t i = 0; i < optimized_key_frames_.size(); ++i) {
-        SavePose(optimized_pose_ofs_, optimized_key_frames_.at(i).pose);
-    }
-
-    return true;
-}
-
 bool LIOBackEnd::ForceOptimize() {
     if (graph_optimizer_ptr_->Optimize())
         has_new_optimized_ = true;
 
-    SaveOptimizedPose();
-
     return has_new_optimized_;
+}
+
+bool LIOBackEnd::SaveOptimizedPose() {
+    if (graph_optimizer_ptr_->GetNodeNum() == 0)
+        return false;
+
+    if (
+        !FileManager::CreateFile(ground_truth_ofs_, trajectory_path_ + "/ground_truth.txt") || 
+        !FileManager::CreateFile(laser_odom_ofs_, trajectory_path_ + "/laser_odom.txt") ||
+        !FileManager::CreateFile(optimized_pose_ofs_, trajectory_path_ + "/optimized.txt")
+    )
+        return false;
+
+    graph_optimizer_ptr_->GetOptimizedKeyFrame(optimized_key_frames_);
+
+    // write GNSS/IMU pose and lidar odometry estimation as trajectory for evo evaluation:
+    for (size_t i = 0; i < optimized_key_frames_.size(); ++i) {
+        // a. ground truth, IMU/GNSS:
+        SavePose(ground_truth_ofs_, key_frames_deque_.at(i).pose);
+        // b. lidar odometry:
+        SavePose(laser_odom_ofs_, key_gnss_deque_.at(i).pose);
+        // c. optimized odometry:
+        SavePose(optimized_pose_ofs_, optimized_key_frames_.at(i).pose);
+    }
+
+    return true;
 }
 
 void LIOBackEnd::GetOptimizedKeyFrames(std::deque<KeyFrame>& key_frames_deque) {

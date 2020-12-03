@@ -17,13 +17,13 @@ use_loop_close: true
 use_imu_pre_integration: true
 
 optimization_step_size:
-    key_frame: 100      # optimize per key frames
+    key_frame: 50       # optimize per key frames
     loop_closure: 10    # optimize per loop closure detections
 
 g2o_param:
-    odom_edge_noise: [0.5, 0.5, 0.5, 0.001, 0.001, 0.001] # 噪声：x y z yaw roll pitch
-    close_loop_noise: [0.3, 0.3, 0.3, 0.001, 0.001, 0.001] # 噪声：x y z yaw roll pitch
-    gnss_noise: [2.0, 2.0, 2.0] # 噪声：x y z
+    odom_edge_noise: [2.5e-1, 2.5e-1, 2.5e-1, 0.001, 0.001, 0.001] # 噪声：x y z yaw roll pitch
+    close_loop_noise: [2.5e-1, 2.5e-1, 2.5e-1, 0.001, 0.001, 0.001] # 噪声：x y z yaw roll pitch
+    gnss_noise: [1.0, 1.0, 4.0] # 噪声：x y z
 
 imu_pre_integration:
     earth:
