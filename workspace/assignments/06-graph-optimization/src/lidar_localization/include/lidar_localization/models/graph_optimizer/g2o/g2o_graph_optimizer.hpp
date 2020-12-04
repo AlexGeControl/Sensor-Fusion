@@ -25,6 +25,7 @@
 #include "lidar_localization/models/graph_optimizer/g2o/edge/edge_prvag_relative_pose.hpp"
 #include "lidar_localization/models/graph_optimizer/g2o/edge/edge_prvag_prior_pos.hpp"
 #include "lidar_localization/models/graph_optimizer/g2o/edge/edge_prvag_imu_pre_integration.hpp"
+#include "lidar_localization/models/graph_optimizer/g2o/edge/edge_prvag_odo_pre_integration.hpp"
 #include "lidar_localization/models/graph_optimizer/g2o/edge/edge_se3_priorxyz.hpp"
 #include "lidar_localization/models/graph_optimizer/g2o/edge/edge_se3_priorquat.hpp"
 
@@ -136,6 +137,17 @@ public:
     void AddPRVAGIMUPreIntegrationEdge(
       const int vertex_index_i, const int vertex_index_j,
       const IMUPreIntegrator::IMUPreIntegration &imu_pre_integration
+    );
+    /**
+     * @brief  add edge for odometer pre-integration constraint from odometer measurement
+     * @param  vertex_index_i, vertex ID of previous key frame
+     * @param  vertex_index_j, vertex ID of current key frame
+     * @param  odo_pre_integration, odometer pre-integration measurement
+     * @return void
+     */
+    void AddPRVAGOdoPreIntegrationEdge(
+      const int vertex_index_i, const int vertex_index_j,
+      const OdoPreIntegrator::OdoPreIntegration &odo_pre_integration
     );
     
 private:

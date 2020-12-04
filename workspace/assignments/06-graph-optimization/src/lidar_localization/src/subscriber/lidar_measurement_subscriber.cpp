@@ -81,9 +81,9 @@ void LidarMeasurementSubscriber::ParsePoseData(
     gnss_odometry_data.pose.block<3,3>(0,0) = q.matrix();
 
     // set the linear velocity:
-    gnss_odometry_data.vel.x() = gnss_odometry_msg.twist.twist.linear.x;
-    gnss_odometry_data.vel.y() = gnss_odometry_msg.twist.twist.linear.y;
-    gnss_odometry_data.vel.z() = gnss_odometry_msg.twist.twist.linear.z;
+    gnss_odometry_data.vel.v.x() = gnss_odometry_msg.twist.twist.linear.x;
+    gnss_odometry_data.vel.v.y() = gnss_odometry_msg.twist.twist.linear.y;
+    gnss_odometry_data.vel.v.z() = gnss_odometry_msg.twist.twist.linear.z;
 }
 
 void LidarMeasurementSubscriber::msg_callback(

@@ -22,7 +22,10 @@ public:
     // a. position & orientation:
     Eigen::Matrix4f pose = Eigen::Matrix4f::Identity();
     // b. velocity:
-    Eigen::Vector3f vel = Eigen::Vector3f::Zero();
+    struct {
+      Eigen::Vector3f v = Eigen::Vector3f::Zero();
+      Eigen::Vector3f w = Eigen::Vector3f::Zero();
+    } vel;
     // c. bias:
     struct {
       // c.1. accelerometer:
@@ -41,7 +44,7 @@ public:
       // set state:
       pose.block<3, 1>(0, 3) = prvag.pos.cast<float>();
       pose.block<3, 3>(0, 0) = prvag.ori.matrix().cast<float>();
-      vel = vel.cast<float>();
+      vel.v = prvag.vel.cast<float>();
       bias.accel = prvag.b_a.cast<float>();
       bias.gyro = prvag.b_g.cast<float>();
     }

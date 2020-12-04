@@ -28,6 +28,7 @@ bool LIOBackEnd::InitWithConfig() {
     InitParam(config_node);
     InitGraphOptimizer(config_node);
     InitIMUPreIntegrator(config_node);
+    InitOdoPreIntegrator(config_node);
 
     return true;
 }
@@ -76,6 +77,7 @@ bool LIOBackEnd::InitGraphOptimizer(const YAML::Node& config_node) {
     graph_optimizer_config_.use_gnss = config_node["use_gnss"].as<bool>();
     graph_optimizer_config_.use_loop_close = config_node["use_loop_close"].as<bool>();
     graph_optimizer_config_.use_imu_pre_integration = config_node["use_imu_pre_integration"].as<bool>();
+    graph_optimizer_config_.use_odo_pre_integration = config_node["use_odo_pre_integration"].as<bool>();
 
     graph_optimizer_config_.optimization_step_size.key_frame = (
         config_node["optimization_step_size"]["key_frame"].as<int>()
@@ -106,6 +108,16 @@ bool LIOBackEnd::InitIMUPreIntegrator(const YAML::Node& config_node) {
     
     if (graph_optimizer_config_.use_imu_pre_integration) {
         imu_pre_integrator_ptr_ = std::make_shared<IMUPreIntegrator>(config_node["imu_pre_integration"]);
+    }
+
+    return true;
+}
+
+bool LIOBackEnd::InitOdoPreIntegrator(const YAML::Node& config_node) {
+    odo_pre_integrator_ptr_ = nullptr;
+    
+    if (graph_optimizer_config_.use_odo_pre_integration) {
+        odo_pre_integrator_ptr_ = std::make_shared<OdoPreIntegrator>(config_node["odo_pre_integration"]);
     }
 
     return true;
@@ -148,6 +160,20 @@ bool LIOBackEnd::UpdateIMUPreIntegration(const IMUData &imu_data) {
     return false;
 }
 
+bool LIOBackEnd::UpdateOdoPreIntegration(const VelocityData &velocity_data) {
+    if ( !graph_optimizer_config_.use_odo_pre_integration || nullptr == odo_pre_integrator_ptr_ )
+        return false;
+    
+    if (
+        !odo_pre_integrator_ptr_->IsInited() ||
+        odo_pre_integrator_ptr_->Update(velocity_data)
+    ) {
+        return true;
+    }
+
+    return false;
+}
+
 bool LIOBackEnd::Update(
     const CloudData& cloud_data, 
     const PoseData& laser_odom, 
@@ -176,12 +202,20 @@ bool LIOBackEnd::MaybeNewKeyFrame(
     const IMUData &imu_data
 ) {
     static int count = 0;
+    static VelocityData velocity_data;
     static PoseData last_laser_pose = laser_odom;
     static PoseData last_gnss_pose = gnss_odom;
 
     if (key_frames_deque_.size() == 0) {
+        // init IMU pre-integrator:
         if ( imu_pre_integrator_ptr_ ) {
             imu_pre_integrator_ptr_->Init(imu_data);
+        }
+
+        // init odometer pre-integrator:
+        if ( odo_pre_integrator_ptr_ ) {
+            gnss_odom.GetVelocityData(velocity_data);
+            odo_pre_integrator_ptr_->Init(velocity_data);
         }
 
         last_laser_pose = laser_odom;
@@ -196,25 +230,32 @@ bool LIOBackEnd::MaybeNewKeyFrame(
         fabs(laser_odom.pose(2,3) - last_laser_pose.pose(2,3)) > key_frame_distance_) {
 
         if ( imu_pre_integrator_ptr_ ) {
-            imu_pre_integrator_ptr_->Reset(imu_data, imu_pre_integration_);
-
-            //
-            // for IMU pre-integration debugging ONLY:
-            // this is critical to IMU pre-integration verification
-            //
-            if ( 0 == (++count) % 10 ) {
-                // display IMU pre-integration:
-                // ShowIMUPreIntegrationResidual(last_gnss_pose, gnss_odom, imu_pre_integration_); 
-
-                // reset counter:
-                count = 0;
-            } 
-            
-            last_laser_pose = laser_odom;
-            last_gnss_pose = gnss_odom;
-        
-            has_new_key_frame_ = true;
+            imu_pre_integrator_ptr_->Reset(imu_data, imu_pre_integration_); 
         }
+
+        if ( odo_pre_integrator_ptr_ ) {
+            gnss_odom.GetVelocityData(velocity_data);
+            odo_pre_integrator_ptr_->Reset(velocity_data, odo_pre_integration_); 
+        }
+
+        //
+        // for IMU pre-integration debugging ONLY:
+        // this is critical to IMU pre-integration verification
+        //
+        if ( 0 == (++count) % 10 ) {
+            // display IMU pre-integration:
+            // ShowIMUPreIntegrationResidual(last_gnss_pose, gnss_odom, imu_pre_integration_); 
+
+            // display odometer pre-integration:
+
+            // reset counter:
+            count = 0;
+        }
+
+        last_laser_pose = laser_odom;
+        last_gnss_pose = gnss_odom;
+    
+        has_new_key_frame_ = true;
     }
 
     // if so:
@@ -235,7 +276,8 @@ bool LIOBackEnd::MaybeNewKeyFrame(
 
         // c. create key frame index for GNSS measurement, full LIO state:
         current_key_gnss_.pose = gnss_odom.pose;
-        current_key_gnss_.vel = gnss_odom.pose.block<3, 3>(0, 0) * gnss_odom.vel;
+        current_key_gnss_.vel.v = gnss_odom.vel.v;
+        current_key_gnss_.vel.w = gnss_odom.vel.w;
 
         // add to cache for later evo evaluation:
         key_frames_deque_.push_back(current_key_frame_);
@@ -261,12 +303,13 @@ bool LIOBackEnd::AddNodeAndEdge(const PoseData& gnss_data) {
     //
     // add constraints:
     //
-    // a. lidar frontend / loop closure detection:
+    // get num. of vertices:
     const int N = graph_optimizer_ptr_->GetNodeNum();
+    // get vertex IDs:
+    const int vertex_index_i = N - 2;
+    const int vertex_index_j = N - 1;
+    // a. lidar frontend / loop closure detection:
     if ( N > 1 ) {
-        // get vertex IDs:
-        const int vertex_index_i = N - 2;
-        const int vertex_index_j = N - 1;
         // get relative pose measurement:
         Eigen::Matrix4d relative_pose = (last_key_frame_.pose.inverse() * current_key_frame_.pose).cast<double>();
         // add constraint, lidar frontend / loop closure detection:
@@ -278,26 +321,30 @@ bool LIOBackEnd::AddNodeAndEdge(const PoseData& gnss_data) {
 
     // b. GNSS position:
     if ( graph_optimizer_config_.use_gnss ) {
-        // get vertex ID:
-        const int vertex_index = N - 1;
         // get prior position measurement:
         Eigen::Vector3d pos = current_key_gnss_.pose.block<3, 1>(0, 3).cast<double>();
         // add constraint, GNSS position:
         graph_optimizer_ptr_->AddPRVAGPriorPosEdge(
-            vertex_index, 
+            vertex_index_j, 
             pos, graph_optimizer_config_.gnss_noise
         );
     }
 
     // c. IMU pre-integration:
     if ( graph_optimizer_config_.use_imu_pre_integration ) {
-        // get vertex IDs:
-        const int vertex_index_i = N - 2;
-        const int vertex_index_j = N - 1;
         // add constraint, IMU pre-integraion:
         graph_optimizer_ptr_->AddPRVAGIMUPreIntegrationEdge(
             vertex_index_i, vertex_index_j,
             imu_pre_integration_
+        );
+    }
+
+    // d. Odo pre-integration:
+    if ( graph_optimizer_config_.use_odo_pre_integration ) {
+        // add constraint, odo pre-integraion:
+        graph_optimizer_ptr_->AddPRVAGOdoPreIntegrationEdge(
+            vertex_index_i, vertex_index_j,
+            odo_pre_integration_
         );
     }
 
@@ -355,6 +402,8 @@ bool LIOBackEnd::ForceOptimize() {
 }
 
 bool LIOBackEnd::SaveOptimizedPose() {
+    static Eigen::Matrix4f current_pose = Eigen::Matrix4f::Identity();
+
     if (graph_optimizer_ptr_->GetNodeNum() == 0)
         return false;
 
@@ -370,11 +419,17 @@ bool LIOBackEnd::SaveOptimizedPose() {
     // write GNSS/IMU pose and lidar odometry estimation as trajectory for evo evaluation:
     for (size_t i = 0; i < optimized_key_frames_.size(); ++i) {
         // a. ground truth, IMU/GNSS:
-        SavePose(ground_truth_ofs_, key_frames_deque_.at(i).pose);
+        current_pose = key_frames_deque_.at(i).pose;
+        current_pose(2, 3) = 0.0f;
+        SavePose(ground_truth_ofs_, current_pose);
         // b. lidar odometry:
-        SavePose(laser_odom_ofs_, key_gnss_deque_.at(i).pose);
+        current_pose = key_gnss_deque_.at(i).pose;
+        current_pose(2, 3) = 0.0f;
+        SavePose(laser_odom_ofs_, current_pose);
         // c. optimized odometry:
-        SavePose(optimized_pose_ofs_, optimized_key_frames_.at(i).pose);
+        current_pose = optimized_key_frames_.at(i).pose;
+        current_pose(2, 3) = 0.0f;
+        SavePose(optimized_pose_ofs_, current_pose);
     }
 
     return true;
@@ -421,7 +476,7 @@ void LIOBackEnd::ShowIMUPreIntegrationResidual(
 
     Eigen::Vector3d r_p = last_gnss_pose.pose.block<3, 3>(0, 0).transpose().cast<double>() * (
         curr_gnss_pose.pose.block<3, 1>(0, 3).cast<double>() - last_gnss_pose.pose.block<3, 1>(0, 3).cast<double>() - 
-        ( last_gnss_pose.pose.block<3, 3>(0, 0).cast<double>()*last_gnss_pose.vel.cast<double>() - 0.50 * g * T ) * T
+        ( last_gnss_pose.pose.block<3, 3>(0, 0).cast<double>()*last_gnss_pose.vel.v.cast<double>() - 0.50 * g * T ) * T
     ) - imu_pre_integration.alpha_ij_;
 
     Sophus::SO3d prev_theta(Eigen::Quaterniond(last_gnss_pose.pose.block<3, 3>(0, 0).cast<double>()));
@@ -429,8 +484,8 @@ void LIOBackEnd::ShowIMUPreIntegrationResidual(
     Eigen::Vector3d r_q = (imu_pre_integration.theta_ij_.inverse()*prev_theta.inverse() * curr_theta).log();
 
     Eigen::Vector3d r_v = last_gnss_pose.pose.block<3, 3>(0, 0).transpose().cast<double>() * (
-        curr_gnss_pose.pose.block<3, 3>(0, 0).cast<double>()*curr_gnss_pose.vel.cast<double>() - 
-        last_gnss_pose.pose.block<3, 3>(0, 0).cast<double>()*last_gnss_pose.vel.cast<double>() + 
+        curr_gnss_pose.pose.block<3, 3>(0, 0).cast<double>()*curr_gnss_pose.vel.v.cast<double>() - 
+        last_gnss_pose.pose.block<3, 3>(0, 0).cast<double>()*last_gnss_pose.vel.v.cast<double>() + 
         g * T
     ) - imu_pre_integration.beta_ij_;
 

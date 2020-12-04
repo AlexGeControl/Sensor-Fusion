@@ -19,6 +19,8 @@
 #include "lidar_localization/subscriber/loop_pose_subscriber.hpp"
 // d. IMU measurement, for pre-integration:
 #include "lidar_localization/subscriber/imu_subscriber.hpp"
+// e. odometer measurement, for pre-integration:
+#include "lidar_localization/subscriber/velocity_subscriber.hpp"
 
 #include "lidar_localization/publisher/odometry_publisher.hpp"
 #include "lidar_localization/publisher/cloud_publisher.hpp"
@@ -43,6 +45,7 @@ public:
     bool HasData();
     bool ValidData();
     bool UpdateIMUPreIntegration(void);
+    bool UpdateOdoPreIntegration(void);
     bool UpdateBackEnd();
     bool PublishData();
 
@@ -67,7 +70,10 @@ public:
     std::deque<IMUData> imu_raw_data_buff_;
     std::shared_ptr<IMUSubscriber> imu_synced_sub_ptr_;
     std::deque<IMUData> imu_synced_data_buff_;
-    
+    // f. odometer measurement, for pre-integration:
+    std::shared_ptr<VelocitySubscriber> velocity_sub_ptr_;
+    std::deque<VelocityData> velocity_data_buff_;
+
     std::shared_ptr<OdometryPublisher> transformed_odom_pub_ptr_;
     std::shared_ptr<CloudPublisher> key_scan_pub_ptr_;
     std::shared_ptr<KeyFramePublisher> key_frame_pub_ptr_;

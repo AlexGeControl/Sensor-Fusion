@@ -201,7 +201,8 @@ void G2oGraphOptimizer::AddPRVAGNode(
     measurement.ori = Sophus::SO3d(
         Eigen::Quaterniond(lio_key_frame.pose.block<3, 3>(0, 0).cast<double>())
     );
-    measurement.vel = lio_key_frame.vel.cast<double>();
+    // transform linear velocity from body frame to navigation frame:
+    measurement.vel = measurement.ori * lio_key_frame.vel.v.cast<double>();
     measurement.b_a = lio_key_frame.bias.accel.cast<double>();
     measurement.b_g = lio_key_frame.bias.gyro.cast<double>();
     
@@ -340,6 +341,47 @@ void G2oGraphOptimizer::AddPRVAGIMUPreIntegrationEdge(
 
     // add edge:
     graph_ptr_->addEdge(edge);
+}
+
+/**
+ * @brief  add edge for odometer pre-integration constraint from odometer measurement
+ * @param  vertex_index_i, vertex ID of previous key frame
+ * @param  vertex_index_j, vertex ID of current key frame
+ * @param  odo_pre_integration, odometer pre-integration measurement
+ * @return void
+ */
+void G2oGraphOptimizer::AddPRVAGOdoPreIntegrationEdge(
+    const int vertex_index_i, const int vertex_index_j,
+    const OdoPreIntegrator::OdoPreIntegration &odo_pre_integration
+) {
+    // init:
+    g2o::EdgePRVAGOdoPreIntegration::EdgePRVAGOdoPreIntegration *edge(
+        new g2o::EdgePRVAGOdoPreIntegration::EdgePRVAGOdoPreIntegration()
+    );
+
+    // a. set nodes:
+    g2o::VertexPRVAG* vertex_i = dynamic_cast<g2o::VertexPRVAG*>(graph_ptr_->vertex(vertex_index_i));
+    g2o::VertexPRVAG* vertex_j = dynamic_cast<g2o::VertexPRVAG*>(graph_ptr_->vertex(vertex_index_j));
+    edge->vertices()[0] = vertex_i;
+    edge->vertices()[1] = vertex_j;
+
+    // b. set measurement
+    edge->setMeasurement(
+        odo_pre_integration.GetMeasurement()
+    );
+
+    // c. set information matrix:
+    edge->setInformation(
+        odo_pre_integration.GetInformation()
+    );
+
+    // d. set loss function:
+    if (need_robust_kernel_) {
+        AddRobustKernel(edge, robust_kernel_name_, robust_kernel_size_);
+    }
+
+    // add edge:
+    graph_ptr_->addEdge(edge);    
 }
 
 void G2oGraphOptimizer::ShowIMUPreIntegrationResidual(

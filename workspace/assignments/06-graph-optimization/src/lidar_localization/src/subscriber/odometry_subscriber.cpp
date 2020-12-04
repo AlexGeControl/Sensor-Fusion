@@ -31,9 +31,14 @@ void OdometrySubscriber::msg_callback(const nav_msgs::OdometryConstPtr& odom_msg
     pose_data.pose.block<3,3>(0,0) = q.matrix();
 
     // set the linear velocity:
-    pose_data.vel.x() = odom_msg_ptr->twist.twist.linear.x;
-    pose_data.vel.y() = odom_msg_ptr->twist.twist.linear.y;
-    pose_data.vel.z() = odom_msg_ptr->twist.twist.linear.z;
+    pose_data.vel.v.x() = odom_msg_ptr->twist.twist.linear.x;
+    pose_data.vel.v.y() = odom_msg_ptr->twist.twist.linear.y;
+    pose_data.vel.v.z() = odom_msg_ptr->twist.twist.linear.z;
+
+    // set the angular velocity:
+    pose_data.vel.w.x() = odom_msg_ptr->twist.twist.angular.x;
+    pose_data.vel.w.y() = odom_msg_ptr->twist.twist.angular.y;
+    pose_data.vel.w.z() = odom_msg_ptr->twist.twist.angular.z;
 
     new_pose_data_.push_back(pose_data);
     

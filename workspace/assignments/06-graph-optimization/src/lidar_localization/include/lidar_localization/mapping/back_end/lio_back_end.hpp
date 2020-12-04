@@ -16,8 +16,10 @@
 #include "lidar_localization/sensor_data/key_frame.hpp"
 #include "lidar_localization/sensor_data/loop_pose.hpp"
 #include "lidar_localization/sensor_data/imu_data.hpp"
+#include "lidar_localization/sensor_data/velocity_data.hpp"
 
 #include "lidar_localization/models/pre_integrator/imu_pre_integrator.hpp"
+#include "lidar_localization/models/pre_integrator/odo_pre_integrator.hpp"
 
 #include "lidar_localization/models/graph_optimizer/g2o/g2o_graph_optimizer.hpp"
 
@@ -29,6 +31,7 @@ class LIOBackEnd {
 
     bool InsertLoopPose(const LoopPose& loop_pose);
     bool UpdateIMUPreIntegration(const IMUData &imu_data);
+    bool UpdateOdoPreIntegration(const VelocityData &velocity_data);
     
     bool Update(
       const CloudData& cloud_data, 
@@ -54,6 +57,7 @@ class LIOBackEnd {
     bool InitParam(const YAML::Node& config_node);
     bool InitGraphOptimizer(const YAML::Node& config_node);
     bool InitIMUPreIntegrator(const YAML::Node& config_node);
+    bool InitOdoPreIntegrator(const YAML::Node& config_node);
 
     void ResetParam();
     bool SavePose(std::ofstream& ofs, const Eigen::Matrix4f& pose);
@@ -97,6 +101,8 @@ class LIOBackEnd {
     // pre-integrator:
     std::shared_ptr<IMUPreIntegrator> imu_pre_integrator_ptr_;
     IMUPreIntegrator::IMUPreIntegration imu_pre_integration_;
+    std::shared_ptr<OdoPreIntegrator> odo_pre_integrator_ptr_;
+    OdoPreIntegrator::OdoPreIntegration odo_pre_integration_;
     
     // optimizer:
     std::shared_ptr<InterfaceGraphOptimizer> graph_optimizer_ptr_;
@@ -105,6 +111,7 @@ class LIOBackEnd {
         bool use_gnss = true;
         bool use_loop_close = false;
         bool use_imu_pre_integration = false;
+        bool use_odo_pre_integration = false;
 
         struct {
           int key_frame = 100;

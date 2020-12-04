@@ -27,6 +27,8 @@ LIOBackEndFlow::LIOBackEndFlow(ros::NodeHandle& nh, std::string cloud_topic, std
     // e. IMU measurement, for pre-integration:
     imu_raw_sub_ptr_ = std::make_shared<IMUSubscriber>(nh, "/kitti/oxts/imu/extract", 1000000);
     imu_synced_sub_ptr_ = std::make_shared<IMUSubscriber>(nh, "/synced_imu", 100000);
+    // f. odometer measurement, for pre-integration:
+    velocity_sub_ptr_ = std::make_shared<VelocitySubscriber>(nh, "/kitti/oxts/gps/vel/extract", 1000000);
 
     transformed_odom_pub_ptr_ = std::make_shared<OdometryPublisher>(nh, "/transformed_odom", "/map", "/lidar", 100);
     key_scan_pub_ptr_ = std::make_shared<CloudPublisher>(nh, "/key_scan", "/velo_link", 100);
@@ -88,6 +90,8 @@ bool LIOBackEndFlow::ReadData() {
     // e. IMU measurement, for pre-integration:
     imu_raw_sub_ptr_->ParseData(imu_raw_data_buff_);
     imu_synced_sub_ptr_->ParseData(imu_synced_data_buff_);
+    // f. odometer measurement, for pre-integration:
+    velocity_sub_ptr_->ParseData(velocity_data_buff_);
 
     return true;
 }
@@ -169,6 +173,18 @@ bool LIOBackEndFlow::UpdateIMUPreIntegration(void) {
     return true;
 }
 
+bool LIOBackEndFlow::UpdateOdoPreIntegration(void) {
+    while (
+        !velocity_data_buff_.empty() && 
+        velocity_data_buff_.front().time < current_imu_data_.time && 
+        back_end_ptr_->UpdateOdoPreIntegration(velocity_data_buff_.front())
+    ) {
+        velocity_data_buff_.pop_front();
+    }
+
+    return true;
+}
+
 bool LIOBackEndFlow::UpdateBackEnd() {
     static bool odometry_inited = false;
     static Eigen::Matrix4f odom_init_pose = Eigen::Matrix4f::Identity();
@@ -182,6 +198,9 @@ bool LIOBackEndFlow::UpdateBackEnd() {
     
     // update IMU pre-integration:
     UpdateIMUPreIntegration();
+    
+    // update odo pre-integration:
+    UpdateOdoPreIntegration();
     
     // current lidar odometry in map frame:
     current_laser_odom_data_.pose = odom_init_pose * current_laser_odom_data_.pose;

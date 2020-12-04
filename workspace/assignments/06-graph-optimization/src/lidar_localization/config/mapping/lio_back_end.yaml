@@ -15,6 +15,8 @@ use_gnss: true
 use_loop_close: true
 # c. IMU pre-integration
 use_imu_pre_integration: true
+# c. odo pre-integration
+use_odo_pre_integration: true
 
 optimization_step_size:
     key_frame: 50       # optimize per key frames
@@ -36,3 +38,9 @@ imu_pre_integration:
         random_walk:
             accel: 1.0e-8
             gyro: 1.0e-8
+
+odo_pre_integration:
+    covariance:
+        measurement:
+            v: 2.5e-3
+            w: 1.0e-2

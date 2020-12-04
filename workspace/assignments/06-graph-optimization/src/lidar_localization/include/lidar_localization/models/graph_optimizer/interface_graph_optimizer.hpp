@@ -14,7 +14,10 @@
 
 // data input:
 #include "lidar_localization/sensor_data/key_frame.hpp"
+
 #include "lidar_localization/models/pre_integrator/imu_pre_integrator.hpp"
+#include "lidar_localization/models/pre_integrator/odo_pre_integrator.hpp"
+
 
 namespace lidar_localization {
 
@@ -71,7 +74,11 @@ public:
       const int vertex_index_i, const int vertex_index_j,
       const IMUPreIntegrator::IMUPreIntegration &imu_pre_integration
     ) = 0;
-
+    virtual void AddPRVAGOdoPreIntegrationEdge(
+      const int vertex_index_i, const int vertex_index_j,
+      const OdoPreIntegrator::OdoPreIntegration &odo_pre_integration
+    ) = 0;
+    
     void SetMaxIterationsNum(int max_iterations_num);
   
 protected:

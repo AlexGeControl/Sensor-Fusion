@@ -159,7 +159,11 @@ bool ESKFPreprocessFlow::TransformData() {
 bool ESKFPreprocessFlow::PublishData() {
     imu_pub_ptr_->Publish(current_imu_data_, current_imu_data_.time);
     gnss_pose_pub_ptr_->Publish(gnss_pose_, current_velocity_data_, current_imu_data_.time);
-    ref_pose_pub_ptr_->Publish(current_ref_pose_data_.pose, current_ref_pose_data_.vel, current_imu_data_.time);
+    ref_pose_pub_ptr_->Publish(
+        current_ref_pose_data_.pose, 
+        current_ref_pose_data_.vel.v, 
+        current_imu_data_.time
+    );
 
     return true;
 }
