@@ -38,11 +38,11 @@ Before                     |After
 ![Before](doc/images/01-evo-lidar-frontend--time-series-plot.png)  |  ![EVO APE ICP](doc/images/01-evo-optimized--time-series-plot.png)
 ![Before](doc/images/01-evo-lidar-frontend--map-plot.png)  |  ![EVO APE ICP](doc/images/01-evo-optimized--map-plot.png)
 
-|  Prop. |   Before      |  After        |
+|  Prop. |     Before    |     After     |
 |:------:|:-------------:|:-------------:|
-|   std  |   10.509073   |   10.371566   |
+|   std  |   15.656619   | **15.571682** |
 
-由上述结果可知, `IMU Pre-Integration`的使用, `可以显著提升轨迹估计精度`.
+由上述结果可知, `IMU Pre-Integration`的使用, `可以提升轨迹估计精度`, .
 
 在`LIO Mapping`得到的地图上
 

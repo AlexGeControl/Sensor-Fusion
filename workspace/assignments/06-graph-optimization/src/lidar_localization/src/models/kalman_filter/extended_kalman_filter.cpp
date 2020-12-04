@@ -433,7 +433,7 @@ void ExtendedKalmanFilter::ApplyMotionConstraint(void) {
     const Eigen::Matrix3d C_nb = q_nb.toRotationMatrix();
 
     Eigen::Vector3d v_b = C_nb.transpose() * X_.block<3, 1>( INDEX_VEL, 0 );
-    v_b.y() = v_b.z() = 0.0;
+    v_b.y() = 0.0;
     X_.block<3, 1>( INDEX_VEL, 0 ) = C_nb * v_b;
 }
 
