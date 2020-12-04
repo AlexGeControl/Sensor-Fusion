@@ -73,6 +73,26 @@ Before                     |After
 
 ### ANS
 
+完整推导参考 [here](doc/derivation/odo-pre-integration.pdf)
+
+此处将关键结论整合如下
+
+#### 预积分模型
+
+<img src="doc/images/02-a-pre-integration-update.png" alt="Odo Pre Integration, Model" width="100%" />
+
+#### 预积分残差的设计
+
+<img src="doc/images/02-c-residual.png" alt="Odo Pre Integration, Residual" width="100%" />
+
+#### 预积分方差的递推
+
+<img src="doc/images/02-b-error-propagation.png" alt="Odo Pre Integration, Error Propagation" width="100%" />
+
+#### 预积分对各状态量扰动的雅可比
+
+TBD
+
 ---
 
 ## 3. 在KITTI上, 实现基于IMU-Odometer的预积分融合激光建图
@@ -99,8 +119,8 @@ Before                     |After
 
 Before                     |After
 :-------------------------:|:-------------------------:
-![Before](doc/images/02-evo-lidar-frontend--time-series-plot.png)  |  ![After](doc/images/02-evo-optimized--time-series-plot.png)
-![Before](doc/images/02-evo-lidar-frontend--map-plot.png)  |  ![After](doc/images/02-evo-optimized--map-plot.png)
+![Before](doc/images/03-evo-lidar-frontend--time-series-plot.png)  |  ![After](doc/images/03-evo-optimized--time-series-plot.png)
+![Before](doc/images/03-evo-lidar-frontend--map-plot.png)  |  ![After](doc/images/03-evo-optimized--map-plot.png)
 
 |  Prop. |     Before    |     After     |
 |:------:|:-------------:|:-------------:|
