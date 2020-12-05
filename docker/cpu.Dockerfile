@@ -132,6 +132,33 @@ RUN pip install ordered-startup-supervisord
 COPY ${PWD}/installers /tmp/installers
 WORKDIR /tmp/installers
 
+# install Google Protobuf latest:
+RUN git clone https://github.com/google/protobuf.git -o protobuf && cd protobuf && \
+    # sync:
+    git submodule update --init --recursive && \
+    # config:
+    ./autogen.sh && ./configure && \ 
+    # build:
+    make -j8 && \
+    # install:
+    make install
+
+# install Aceinna GNSS/IMU sim IMU-GNSS-Odo simulation with customized error modes:
+RUN git clone https://github.com/AlexGeControl/GNSS-INS-SIM-Extended.git && cd GNSS-INS-SIM-Extended && \
+    # install:
+    python setup.py install
+
+# install GeographicLib -- https://geographiclib.sourceforge.io/html/install.html
+RUN wget https://nchc.dl.sourceforge.net/project/geographiclib/distrib/GeographicLib-1.50.1.zip && \
+    unzip -q GeographicLib-1.50.1.zip && cd GeographicLib-1.50.1 && \
+    mkdir build && cd build && \
+    # config:
+    cmake .. && \
+    # build:
+    make -j8 && \
+    # install:
+    make install
+
 # install sophus -- https://github.com/strasdat/Sophus:
 RUN git clone https://github.com/strasdat/Sophus.git -o Sophus && cd Sophus && \
     mkdir build && cd build && \
@@ -157,9 +184,8 @@ RUN git clone https://github.com/RainerKuemmerle/g2o.git -o g2o && cd g2o && \
     # install:
     make install
 
-# install GeographicLib -- https://geographiclib.sourceforge.io/html/install.html
-RUN wget https://nchc.dl.sourceforge.net/project/geographiclib/distrib/GeographicLib-1.50.1.zip && \
-    unzip -q GeographicLib-1.50.1.zip && cd GeographicLib-1.50.1 && \
+# install gtsam -- https://github.com/borglab/gtsam.git
+RUN git clone https://github.com/borglab/gtsam.git -o gtsam && cd gtsam && \
     mkdir build && cd build && \
     # config:
     cmake .. && \
@@ -167,22 +193,6 @@ RUN wget https://nchc.dl.sourceforge.net/project/geographiclib/distrib/Geographi
     make -j8 && \
     # install:
     make install
-
-# install Google Protobuf latest:
-RUN git clone https://github.com/google/protobuf.git -o protobuf && cd protobuf && \
-    # sync:
-    git submodule update --init --recursive && \
-    # config:
-    ./autogen.sh && ./configure && \ 
-    # build:
-    make -j8 && \
-    # install:
-    make install
-
-# install Aceinna GNSS/IMU sim for ROS Python integration:
-RUN git clone https://github.com/AlexGeControl/GNSS-INS-SIM-Extended.git && cd GNSS-INS-SIM-Extended && \
-    # install:
-    python setup.py install
 
 # install tini:
 RUN chmod u+x ./download-tini.sh && ./download-tini.sh && dpkg -i tini.deb && \
