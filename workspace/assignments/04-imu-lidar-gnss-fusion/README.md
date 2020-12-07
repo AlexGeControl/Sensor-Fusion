@@ -335,21 +335,29 @@ Acc & Deacc, GNSS Only     |Acc & Deacc, IMU-GNSS
 
 * 四种典型运动模式下, 在每一时刻
 
-    * `IMU-GNSS ESKF Fusion`的`Q`秩均为`12`(Singular Value Threshold @ `1.0e-05`)
+    * `IMU-GNSS ESKF Fusion`的`Q`秩均为`12`(Singular Value Threshold @ `1.0e-05`).
 
-    * `Yaw`, `Accel Bias X`与`Accel Bias Y`不可观
+    * `Yaw`, `Accel Bias X`与`Accel Bias Y`不可观.
 
-* 由于`w_ie`的存在, 四种典型运动模式下, 联合多个时刻, 
+* 四种典型运动模式下, 联合多个时刻, 
     
-    * `IMU-GNSS ESKF Fusion`的`SOM`秩会变为`15`(Singular Value Threshold @ `1.0e-05`)
+    * 在`Static`与`Const. Velocity`模式下:
 
-    * 但不同运动模式下, `Yaw`, `Accel Bias X`与`Accel Bias Y`的收敛速度不同
+        * `IMU-GNSS ESKF Fusion`的`Qso`秩始终为`12`(Singular Value Threshold @ `1.0e-05`).
 
-        * `Static`最慢
+        * `Yaw`, `Accel Bias X`与`Accel Bias Y`不可观.
 
-        * `Constant Velocity`次之
+    * 在`Acc / Deacc`与`Turning`模式下
 
-        * `Acc / Deacc`与`Turning`最快, 且运动的强度越大, 可观测度越高, 估计的收敛速度越快.
+        * `IMU-GNSS ESKF Fusion`的`Qso`秩将变为`15`(Singular Value Threshold @ `1.0e-05`), 系统联合多个时刻时完全可观.
+
+        * 但运动强度不同时, `Max Singular Value`不同, 估计的收敛速度不同:
+
+            * `Acc / Deacc`时, 加速度的幅值越大;
+
+            * `Turning`时, 角速度的幅值越大;
+        
+        * 估计的收敛速度越快.
 
 ##### ESKF Convergence
 
@@ -367,22 +375,28 @@ Turning                    |Acc & Deacc
 
 `可观测性`与`可观测度`的分析结果总结如下:
 
-* 在各个时刻
+* 四种典型运动模式下, 在每一时刻
 
-    * `IMU-GUSS ESKF Fusion`的`Q`秩均为`12`(Singular Value Threshold @ `1.0e-05`).
+    * `IMU-GNSS ESKF Fusion`的`Q`秩均为`12`(Singular Value Threshold @ `1.0e-05`).
 
     * `Yaw`, `Accel Bias X`与`Accel Bias Y`不可观.
 
-* 由于`w_ie`的存在, 联合多个时刻 
+* 四种典型运动模式下, 联合多个时刻, 
     
-    * `IMU-GNSS ESKF Fusion`的`SOM`秩会变为`15`(Singular Value Threshold @ `1.0e-05`), 此时系统状态将变为完全可观.
+    * 在`Static`与`Const. Velocity`模式下:
 
-    * 但不同的运动模式下, 系统的可观测度不同, 估计值的收敛速度不同:
+        * `IMU-GNSS ESKF Fusion`的`Qso`秩始终为`12`(Singular Value Threshold @ `1.0e-05`).
 
-        * `静止`与`匀速运动`下, 模型的`可观测度`最低, 此时估计值的收敛速度为`最慢`;
+        * `Yaw`, `Accel Bias X`与`Accel Bias Y`不可观.
 
-        * `加/减速`与`旋转`:
-    
-            * 均可`提升模型的可观测度`, 进而`提升ESKF的收敛速度`.
-    
-            * 在这两种运动模式下, `运动越剧烈(加减速幅值越大, 旋转角速度幅值越大), 可观测度越高, ESKF的收敛速度越快`. 
+    * 在`Acc / Deacc`与`Turning`模式下
+
+        * `IMU-GNSS ESKF Fusion`的`Qso`秩将变为`15`(Singular Value Threshold @ `1.0e-05`), 系统联合多个时刻时完全可观.
+
+        * 但运动强度不同时, `Max Singular Value`不同, 估计的收敛速度不同:
+
+            * `Acc / Deacc`时, 加速度的幅值越大;
+
+            * `Turning`时, 角速度的幅值越大;
+        
+        * 估计的收敛速度越快.

@@ -47,7 +47,7 @@ def get_arguments():
     # add optional
     optional.add_argument(
         "-t", dest="sv_thresh", help="Singular value threshold. Defaults to 1.0e-4",
-        required=False, default=1.0e-4, type=float, 
+        required=False, default=5.0e-5, type=float, 
     )
 
     # parse arguments:

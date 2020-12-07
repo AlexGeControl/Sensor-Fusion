@@ -1053,6 +1053,7 @@ bool ErrorStateKalmanFilter::SaveObservabilityAnalysis(
     Eigen::VectorXd Yso(
         observability.Y_.size() * N
     );
+
     for (size_t i = 0; i < observability.Q_.size(); ++i) {
         const double &time = observability.time_.at(i);
         
@@ -1069,13 +1070,16 @@ bool ErrorStateKalmanFilter::SaveObservabilityAnalysis(
             q_data
         );
 
-        KalmanFilter::AnalyzeQ(
-            DIM_STATE, 
-            time, 
-            Qso.block(0, 0, (i + 1)*N, DIM_STATE), Yso.block(0, 0, (i + 1)*N, 1),
-            q_so_data
-        );
+        if ( 0 < i && (0 == i % 10) ) {
+            KalmanFilter::AnalyzeQ(
+                DIM_STATE, 
+                observability.time_.at(i - 5), 
+                Qso.block((i - 10), 0, 10*N, DIM_STATE), Yso.block((i - 10), 0, 10*N, 1),
+                q_so_data
+            );
+        }
     }
+
 
     std::string q_data_csv = WORK_SPACE_PATH + "/slam_data/observability/" + type + ".csv";
     std::string q_so_data_csv = WORK_SPACE_PATH + "/slam_data/observability/" + type + "_som.csv";
