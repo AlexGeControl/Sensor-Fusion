@@ -16,7 +16,7 @@ This is the solution of Assignment 07 of Sensor Fusion from [深蓝学院](https
 
 完整的推导过程参见[here](doc/derivation/01-loam-jacobians.pdf). 此处仅将结论摘录如下, 详细的符号定义参考推导文档.
 
-<img src="doc/derivation/01-loam-jacobians.png" alt="Jacobians for LOAM Residual" width="100%" />
+<img src="doc/images/01-loam-jacobians.png" alt="Jacobians for LOAM Residual" width="100%" />
 
 ---
 
