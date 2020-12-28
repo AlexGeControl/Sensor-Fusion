@@ -1,0 +1,198 @@
+Log file created at: 2020/12/04 12:32:39
+Running on machine: 3a0fb8ccbb03
+Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg
+I1204 12:32:39.895947 30249 imu_pre_integrator.cpp:28] 
+IMU Pre-Integration params:
+	gravity magnitude: 9.80943
+
+	process noise:
+		measurement:
+			accel.: 0.0025
+			gyro.: 0.0001
+		random_walk:
+			accel.: 1e-08
+			gyro.: 1e-08
+
+I1204 12:32:39.896169 30249 odo_pre_integrator.cpp:24] 
+Odo Pre-Integration params:
+	process noise:
+		measurement:
+			v.: 0.0025
+			w.: 0.0025
+
+I1204 12:33:03.243417 30249 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 1 of Backend Optimization -------
+	Num. Vertices: 50
+	Num. Edges: 197
+	Num. Iterations: 11/512
+	Time Consumption: 0.0427092
+	Cost Change: 1.40232e+07--->5637.19
+
+I1204 12:33:16.017905 30249 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 2 of Backend Optimization -------
+	Num. Vertices: 100
+	Num. Edges: 397
+	Num. Iterations: 13/512
+	Time Consumption: 0.11876
+	Cost Change: 2.50661e+08--->10090.4
+
+I1204 12:33:27.064018 30249 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 3 of Backend Optimization -------
+	Num. Vertices: 150
+	Num. Edges: 597
+	Num. Iterations: 12/512
+	Time Consumption: 0.163924
+	Cost Change: 2.43454e+08--->17530.1
+
+I1204 12:33:40.786686 30249 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 4 of Backend Optimization -------
+	Num. Vertices: 200
+	Num. Edges: 797
+	Num. Iterations: 22/512
+	Time Consumption: 0.382511
+	Cost Change: 5.0044e+07--->24129
+
+I1204 12:34:05.900072 30249 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 5 of Backend Optimization -------
+	Num. Vertices: 215
+	Num. Edges: 857
+	Num. Iterations: 12/512
+	Time Consumption: 0.212476
+	Cost Change: 1.81856e+09--->25302.3
+
+I1204 12:34:07.954946 30249 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 6 of Backend Optimization -------
+	Num. Vertices: 215
+	Num. Edges: 857
+	Num. Iterations: 26/512
+	Time Consumption: 0.450891
+	Cost Change: 25302.3--->25166.9
+
+I1204 12:34:09.668992 30249 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 7 of Backend Optimization -------
+	Num. Vertices: 215
+	Num. Edges: 857
+	Num. Iterations: 16/512
+	Time Consumption: 0.309721
+	Cost Change: 25166.9--->25166.7
+
+I1204 12:34:11.643231 30249 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 8 of Backend Optimization -------
+	Num. Vertices: 215
+	Num. Edges: 857
+	Num. Iterations: 3/512
+	Time Consumption: 0.0698911
+	Cost Change: 25166.7--->25166.7
+
+I1204 12:34:13.029453 30249 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 9 of Backend Optimization -------
+	Num. Vertices: 215
+	Num. Edges: 857
+	Num. Iterations: 1/512
+	Time Consumption: 0.0561272
+	Cost Change: 25166.7--->25166.7
+
+I1204 12:34:39.045078 30249 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 10 of Backend Optimization -------
+	Num. Vertices: 215
+	Num. Edges: 857
+	Num. Iterations: 1/512
+	Time Consumption: 0.0716115
+	Cost Change: 25166.7--->25166.7
+
+I1204 12:34:58.763800 30249 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 11 of Backend Optimization -------
+	Num. Vertices: 250
+	Num. Edges: 997
+	Num. Iterations: 13/512
+	Time Consumption: 0.286275
+	Cost Change: 3.18786e+08--->33254.8
+
+I1204 12:35:11.705037 30249 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 12 of Backend Optimization -------
+	Num. Vertices: 300
+	Num. Edges: 1197
+	Num. Iterations: 13/512
+	Time Consumption: 0.33701
+	Cost Change: 8.81924e+08--->34217.1
+
+I1204 12:35:23.334674 30249 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 13 of Backend Optimization -------
+	Num. Vertices: 350
+	Num. Edges: 1397
+	Num. Iterations: 13/512
+	Time Consumption: 0.426249
+	Cost Change: 7.3043e+08--->36955.7
+
+I1204 12:35:35.878543 30249 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 14 of Backend Optimization -------
+	Num. Vertices: 400
+	Num. Edges: 1597
+	Num. Iterations: 25/512
+	Time Consumption: 0.835124
+	Cost Change: 3.93219e+08--->39815.6
+
+I1204 12:35:47.332962 30249 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 15 of Backend Optimization -------
+	Num. Vertices: 450
+	Num. Edges: 1797
+	Num. Iterations: 13/512
+	Time Consumption: 0.538673
+	Cost Change: 2.43756e+09--->43164.3
+
+I1204 12:35:54.275894 30249 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 16 of Backend Optimization -------
+	Num. Vertices: 468
+	Num. Edges: 1869
+	Num. Iterations: 14/512
+	Time Consumption: 0.541533
+	Cost Change: 3.34999e+08--->44699.7
+
+I1204 12:35:56.448935 30249 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 17 of Backend Optimization -------
+	Num. Vertices: 468
+	Num. Edges: 1869
+	Num. Iterations: 26/512
+	Time Consumption: 0.964629
+	Cost Change: 44699.7--->44501
+
+I1204 12:35:58.780761 30249 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 18 of Backend Optimization -------
+	Num. Vertices: 468
+	Num. Edges: 1869
+	Num. Iterations: 29/512
+	Time Consumption: 1.12125
+	Cost Change: 44501--->44495.8
+
+I1204 12:36:00.559487 30249 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 19 of Backend Optimization -------
+	Num. Vertices: 468
+	Num. Edges: 1869
+	Num. Iterations: 18/512
+	Time Consumption: 0.670811
+	Cost Change: 44495.8--->44495.8
+
+I1204 12:36:01.693516 30249 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 20 of Backend Optimization -------
+	Num. Vertices: 468
+	Num. Edges: 1869
+	Num. Iterations: 2/512
+	Time Consumption: 0.12592
+	Cost Change: 44495.8--->44495.8
+
+I1204 12:36:03.255636 30249 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 21 of Backend Optimization -------
+	Num. Vertices: 468
+	Num. Edges: 1869
+	Num. Iterations: 1/512
+	Time Consumption: 0.0880229
+	Cost Change: 44495.8--->44495.8
+
+I1204 12:36:17.260454 30249 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 22 of Backend Optimization -------
+	Num. Vertices: 500
+	Num. Edges: 1997
+	Num. Iterations: 14/512
+	Time Consumption: 0.588572
+	Cost Change: 1.97228e+09--->47728.6
+

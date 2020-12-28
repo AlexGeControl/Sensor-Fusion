@@ -1,0 +1,15 @@
+Log file created at: 2020/12/02 01:55:41
+Running on machine: 3a0fb8ccbb03
+Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg
+I1202 01:55:41.135936 30316 imu_pre_integrator.cpp:28] 
+IMU Pre-Integration params:
+	gravity magnitude: 9.80943
+
+	process noise:
+		measurement:
+			accel.: 0.0025
+			gyro.: 0.0001
+		random_walk:
+			accel.: 1e-08
+			gyro.: 1e-08
+

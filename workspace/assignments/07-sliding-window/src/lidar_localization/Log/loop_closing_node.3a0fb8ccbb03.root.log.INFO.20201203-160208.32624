@@ -1,0 +1,586 @@
+Log file created at: 2020/12/03 16:02:08
+Running on machine: 3a0fb8ccbb03
+Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg
+I1203 16:02:08.704928 32624 scan_context_manager.cpp:50] Scan Context params:
+	max. radius: 80
+	max. theta: 360
+	num. rings: 20
+	num. sectors: 60
+	re-indexing interval: 1
+	min. key frame sequence distance: 100
+	nearest-neighbor candidates to check: 5
+	fast alignment search ratio: 0.1
+	loop-closure scan context distance thresh: 0.2
+
+I1203 16:04:57.654861 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 620<-->44
+	Distance 0.135439
+	Heading Change 12 deg.
+
+I1203 16:04:59.360440 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 625<-->50
+	Distance 0.136459
+	Heading Change 0 deg.
+
+I1203 16:05:00.132020 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 50<-->625
+	Fitness Score 0.0430162
+
+I1203 16:05:00.164781 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 630<-->55
+	Distance 0.0985991
+	Heading Change 0 deg.
+
+I1203 16:05:00.836457 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 55<-->630
+	Fitness Score 0.0260258
+
+I1203 16:05:01.161618 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 635<-->60
+	Distance 0.0922182
+	Heading Change 0 deg.
+
+I1203 16:05:01.842296 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 60<-->635
+	Fitness Score 0.0275527
+
+I1203 16:05:02.255736 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 640<-->65
+	Distance 0.108209
+	Heading Change 0 deg.
+
+I1203 16:05:02.951009 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 65<-->640
+	Fitness Score 0.0241207
+
+I1203 16:05:03.255370 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 645<-->71
+	Distance 0.0936201
+	Heading Change 0 deg.
+
+I1203 16:05:03.957659 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 71<-->645
+	Fitness Score 0.0216835
+
+I1203 16:06:27.950660 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 994<-->156
+	Distance 0.142541
+	Heading Change 342 deg.
+
+I1203 16:06:30.312387 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 999<-->160
+	Distance 0.122354
+	Heading Change 0 deg.
+
+I1203 16:06:30.902177 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 160<-->999
+	Fitness Score 0.0245959
+
+I1203 16:07:55.252002 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1363<-->952
+	Distance 0.184396
+	Heading Change 330 deg.
+
+I1203 16:07:56.745759 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1368<-->957
+	Distance 0.0835517
+	Heading Change 0 deg.
+
+I1203 16:07:57.219942 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 957<-->1368
+	Fitness Score 0.0224104
+
+I1203 16:07:57.949419 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1373<-->961
+	Distance 0.128891
+	Heading Change 0 deg.
+
+I1203 16:07:58.614390 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 961<-->1373
+	Fitness Score 0.028786
+
+I1203 16:07:58.951150 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1378<-->966
+	Distance 0.111021
+	Heading Change 0 deg.
+
+I1203 16:07:59.777753 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 966<-->1378
+	Fitness Score 0.0287447
+
+I1203 16:07:59.946404 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1383<-->971
+	Distance 0.136032
+	Heading Change 0 deg.
+
+I1203 16:08:00.789338 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 971<-->1383
+	Fitness Score 0.022928
+
+I1203 16:08:02.788162 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1388<-->976
+	Distance 0.102669
+	Heading Change 0 deg.
+
+I1203 16:08:03.639478 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 976<-->1388
+	Fitness Score 0.0245697
+
+I1203 16:08:03.688846 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1393<-->981
+	Distance 0.159046
+	Heading Change 0 deg.
+
+I1203 16:08:04.626233 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 981<-->1393
+	Fitness Score 0.0453758
+
+I1203 16:08:04.659413 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1398<-->986
+	Distance 0.12501
+	Heading Change 0 deg.
+
+I1203 16:08:05.494621 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 986<-->1398
+	Fitness Score 0.0276865
+
+I1203 16:08:05.709120 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1403<-->991
+	Distance 0.0552608
+	Heading Change 0 deg.
+
+I1203 16:08:06.753242 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 991<-->1403
+	Fitness Score 0.0276293
+
+I1203 16:08:07.168256 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1408<-->995
+	Distance 0.125422
+	Heading Change 0 deg.
+
+I1203 16:08:08.144731 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 995<-->1408
+	Fitness Score 0.0215835
+
+I1203 16:08:08.572154 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1413<-->162
+	Distance 0.129183
+	Heading Change 0 deg.
+
+I1203 16:08:09.859382 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 162<-->1413
+	Fitness Score 0.0262099
+
+I1203 16:08:10.568208 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1418<-->167
+	Distance 0.123551
+	Heading Change 0 deg.
+
+I1203 16:08:11.676635 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 167<-->1418
+	Fitness Score 0.036413
+
+I1203 16:08:12.068192 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1423<-->172
+	Distance 0.0938445
+	Heading Change 0 deg.
+
+I1203 16:08:12.791435 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 172<-->1423
+	Fitness Score 0.02286
+
+I1203 16:08:13.272033 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1428<-->177
+	Distance 0.0474073
+	Heading Change 0 deg.
+
+I1203 16:08:14.141113 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 177<-->1428
+	Fitness Score 0.017964
+
+I1203 16:08:14.267417 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1433<-->183
+	Distance 0.105526
+	Heading Change 0 deg.
+
+I1203 16:08:15.167843 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 183<-->1433
+	Fitness Score 0.0186965
+
+I1203 16:08:16.674437 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1438<-->189
+	Distance 0.046316
+	Heading Change 0 deg.
+
+I1203 16:08:17.331678 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 189<-->1438
+	Fitness Score 0.0213559
+
+I1203 16:08:17.369406 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1443<-->195
+	Distance 0.095472
+	Heading Change 0 deg.
+
+I1203 16:08:18.060262 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 195<-->1443
+	Fitness Score 0.0191132
+
+I1203 16:08:18.093343 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1448<-->201
+	Distance 0.0640861
+	Heading Change 0 deg.
+
+I1203 16:08:18.765439 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 201<-->1448
+	Fitness Score 0.0287184
+
+I1203 16:08:20.060164 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1453<-->206
+	Distance 0.1109
+	Heading Change 0 deg.
+
+I1203 16:08:20.741143 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 206<-->1453
+	Fitness Score 0.0246393
+
+I1203 16:08:21.016433 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1458<-->210
+	Distance 0.122679
+	Heading Change 6 deg.
+
+I1203 16:08:22.520118 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 210<-->1458
+	Fitness Score 0.0318013
+
+I1203 16:08:23.209219 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1463<-->215
+	Distance 0.156927
+	Heading Change 0 deg.
+
+I1203 16:08:24.097364 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 215<-->1463
+	Fitness Score 0.0324148
+
+I1203 16:08:24.218644 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1468<-->220
+	Distance 0.0619184
+	Heading Change 0 deg.
+
+I1203 16:08:24.907845 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 220<-->1468
+	Fitness Score 0.161008
+
+I1203 16:08:25.313606 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1473<-->226
+	Distance 0.0372017
+	Heading Change 0 deg.
+
+I1203 16:08:26.001157 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 226<-->1473
+	Fitness Score 0.0206677
+
+I1203 16:08:26.408982 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1478<-->232
+	Distance 0.0585864
+	Heading Change 0 deg.
+
+I1203 16:08:27.106995 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 232<-->1478
+	Fitness Score 0.0186985
+
+I1203 16:08:27.414759 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1483<-->238
+	Distance 0.063545
+	Heading Change 0 deg.
+
+I1203 16:08:28.040918 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 238<-->1483
+	Fitness Score 0.0191317
+
+I1203 16:08:30.428087 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1488<-->244
+	Distance 0.0504389
+	Heading Change 0 deg.
+
+I1203 16:08:31.020807 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 244<-->1488
+	Fitness Score 0.0261711
+
+I1203 16:08:31.056931 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1493<-->250
+	Distance 0.04434
+	Heading Change 0 deg.
+
+I1203 16:08:31.955173 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 250<-->1493
+	Fitness Score 0.020223
+
+I1203 16:08:31.994302 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1498<-->256
+	Distance 0.016558
+	Heading Change 0 deg.
+
+I1203 16:08:32.669162 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 256<-->1498
+	Fitness Score 0.0223466
+
+I1203 16:08:33.160724 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1503<-->262
+	Distance 0.0228977
+	Heading Change 0 deg.
+
+I1203 16:08:33.818521 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 262<-->1503
+	Fitness Score 0.0208179
+
+I1203 16:08:33.860502 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1508<-->268
+	Distance 0.0945798
+	Heading Change 0 deg.
+
+I1203 16:08:34.572496 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 268<-->1508
+	Fitness Score 0.130423
+
+I1203 16:08:34.604993 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1513<-->273
+	Distance 0.0842072
+	Heading Change 0 deg.
+
+I1203 16:08:35.342490 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 273<-->1513
+	Fitness Score 0.0352332
+
+I1203 16:08:35.378767 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1518<-->277
+	Distance 0.19613
+	Heading Change 6 deg.
+
+I1203 16:08:37.227962 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 277<-->1518
+	Fitness Score 0.0552718
+
+I1203 16:08:37.719475 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1526<-->284
+	Distance 0.135077
+	Heading Change 354 deg.
+
+I1203 16:08:39.249913 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 284<-->1526
+	Fitness Score 0.0369264
+
+I1203 16:08:39.290534 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1531<-->288
+	Distance 0.164945
+	Heading Change 0 deg.
+
+I1203 16:08:40.035794 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 288<-->1531
+	Fitness Score 0.0363031
+
+I1203 16:08:40.070310 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1536<-->294
+	Distance 0.0859064
+	Heading Change 0 deg.
+
+I1203 16:08:40.690467 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 294<-->1536
+	Fitness Score 0.0277938
+
+I1203 16:08:43.842000 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1541<-->300
+	Distance 0.0763147
+	Heading Change 0 deg.
+
+I1203 16:08:44.513062 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 300<-->1541
+	Fitness Score 0.0231209
+
+I1203 16:08:44.547996 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1546<-->306
+	Distance 0.131508
+	Heading Change 0 deg.
+
+I1203 16:08:45.228166 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 306<-->1546
+	Fitness Score 0.0250462
+
+I1203 16:08:47.087708 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1551<-->312
+	Distance 0.101265
+	Heading Change 0 deg.
+
+I1203 16:08:48.079262 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 312<-->1551
+	Fitness Score 0.0272103
+
+I1203 16:08:48.137162 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1556<-->318
+	Distance 0.119508
+	Heading Change 0 deg.
+
+I1203 16:08:48.997489 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 318<-->1556
+	Fitness Score 0.0275687
+
+I1203 16:08:49.030488 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1561<-->322
+	Distance 0.0662687
+	Heading Change 0 deg.
+
+I1203 16:08:49.919672 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 322<-->1561
+	Fitness Score 0.020769
+
+I1203 16:08:49.952721 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1566<-->327
+	Distance 0.0487983
+	Heading Change 0 deg.
+
+I1203 16:08:51.108763 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 327<-->1566
+	Fitness Score 0.0235066
+
+I1203 16:08:51.146194 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1571<-->333
+	Distance 0.0330115
+	Heading Change 0 deg.
+
+I1203 16:08:52.005684 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 333<-->1571
+	Fitness Score 0.0229298
+
+I1203 16:08:52.056260 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1576<-->339
+	Distance 0.0323973
+	Heading Change 0 deg.
+
+I1203 16:08:52.881469 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 339<-->1576
+	Fitness Score 0.0172872
+
+I1203 16:08:52.913797 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1581<-->345
+	Distance 0.0546761
+	Heading Change 0 deg.
+
+I1203 16:08:53.783082 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 345<-->1581
+	Fitness Score 0.0223461
+
+I1203 16:08:53.824553 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1586<-->351
+	Distance 0.0838702
+	Heading Change 0 deg.
+
+I1203 16:08:54.535930 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 351<-->1586
+	Fitness Score 0.023096
+
+I1203 16:08:54.564817 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1591<-->357
+	Distance 0.0854104
+	Heading Change 0 deg.
+
+I1203 16:08:55.308998 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 357<-->1591
+	Fitness Score 0.0195739
+
+I1203 16:08:55.408727 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1596<-->363
+	Distance 0.138896
+	Heading Change 0 deg.
+
+I1203 16:08:56.229686 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 363<-->1596
+	Fitness Score 0.0253413
+
+I1203 16:09:57.131485 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1866<-->0
+	Distance 0.183875
+	Heading Change 0 deg.
+
+I1203 16:09:57.438174 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1867<-->0
+	Distance 0.0892749
+	Heading Change 0 deg.
+
+I1203 16:09:57.627971 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1868<-->1
+	Distance 0.11756
+	Heading Change 0 deg.
+
+I1203 16:09:57.828248 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1869<-->2
+	Distance 0.0927625
+	Heading Change 0 deg.
+
+I1203 16:09:58.028373 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1870<-->3
+	Distance 0.137411
+	Heading Change 0 deg.
+
+I1203 16:09:58.228976 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1871<-->4
+	Distance 0.134823
+	Heading Change 0 deg.
+
+I1203 16:09:58.428094 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1872<-->5
+	Distance 0.162005
+	Heading Change 0 deg.
+
+I1203 16:09:59.259997 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 5<-->1872
+	Fitness Score 0.0357404
+
+I1203 16:09:59.521677 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1877<-->11
+	Distance 0.0652449
+	Heading Change 0 deg.
+
+I1203 16:10:00.121287 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 11<-->1877
+	Fitness Score 0.0290374
+
+I1203 16:10:00.628592 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1882<-->17
+	Distance 0.130937
+	Heading Change 0 deg.
+
+I1203 16:10:01.053937 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 17<-->1882
+	Fitness Score 0.0317908
+
+I1203 16:10:01.628415 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1887<-->22
+	Distance 0.110379
+	Heading Change 0 deg.
+
+I1203 16:10:02.159622 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 22<-->1887
+	Fitness Score 0.0308256
+
+I1203 16:10:02.733707 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1892<-->29
+	Distance 0.0417449
+	Heading Change 0 deg.
+
+I1203 16:10:03.169697 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 29<-->1892
+	Fitness Score 0.0237806
+
+I1203 16:10:03.626452 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1897<-->36
+	Distance 0.0819407
+	Heading Change 0 deg.
+
+I1203 16:10:04.219738 32624 loop_closing.cpp:255] 
+[ICP Registration] Loop-Closure Detected 36<-->1897
+	Fitness Score 0.0314422
+
+I1203 16:10:06.716652 32624 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1903<-->614
+	Distance 0.175912
+	Heading Change 216 deg.
+

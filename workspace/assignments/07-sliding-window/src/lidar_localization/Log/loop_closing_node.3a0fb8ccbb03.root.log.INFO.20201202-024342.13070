@@ -1,0 +1,14 @@
+Log file created at: 2020/12/02 02:43:42
+Running on machine: 3a0fb8ccbb03
+Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg
+I1202 02:43:42.930533 13070 scan_context_manager.cpp:50] Scan Context params:
+	max. radius: 80
+	max. theta: 360
+	num. rings: 20
+	num. sectors: 60
+	re-indexing interval: 1
+	min. key frame sequence distance: 100
+	nearest-neighbor candidates to check: 5
+	fast alignment search ratio: 0.1
+	loop-closure scan context distance thresh: 0.2
+

@@ -1,0 +1,31 @@
+Log file created at: 2020/12/02 01:12:32
+Running on machine: 3a0fb8ccbb03
+Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg
+I1202 01:12:32.717077 18089 imu_pre_integrator.cpp:28] 
+IMU Pre-Integration params:
+	gravity magnitude: 9.80943
+
+	process noise:
+		measurement:
+			accel.: 0.0025
+			gyro.: 0.0001
+		random_walk:
+			accel.: 1e-08
+			gyro.: 1e-08
+
+I1202 01:13:19.004492 18089 g2o_graph_optimizer.cpp:71] 
+------ Finish Iteration 1 of Backend Optimization -------
+	Num. Vertices: 100
+	Num. Edges: 298
+	Num. Iterations: 512/512
+	Time Consumption: 2.682
+	Cost Change: 7.9057e+08--->3.30854e+06
+
+I1202 01:13:46.467334 18089 g2o_graph_optimizer.cpp:71] 
+------ Finish Iteration 2 of Backend Optimization -------
+	Num. Vertices: 200
+	Num. Edges: 598
+	Num. Iterations: 512/512
+	Time Consumption: 5.85483
+	Cost Change: 2.9754e+13--->2.26428e+08
+

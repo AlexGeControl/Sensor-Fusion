@@ -1,0 +1,267 @@
+Log file created at: 2020/12/04 12:59:06
+Running on machine: 3a0fb8ccbb03
+Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg
+I1204 12:59:06.605706  1743 kitti_filtering.cpp:177] 
+-----------------Init IMU-Lidar Fusion for Localization-------------------
+I1204 12:59:06.686158  1743 kitti_filtering.cpp:240] Load global map, size:1651792
+I1204 12:59:06.805263  1743 kitti_filtering.cpp:244] Filtered global map, size:1651792
+I1204 12:59:06.805320  1743 scan_context_manager.cpp:50] Scan Context params:
+	max. radius: 80
+	max. theta: 360
+	num. rings: 20
+	num. sectors: 60
+	re-indexing interval: 1
+	min. key frame sequence distance: 100
+	nearest-neighbor candidates to check: 5
+	fast alignment search ratio: 0.1
+	loop-closure scan context distance thresh: 0.15
+
+I1204 12:59:06.805343  1743 scan_context_manager.cpp:238] 
+[Scan Context]: Load Scan Context Index.
+I1204 12:59:06.817487  1743 scan_context_manager.cpp:250] 	Num. Scan Contexts: 1914
+I1204 12:59:06.818096  1743 scan_context_manager.cpp:261] 	Num. Ring Keys: 1914
+I1204 12:59:06.818501  1743 scan_context_manager.cpp:272] 	Num. Key Frames: 1914
+I1204 12:59:06.818991  1743 scan_context_manager.cpp:283] 	Index Size: 1914
+I1204 12:59:06.819171  1743 error_state_kalman_filter.cpp:53] 
+Error-State Kalman Filter params:
+	gravity magnitude: 9.80943
+	earth rotation speed: 7.29211e-05
+	latitude: 0.854911
+
+	prior cov. pos.: 1e-06
+	prior cov. vel.: 1e-06
+	prior cov. ori: 1e-06
+	prior cov. epsilon.: 1e-06
+	prior cov. delta.: 1e-06
+
+	process noise gyro.: 0.0001
+	process noise accel.: 0.0025
+
+	measurement noise pose.: 
+		pos: 0.0001, ori.: 0.0001
+	measurement noise pos.: 0.0001
+	measurement noise vel.: 0.0025
+
+	motion constraint: 
+		activated: true
+		w_b threshold: 0.13
+
+I1204 12:59:06.886883  1743 kitti_filtering.cpp:364] New local map:-150,150,-150,150,-150,150
+
+I1204 12:59:12.293879  1743 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1913<-->0
+	Distance 0.101434
+	Heading Change 0 deg.
+
+I1204 12:59:12.363543  1743 kitti_filtering.cpp:364] New local map:-149.316,150.684,-149.447,150.553,-149.211,150.789
+
+I1204 12:59:12.363569  1743 error_state_kalman_filter.cpp:192] 
+Kalman Filter Inited at 1317646536
+Init Position: 0, 0, 0
+Init Velocity: 4.06258, 7.36781, -0.0277692
+I1204 12:59:12.363579  1743 kitti_filtering_flow.cpp:255] Scan Context Localization Init Succeeded.
+I1204 12:59:12.736099  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646537 <-- 1317646537 @ -0.129617
+I1204 12:59:15.836534  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646540 <-- 1317646540 @ -0.119405
+I1204 12:59:17.821836  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646542 <-- 1317646542 @ -0.119382
+I1204 12:59:19.788038  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646544 <-- 1317646544 @ -0.1196
+I1204 12:59:21.139066  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646545 <-- 1317646545 @ -0.129764
+I1204 12:59:21.648901  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646545 <-- 1317646546 @ -0.119588
+I1204 12:59:23.947088  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646548 <-- 1317646548 @ -0.119782
+I1204 12:59:25.055495  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646549 <-- 1317646549 @ -0.119853
+I1204 12:59:27.036164  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646551 <-- 1317646551 @ -0.129992
+I1204 12:59:35.226963  1743 kitti_filtering.cpp:364] New local map:-48.8489,251.151,-100.652,199.348,-148.965,151.035
+
+I1204 12:59:38.240650  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646562 <-- 1317646562 @ -0.129885
+I1204 12:59:41.334059  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646565 <-- 1317646565 @ -0.119653
+I1204 12:59:48.923323  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646573 <-- 1317646573 @ -0.129891
+I1204 12:59:51.577872  1743 kitti_filtering.cpp:364] New local map:21.1889,321.189,-0.243896,299.756,-149.066,150.934
+
+I1204 12:59:53.164621  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646577 <-- 1317646577 @ -0.119692
+I1204 12:59:54.944991  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646579 <-- 1317646579 @ -0.119321
+I1204 12:59:55.776469  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646580 <-- 1317646580 @ -0.129123
+I1204 12:59:56.282135  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646580 <-- 1317646580 @ -0.119598
+I1204 12:59:56.793387  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646581 <-- 1317646581 @ -0.119697
+I1204 13:00:00.416774  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646584 <-- 1317646584 @ -0.119561
+I1204 13:00:02.393133  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646586 <-- 1317646586 @ -0.129537
+I1204 13:00:04.351720  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646588 <-- 1317646588 @ -0.119497
+I1204 13:00:06.338613  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646590 <-- 1317646590 @ -0.119821
+I1204 13:00:07.463274  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646591 <-- 1317646591 @ -0.109748
+I1204 13:00:09.451450  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646593 <-- 1317646593 @ -0.11986
+I1204 13:00:11.109653  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646595 <-- 1317646595 @ -0.129566
+I1204 13:00:11.927175  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646596 <-- 1317646596 @ -0.119569
+I1204 13:00:13.988713  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646598 <-- 1317646598 @ -0.119609
+I1204 13:00:15.155889  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646599 <-- 1317646599 @ -0.119191
+I1204 13:00:17.105741  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646601 <-- 1317646601 @ -0.12977
+I1204 13:00:17.788867  1743 kitti_filtering.cpp:364] New local map:-19.7846,280.215,99.8278,399.828,-150.055,149.945
+
+I1204 13:00:19.082502  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646603 <-- 1317646603 @ -0.129872
+I1204 13:00:20.212572  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646604 <-- 1317646604 @ -0.119363
+I1204 13:00:22.180565  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646606 <-- 1317646606 @ -0.119678
+I1204 13:00:23.335541  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646607 <-- 1317646607 @ -0.119632
+I1204 13:00:25.318408  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646609 <-- 1317646609 @ -0.119749
+I1204 13:00:28.567348  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646612 <-- 1317646612 @ -0.120012
+I1204 13:00:29.076253  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646613 <-- 1317646613 @ -0.119715
+I1204 13:00:34.016279  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646618 <-- 1317646618 @ -0.129681
+I1204 13:00:35.584928  1743 kitti_filtering.cpp:364] New local map:-38.5556,261.444,200.096,500.096,-149.944,150.056
+
+I1204 13:00:36.018514  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646620 <-- 1317646620 @ -0.129884
+I1204 13:00:37.125499  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646621 <-- 1317646621 @ -0.119651
+I1204 13:00:39.926964  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646624 <-- 1317646624 @ -0.119801
+I1204 13:00:43.022864  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646627 <-- 1317646627 @ -0.119926
+I1204 13:00:44.162084  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646628 <-- 1317646628 @ -0.119806
+I1204 13:00:47.282518  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646631 <-- 1317646631 @ -0.119649
+I1204 13:00:51.397011  1743 kitti_filtering.cpp:364] New local map:-138.579,161.421,235.919,535.919,-149.854,150.146
+
+I1204 13:00:52.040414  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646636 <-- 1317646636 @ -0.120026
+I1204 13:00:54.014065  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646638 <-- 1317646638 @ -0.12969
+I1204 13:00:55.143517  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646639 <-- 1317646639 @ -0.119365
+I1204 13:00:57.115936  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646641 <-- 1317646641 @ -0.119693
+I1204 13:01:03.863772  1743 kitti_filtering.cpp:364] New local map:-189.271,110.729,135.478,435.478,-149.973,150.027
+
+I1204 13:01:06.449503  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646650 <-- 1317646650 @ -0.109915
+I1204 13:01:27.500610  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646671 <-- 1317646671 @ -0.120152
+I1204 13:01:27.722545  1743 kitti_filtering.cpp:364] New local map:-88.7645,211.235,76.2778,376.278,-150.942,149.058
+
+I1204 13:01:39.106986  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646683 <-- 1317646683 @ -0.109619
+I1204 13:01:43.657449  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646687 <-- 1317646688 @ -0.119573
+I1204 13:01:45.665422  1743 kitti_filtering.cpp:364] New local map:-87.8414,212.159,-24.5127,275.487,-150.345,149.655
+
+I1204 13:01:45.943985  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646690 <-- 1317646690 @ -0.119904
+I1204 13:01:48.228159  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646692 <-- 1317646692 @ -0.12982
+I1204 13:01:50.509109  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646694 <-- 1317646694 @ -0.119628
+I1204 13:01:52.282742  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646696 <-- 1317646696 @ -0.1197
+I1204 13:02:01.499788  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646705 <-- 1317646705 @ -0.130115
+I1204 13:02:02.124732  1743 kitti_filtering.cpp:364] New local map:-53.7226,246.277,-124.824,175.176,-149.628,150.372
+
+I1204 13:02:02.644076  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646706 <-- 1317646707 @ -0.129712
+I1204 13:02:06.046787  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646710 <-- 1317646710 @ -0.119903
+I1204 13:02:11.453349  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646715 <-- 1317646715 @ -0.129605
+I1204 13:02:14.544632  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646718 <-- 1317646718 @ -0.119821
+I1204 13:02:15.251590  1743 kitti_filtering.cpp:364] New local map:-8.30502,291.695,-225.287,74.713,-149.857,150.143
+
+I1204 13:02:16.013110  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646720 <-- 1317646720 @ -0.129938
+I1204 13:02:21.599192  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646725 <-- 1317646726 @ -0.129954
+I1204 13:02:34.711205  1743 kitti_filtering.cpp:364] New local map:91.7066,391.707,-290.559,9.44096,-149.717,150.283
+
+I1204 13:02:48.753533  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646753 <-- 1317646753 @ -0.1197
+I1204 13:02:49.211704  1743 kitti_filtering.cpp:364] New local map:166.893,466.893,-190.356,109.644,-149.634,150.366
+
+I1204 13:02:54.980206  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646759 <-- 1317646759 @ -0.11937
+I1204 13:02:56.116236  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646760 <-- 1317646760 @ -0.129762
+I1204 13:02:58.090423  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646762 <-- 1317646762 @ -0.129985
+I1204 13:02:59.218065  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646763 <-- 1317646763 @ -0.119427
+I1204 13:03:01.212546  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646765 <-- 1317646765 @ -0.119616
+I1204 13:03:03.174073  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646767 <-- 1317646767 @ -0.1293
+I1204 13:03:05.440915  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646769 <-- 1317646769 @ -0.11967
+I1204 13:03:05.634475  1743 kitti_filtering.cpp:364] New local map:117.343,417.343,-90.0979,209.902,-149.052,150.948
+
+I1204 13:03:09.386029  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646773 <-- 1317646773 @ -0.119855
+I1204 13:03:10.525665  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646774 <-- 1317646774 @ -0.119609
+I1204 13:03:17.567781  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646781 <-- 1317646781 @ -0.119777
+I1204 13:03:21.508074  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646785 <-- 1317646785 @ -0.11995
+I1204 13:03:24.017809  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646788 <-- 1317646788 @ -0.129627
+I1204 13:03:26.001965  1743 kitti_filtering.cpp:364] New local map:26.5244,326.524,10.0682,310.068,-149.128,150.872
+
+I1204 13:03:27.218669  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646791 <-- 1317646791 @ -0.119807
+I1204 13:03:30.640084  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646794 <-- 1317646795 @ -0.129421
+I1204 13:03:33.735385  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646798 <-- 1317646798 @ -0.109741
+I1204 13:03:36.854370  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646801 <-- 1317646801 @ -0.119543
+I1204 13:03:37.595584  1743 kitti_filtering.cpp:364] New local map:76.7265,376.727,110.229,410.229,-149.316,150.684
+
+I1204 13:03:39.959717  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646804 <-- 1317646804 @ -0.119777
+I1204 13:03:41.113315  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646805 <-- 1317646805 @ -0.119376
+I1204 13:03:41.937947  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646806 <-- 1317646806 @ -0.119388
+I1204 13:03:45.045994  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646809 <-- 1317646809 @ -0.119706
+I1204 13:03:46.167855  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646810 <-- 1317646810 @ -0.119296
+I1204 13:03:47.315141  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646811 <-- 1317646811 @ -0.119415
+I1204 13:03:48.991561  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646813 <-- 1317646813 @ -0.119518
+I1204 13:03:52.914994  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646817 <-- 1317646817 @ -0.109924
+I1204 13:03:58.080271  1743 kitti_filtering.cpp:364] New local map:176.986,476.986,172.698,472.698,-149.221,150.779
+
+I1204 13:04:11.063876  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646835 <-- 1317646835 @ -0.129767
+I1204 13:04:13.332933  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646837 <-- 1317646837 @ -0.11965
+I1204 13:04:17.978859  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646842 <-- 1317646842 @ -0.0909221
+I1204 13:04:18.148376  1743 kitti_filtering.cpp:364] New local map:259.645,559.645,72.5337,372.534,-149.163,150.837
+
+I1204 13:04:18.148403  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646842 <-- 1317646842 @ -0.0932162
+I1204 13:04:18.238039  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646842 <-- 1317646842 @ -0.0955119
+I1204 13:04:18.298362  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646842 <-- 1317646842 @ -0.0978291
+I1204 13:04:18.400270  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646842 <-- 1317646842 @ -0.100124
+I1204 13:04:18.512708  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646842 <-- 1317646842 @ -0.102395
+I1204 13:04:18.623690  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646842 <-- 1317646843 @ -0.104664
+I1204 13:04:24.013623  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646848 <-- 1317646848 @ -0.120079
+I1204 13:04:28.565995  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646852 <-- 1317646852 @ -0.119869
+I1204 13:04:29.703403  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646854 <-- 1317646854 @ -0.119529
+I1204 13:04:30.851521  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646855 <-- 1317646855 @ -0.119509
+I1204 13:04:33.534060  1743 kitti_filtering.cpp:364] New local map:159.352,459.352,90.7323,390.732,-149.123,150.877
+
+I1204 13:04:39.353396  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646863 <-- 1317646863 @ -0.119993
+I1204 13:04:43.084677  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646867 <-- 1317646867 @ -0.1196
+I1204 13:04:45.163130  1743 kitti_filtering.cpp:364] New local map:106.018,406.018,-9.95792,290.042,-149.167,150.833
+
+I1204 13:04:47.330255  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646871 <-- 1317646871 @ -0.11991
+I1204 13:04:56.156970  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646880 <-- 1317646880 @ -0.129686
+I1204 13:05:01.750583  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646886 <-- 1317646886 @ -0.129627
+I1204 13:05:03.513402  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646887 <-- 1317646887 @ -0.119511
+I1204 13:05:05.051699  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646889 <-- 1317646889 @ -0.119339
+I1204 13:05:09.941871  1743 kitti_filtering.cpp:364] New local map:5.30891,305.309,26.8207,326.821,-149.852,150.148
+
+I1204 13:05:11.782150  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646896 <-- 1317646896 @ -0.119682
+I1204 13:05:12.932479  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646897 <-- 1317646897 @ -0.119705
+I1204 13:05:14.079489  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646898 <-- 1317646898 @ -0.119616
+I1204 13:05:14.899585  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646899 <-- 1317646899 @ -0.119906
+I1204 13:05:16.041644  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646900 <-- 1317646900 @ -0.11963
+I1204 13:05:16.878175  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646901 <-- 1317646901 @ -0.120082
+I1204 13:05:17.710417  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646901 <-- 1317646902 @ -0.119955
+I1204 13:05:18.567168  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646902 <-- 1317646902 @ -0.119855
+I1204 13:05:23.510682  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646907 <-- 1317646907 @ -0.119663
+I1204 13:05:25.470284  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646909 <-- 1317646909 @ -0.130186
+I1204 13:05:26.313604  1743 kitti_filtering.cpp:364] New local map:-5.5278,294.472,127.065,427.065,-150.044,149.956
+
+I1204 13:05:26.607182  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646910 <-- 1317646911 @ -0.119569
+I1204 13:05:28.598464  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646912 <-- 1317646912 @ -0.119998
+I1204 13:05:30.877285  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646915 <-- 1317646915 @ -0.129692
+I1204 13:05:31.168802  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646915 <-- 1317646915 @ -0.119794
+I1204 13:05:31.510128  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646915 <-- 1317646915 @ -0.119964
+I1204 13:05:32.736093  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646917 <-- 1317646917 @ -0.119534
+I1204 13:05:33.763460  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646918 <-- 1317646918 @ -0.119952
+I1204 13:05:34.808544  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646919 <-- 1317646919 @ -0.119469
+I1204 13:05:36.444684  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646920 <-- 1317646920 @ -0.109962
+I1204 13:05:45.387948  1743 kitti_filtering.cpp:364] New local map:-90.2641,209.736,227.311,527.311,-149.884,150.116
+
+I1204 13:05:47.232981  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646931 <-- 1317646931 @ -0.119827
+I1204 13:05:52.626205  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646936 <-- 1317646937 @ -0.12934
+I1204 13:05:54.596539  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646938 <-- 1317646939 @ -0.129362
+I1204 13:05:56.870810  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646941 <-- 1317646941 @ -0.119921
+I1204 13:05:57.695847  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646941 <-- 1317646942 @ -0.119998
+I1204 13:06:00.056957  1743 kitti_filtering.cpp:364] New local map:-190.434,109.566,288.155,588.155,-150.03,149.97
+
+I1204 13:06:00.303118  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646944 <-- 1317646944 @ -0.129753
+I1204 13:06:00.596228  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646944 <-- 1317646945 @ -0.119559
+I1204 13:06:05.990216  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646950 <-- 1317646950 @ -0.119984
+I1204 13:06:07.136994  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646951 <-- 1317646951 @ -0.119793
+I1204 13:06:09.410580  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646953 <-- 1317646953 @ -0.119935
+I1204 13:06:13.241102  1743 kitti_filtering.cpp:364] New local map:-254.865,45.1351,187.156,487.156,-149.901,150.099
+
+I1204 13:06:14.277073  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646958 <-- 1317646958 @ -0.119715
+I1204 13:06:15.425958  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646959 <-- 1317646959 @ -0.12975
+I1204 13:06:18.865495  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646963 <-- 1317646963 @ -0.130011
+I1204 13:06:21.805657  1743 kitti_filtering.cpp:364] New local map:-265.166,34.834,86.0141,386.014,-149.567,150.433
+
+I1204 13:06:22.259246  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646966 <-- 1317646966 @ -0.119969
+I1204 13:06:27.961133  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646972 <-- 1317646972 @ -0.129789
+I1204 13:06:30.294219  1743 kitti_filtering.cpp:364] New local map:-241.002,58.9983,-15.091,284.909,-149.361,150.639
+
+I1204 13:06:34.806000  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646979 <-- 1317646979 @ -0.119411
+I1204 13:06:37.088264  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646981 <-- 1317646981 @ -0.129359
+I1204 13:06:38.582866  1743 kitti_filtering.cpp:364] New local map:-208.869,91.1311,-115.18,184.82,-149.019,150.981
+
+I1204 13:06:42.478039  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646986 <-- 1317646986 @ -0.120094
+I1204 13:06:48.385082  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646992 <-- 1317646992 @ -0.119882
+I1204 13:06:50.147161  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646994 <-- 1317646994 @ -0.129682
+I1204 13:06:51.630514  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646995 <-- 1317646996 @ -0.129611
+I1204 13:06:53.260867  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646997 <-- 1317646997 @ -0.119742
+I1204 13:06:56.354923  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317647000 <-- 1317647000 @ -0.119999
+I1204 13:06:57.498116  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317647001 <-- 1317647001 @ -0.120068
+I1204 13:06:58.635390  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317647002 <-- 1317647003 @ -0.119719
+I1204 13:06:59.780905  1743 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317647004 <-- 1317647004 @ -0.119684

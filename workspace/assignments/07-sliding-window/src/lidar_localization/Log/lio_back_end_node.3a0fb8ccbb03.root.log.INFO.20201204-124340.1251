@@ -1,0 +1,455 @@
+Log file created at: 2020/12/04 12:43:40
+Running on machine: 3a0fb8ccbb03
+Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg
+I1204 12:43:40.690256  1251 imu_pre_integrator.cpp:28] 
+IMU Pre-Integration params:
+	gravity magnitude: 9.80943
+
+	process noise:
+		measurement:
+			accel.: 0.0025
+			gyro.: 0.0001
+		random_walk:
+			accel.: 1e-08
+			gyro.: 1e-08
+
+I1204 12:43:40.690444  1251 odo_pre_integrator.cpp:24] 
+Odo Pre-Integration params:
+	process noise:
+		measurement:
+			v.: 0.0025
+			w.: 0.01
+
+I1204 12:44:03.244391  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 1 of Backend Optimization -------
+	Num. Vertices: 50
+	Num. Edges: 197
+	Num. Iterations: 11/512
+	Time Consumption: 0.0497315
+	Cost Change: 1.38933e+07--->4817.72
+
+I1204 12:44:15.903589  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 2 of Backend Optimization -------
+	Num. Vertices: 100
+	Num. Edges: 397
+	Num. Iterations: 13/512
+	Time Consumption: 0.106822
+	Cost Change: 2.1212e+08--->9236.07
+
+I1204 12:44:27.176406  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 3 of Backend Optimization -------
+	Num. Vertices: 150
+	Num. Edges: 597
+	Num. Iterations: 13/512
+	Time Consumption: 0.169393
+	Cost Change: 2.25205e+08--->16836.3
+
+I1204 12:44:40.737840  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 4 of Backend Optimization -------
+	Num. Vertices: 200
+	Num. Edges: 797
+	Num. Iterations: 38/512
+	Time Consumption: 0.639862
+	Cost Change: 4.51212e+07--->20424.5
+
+I1204 12:44:57.642082  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 5 of Backend Optimization -------
+	Num. Vertices: 250
+	Num. Edges: 997
+	Num. Iterations: 13/512
+	Time Consumption: 0.299092
+	Cost Change: 5.9123e+08--->24016.4
+
+I1204 12:45:10.501685  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 6 of Backend Optimization -------
+	Num. Vertices: 300
+	Num. Edges: 1197
+	Num. Iterations: 13/512
+	Time Consumption: 0.352522
+	Cost Change: 6.48765e+08--->40901.1
+
+I1204 12:45:22.002239  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 7 of Backend Optimization -------
+	Num. Vertices: 350
+	Num. Edges: 1397
+	Num. Iterations: 13/512
+	Time Consumption: 0.495782
+	Cost Change: 5.91829e+08--->31692.6
+
+I1204 12:45:34.155267  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 8 of Backend Optimization -------
+	Num. Vertices: 400
+	Num. Edges: 1597
+	Num. Iterations: 13/512
+	Time Consumption: 0.444741
+	Cost Change: 4.58118e+08--->35486.6
+
+I1204 12:45:46.133432  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 9 of Backend Optimization -------
+	Num. Vertices: 450
+	Num. Edges: 1797
+	Num. Iterations: 13/512
+	Time Consumption: 0.47205
+	Cost Change: 4.93473e+08--->35746
+
+I1204 12:46:00.406632  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 10 of Backend Optimization -------
+	Num. Vertices: 500
+	Num. Edges: 1997
+	Num. Iterations: 27/512
+	Time Consumption: 1.06814
+	Cost Change: 3.70269e+08--->38736.8
+
+I1204 12:46:15.701061  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 11 of Backend Optimization -------
+	Num. Vertices: 550
+	Num. Edges: 2197
+	Num. Iterations: 13/512
+	Time Consumption: 0.590479
+	Cost Change: 1.27452e+08--->43190.9
+
+I1204 12:46:26.571449  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 12 of Backend Optimization -------
+	Num. Vertices: 600
+	Num. Edges: 2397
+	Num. Iterations: 13/512
+	Time Consumption: 0.66618
+	Cost Change: 3.73289e+08--->44780.9
+
+I1204 12:46:33.373435  1251 lio_back_end.cpp:144] Add loop closure: 47,623
+I1204 12:46:34.473620  1251 lio_back_end.cpp:144] Add loop closure: 52,628
+I1204 12:46:35.473767  1251 lio_back_end.cpp:144] Add loop closure: 58,633
+I1204 12:46:36.472398  1251 lio_back_end.cpp:144] Add loop closure: 63,638
+I1204 12:46:37.573374  1251 lio_back_end.cpp:144] Add loop closure: 69,643
+I1204 12:46:38.926591  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 13 of Backend Optimization -------
+	Num. Vertices: 650
+	Num. Edges: 2602
+	Num. Iterations: 14/512
+	Time Consumption: 0.948811
+	Cost Change: 9.60967e+08--->46953.9
+
+I1204 12:46:50.059104  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 14 of Backend Optimization -------
+	Num. Vertices: 700
+	Num. Edges: 2802
+	Num. Iterations: 14/512
+	Time Consumption: 0.928028
+	Cost Change: 7.15394e+08--->49583.9
+
+I1204 12:47:01.726167  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 15 of Backend Optimization -------
+	Num. Vertices: 750
+	Num. Edges: 3002
+	Num. Iterations: 15/512
+	Time Consumption: 1.06149
+	Cost Change: 6.20294e+08--->53929.7
+
+I1204 12:47:15.369083  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 16 of Backend Optimization -------
+	Num. Vertices: 800
+	Num. Edges: 3202
+	Num. Iterations: 15/512
+	Time Consumption: 1.13825
+	Cost Change: 5.75235e+08--->58533.7
+
+I1204 12:47:25.795372  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 17 of Backend Optimization -------
+	Num. Vertices: 850
+	Num. Edges: 3402
+	Num. Iterations: 15/512
+	Time Consumption: 1.22197
+	Cost Change: 6.03688e+08--->60553.2
+
+I1204 12:47:37.694890  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 18 of Backend Optimization -------
+	Num. Vertices: 900
+	Num. Edges: 3602
+	Num. Iterations: 15/512
+	Time Consumption: 1.29495
+	Cost Change: 6.81193e+08--->65441
+
+I1204 12:47:51.326761  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 19 of Backend Optimization -------
+	Num. Vertices: 950
+	Num. Edges: 3802
+	Num. Iterations: 17/512
+	Time Consumption: 1.42708
+	Cost Change: 2.94469e+09--->68519.8
+
+I1204 12:48:03.666826  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 20 of Backend Optimization -------
+	Num. Vertices: 1000
+	Num. Edges: 4002
+	Num. Iterations: 17/512
+	Time Consumption: 1.5353
+	Cost Change: 4.10523e+08--->72074.2
+
+I1204 12:48:04.368041  1251 lio_back_end.cpp:144] Add loop closure: 160,1002
+I1204 12:48:14.439376  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 21 of Backend Optimization -------
+	Num. Vertices: 1050
+	Num. Edges: 4203
+	Num. Iterations: 18/512
+	Time Consumption: 1.76813
+	Cost Change: 7.80501e+08--->75206.8
+
+I1204 12:48:25.370291  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 22 of Backend Optimization -------
+	Num. Vertices: 1100
+	Num. Edges: 4403
+	Num. Iterations: 15/512
+	Time Consumption: 1.526
+	Cost Change: 5.30612e+08--->77370.4
+
+I1204 12:48:37.832010  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 23 of Backend Optimization -------
+	Num. Vertices: 1150
+	Num. Edges: 4603
+	Num. Iterations: 16/512
+	Time Consumption: 1.65721
+	Cost Change: 5.31997e+08--->81298.8
+
+I1204 12:48:51.872439  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 24 of Backend Optimization -------
+	Num. Vertices: 1200
+	Num. Edges: 4803
+	Num. Iterations: 19/512
+	Time Consumption: 2.03536
+	Cost Change: 7.58746e+09--->85390
+
+I1204 12:49:03.645126  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 25 of Backend Optimization -------
+	Num. Vertices: 1250
+	Num. Edges: 5003
+	Num. Iterations: 17/512
+	Time Consumption: 1.96505
+	Cost Change: 1.37849e+09--->92894.1
+
+I1204 12:49:15.480914  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 26 of Backend Optimization -------
+	Num. Vertices: 1300
+	Num. Edges: 5203
+	Num. Iterations: 18/512
+	Time Consumption: 2.13132
+	Cost Change: 1.56162e+09--->96979.3
+
+I1204 12:49:25.711318  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 27 of Backend Optimization -------
+	Num. Vertices: 1350
+	Num. Edges: 5403
+	Num. Iterations: 17/512
+	Time Consumption: 2.02214
+	Cost Change: 2.27699e+09--->99512.8
+
+I1204 12:49:31.014086  1251 lio_back_end.cpp:144] Add loop closure: 960,1372
+I1204 12:49:32.214287  1251 lio_back_end.cpp:144] Add loop closure: 964,1377
+I1204 12:49:33.512971  1251 lio_back_end.cpp:144] Add loop closure: 969,1382
+I1204 12:49:34.414258  1251 lio_back_end.cpp:144] Add loop closure: 974,1387
+I1204 12:49:36.615473  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 28 of Backend Optimization -------
+	Num. Vertices: 1392
+	Num. Edges: 5575
+	Num. Iterations: 16/512
+	Time Consumption: 2.09858
+	Cost Change: 8.49349e+08--->102197
+
+I1204 12:49:38.738677  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 29 of Backend Optimization -------
+	Num. Vertices: 1400
+	Num. Edges: 5607
+	Num. Iterations: 15/512
+	Time Consumption: 2.05985
+	Cost Change: 7.38396e+08--->102335
+
+I1204 12:49:38.777359  1251 lio_back_end.cpp:144] Add loop closure: 979,1392
+I1204 12:49:38.777395  1251 lio_back_end.cpp:144] Add loop closure: 984,1397
+I1204 12:49:39.648252  1251 lio_back_end.cpp:144] Add loop closure: 989,1402
+I1204 12:49:40.648141  1251 lio_back_end.cpp:144] Add loop closure: 993,1407
+I1204 12:49:41.748075  1251 lio_back_end.cpp:144] Add loop closure: 998,1412
+I1204 12:49:43.148509  1251 lio_back_end.cpp:144] Add loop closure: 161,1417
+I1204 12:49:45.148138  1251 lio_back_end.cpp:144] Add loop closure: 166,1422
+I1204 12:49:46.147135  1251 lio_back_end.cpp:144] Add loop closure: 171,1427
+I1204 12:49:47.548434  1251 lio_back_end.cpp:144] Add loop closure: 176,1432
+I1204 12:49:48.748642  1251 lio_back_end.cpp:144] Add loop closure: 181,1437
+I1204 12:49:50.996299  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 30 of Backend Optimization -------
+	Num. Vertices: 1443
+	Num. Edges: 5789
+	Num. Iterations: 16/512
+	Time Consumption: 2.24383
+	Cost Change: 7.58734e+08--->108392
+
+I1204 12:49:53.291990  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 31 of Backend Optimization -------
+	Num. Vertices: 1450
+	Num. Edges: 5817
+	Num. Iterations: 15/512
+	Time Consumption: 2.2449
+	Cost Change: 7.59299e+08--->108587
+
+I1204 12:49:53.334473  1251 lio_back_end.cpp:144] Add loop closure: 187,1442
+I1204 12:49:53.334504  1251 lio_back_end.cpp:144] Add loop closure: 193,1447
+I1204 12:49:54.007884  1251 lio_back_end.cpp:144] Add loop closure: 200,1452
+I1204 12:49:54.707857  1251 lio_back_end.cpp:144] Add loop closure: 204,1457
+I1204 12:49:55.507920  1251 lio_back_end.cpp:144] Add loop closure: 209,1462
+I1204 12:49:57.407950  1251 lio_back_end.cpp:144] Add loop closure: 214,1467
+I1204 12:49:58.608212  1251 lio_back_end.cpp:144] Add loop closure: 218,1472
+I1204 12:49:59.507791  1251 lio_back_end.cpp:144] Add loop closure: 224,1477
+I1204 12:50:00.607789  1251 lio_back_end.cpp:144] Add loop closure: 230,1482
+I1204 12:50:01.608325  1251 lio_back_end.cpp:144] Add loop closure: 235,1487
+I1204 12:50:03.851186  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 32 of Backend Optimization -------
+	Num. Vertices: 1492
+	Num. Edges: 5995
+	Num. Iterations: 15/512
+	Time Consumption: 2.14097
+	Cost Change: 7.78137e+08--->111933
+
+I1204 12:50:06.633416  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 33 of Backend Optimization -------
+	Num. Vertices: 1500
+	Num. Edges: 6027
+	Num. Iterations: 19/512
+	Time Consumption: 2.73373
+	Cost Change: 6.64899e+08--->112105
+
+I1204 12:50:06.669983  1251 lio_back_end.cpp:144] Add loop closure: 242,1492
+I1204 12:50:06.670011  1251 lio_back_end.cpp:144] Add loop closure: 248,1497
+I1204 12:50:07.442646  1251 lio_back_end.cpp:144] Add loop closure: 254,1502
+I1204 12:50:08.142052  1251 lio_back_end.cpp:144] Add loop closure: 260,1507
+I1204 12:50:08.841085  1251 lio_back_end.cpp:144] Add loop closure: 265,1512
+I1204 12:50:09.542431  1251 lio_back_end.cpp:144] Add loop closure: 271,1517
+I1204 12:50:11.442267  1251 lio_back_end.cpp:144] Add loop closure: 276,1522
+I1204 12:50:14.242914  1251 lio_back_end.cpp:144] Add loop closure: 291,1538
+I1204 12:50:15.042208  1251 lio_back_end.cpp:144] Add loop closure: 297,1543
+I1204 12:50:18.021945  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 34 of Backend Optimization -------
+	Num. Vertices: 1550
+	Num. Edges: 6236
+	Num. Iterations: 16/512
+	Time Consumption: 2.47717
+	Cost Change: 6.84739e+08--->119244
+
+I1204 12:50:18.059653  1251 lio_back_end.cpp:144] Add loop closure: 303,1548
+I1204 12:50:21.462958  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 35 of Backend Optimization -------
+	Num. Vertices: 1551
+	Num. Edges: 6241
+	Num. Iterations: 21/512
+	Time Consumption: 3.3987
+	Cost Change: 4.68496e+08--->119258
+
+I1204 12:50:22.516062  1251 lio_back_end.cpp:144] Add loop closure: 309,1553
+I1204 12:50:23.515944  1251 lio_back_end.cpp:144] Add loop closure: 315,1558
+I1204 12:50:24.316052  1251 lio_back_end.cpp:144] Add loop closure: 320,1563
+I1204 12:50:25.316191  1251 lio_back_end.cpp:144] Add loop closure: 325,1568
+I1204 12:50:29.692476  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 36 of Backend Optimization -------
+	Num. Vertices: 1600
+	Num. Edges: 6441
+	Num. Iterations: 25/512
+	Time Consumption: 3.87491
+	Cost Change: 4.70345e+08--->121988
+
+I1204 12:50:29.745723  1251 lio_back_end.cpp:144] Add loop closure: 330,1573
+I1204 12:50:29.745754  1251 lio_back_end.cpp:144] Add loop closure: 337,1578
+I1204 12:50:29.745759  1251 lio_back_end.cpp:144] Add loop closure: 342,1583
+I1204 12:50:29.745764  1251 lio_back_end.cpp:144] Add loop closure: 349,1588
+I1204 12:50:29.745770  1251 lio_back_end.cpp:144] Add loop closure: 355,1593
+I1204 12:50:30.596325  1251 lio_back_end.cpp:144] Add loop closure: 361,1598
+I1204 12:50:33.270931  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 37 of Backend Optimization -------
+	Num. Vertices: 1623
+	Num. Edges: 6539
+	Num. Iterations: 16/512
+	Time Consumption: 2.5707
+	Cost Change: 3.72319e+08--->122785
+
+I1204 12:50:33.298753  1251 lio_back_end.cpp:144] Add loop closure: 366,1603
+I1204 12:50:42.513025  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 38 of Backend Optimization -------
+	Num. Vertices: 1650
+	Num. Edges: 6648
+	Num. Iterations: 17/512
+	Time Consumption: 2.63696
+	Cost Change: 3.29665e+08--->124699
+
+I1204 12:50:54.410885  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 39 of Backend Optimization -------
+	Num. Vertices: 1700
+	Num. Edges: 6848
+	Num. Iterations: 24/512
+	Time Consumption: 3.79374
+	Cost Change: 2.24992e+08--->127694
+
+I1204 12:51:03.581614  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 40 of Backend Optimization -------
+	Num. Vertices: 1750
+	Num. Edges: 7048
+	Num. Iterations: 16/512
+	Time Consumption: 2.66491
+	Cost Change: 5.13696e+08--->128395
+
+I1204 12:51:14.131422  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 41 of Backend Optimization -------
+	Num. Vertices: 1800
+	Num. Edges: 7248
+	Num. Iterations: 16/512
+	Time Consumption: 2.74246
+	Cost Change: 3.47786e+08--->129321
+
+I1204 12:51:25.292371  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 42 of Backend Optimization -------
+	Num. Vertices: 1850
+	Num. Edges: 7448
+	Num. Iterations: 20/512
+	Time Consumption: 3.35581
+	Cost Change: 3.35148e+08--->130356
+
+I1204 12:51:32.894443  1251 lio_back_end.cpp:144] Add loop closure: 5,1879
+I1204 12:51:33.794440  1251 lio_back_end.cpp:144] Add loop closure: 11,1884
+I1204 12:51:34.795528  1251 lio_back_end.cpp:144] Add loop closure: 17,1889
+I1204 12:51:35.994438  1251 lio_back_end.cpp:144] Add loop closure: 23,1894
+I1204 12:51:39.358840  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 43 of Backend Optimization -------
+	Num. Vertices: 1900
+	Num. Edges: 7652
+	Num. Iterations: 17/512
+	Time Consumption: 3.06095
+	Cost Change: 2.14905e+08--->134063
+
+I1204 12:51:39.860386  1251 lio_back_end.cpp:144] Add loop closure: 30,1899
+I1204 12:51:40.460376  1251 lio_back_end.cpp:144] Add loop closure: 35,1904
+I1204 12:51:57.299875  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 44 of Backend Optimization -------
+	Num. Vertices: 1913
+	Num. Edges: 7706
+	Num. Iterations: 17/512
+	Time Consumption: 2.83943
+	Cost Change: 5.64196e+08--->134672
+
+I1204 12:52:03.112568  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 45 of Backend Optimization -------
+	Num. Vertices: 1913
+	Num. Edges: 7706
+	Num. Iterations: 10/512
+	Time Consumption: 1.78257
+	Cost Change: 134672--->134628
+
+I1204 12:52:06.006126  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 46 of Backend Optimization -------
+	Num. Vertices: 1913
+	Num. Edges: 7706
+	Num. Iterations: 3/512
+	Time Consumption: 0.863889
+	Cost Change: 134628--->134628
+
+I1204 12:52:08.376710  1251 g2o_graph_optimizer.cpp:72] 
+------ Finish Iteration 47 of Backend Optimization -------
+	Num. Vertices: 1913
+	Num. Edges: 7706
+	Num. Iterations: 3/512
+	Time Consumption: 0.917307
+	Cost Change: 134628--->134628
+

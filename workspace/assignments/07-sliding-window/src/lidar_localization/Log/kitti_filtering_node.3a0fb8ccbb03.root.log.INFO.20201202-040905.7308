@@ -1,0 +1,75 @@
+Log file created at: 2020/12/02 04:09:05
+Running on machine: 3a0fb8ccbb03
+Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg
+I1202 04:09:05.547957  7308 kitti_filtering.cpp:177] 
+-----------------Init IMU-Lidar Fusion for Localization-------------------
+I1202 04:09:06.283529  7308 kitti_filtering.cpp:240] Load global map, size:1651792
+I1202 04:09:06.366160  7308 kitti_filtering.cpp:244] Filtered global map, size:1651792
+I1202 04:09:06.366201  7308 scan_context_manager.cpp:50] Scan Context params:
+	max. radius: 80
+	max. theta: 360
+	num. rings: 20
+	num. sectors: 60
+	re-indexing interval: 1
+	min. key frame sequence distance: 100
+	nearest-neighbor candidates to check: 5
+	fast alignment search ratio: 0.1
+	loop-closure scan context distance thresh: 0.15
+
+I1202 04:09:06.366219  7308 scan_context_manager.cpp:238] 
+[Scan Context]: Load Scan Context Index.
+I1202 04:09:06.699466  7308 scan_context_manager.cpp:250] 	Num. Scan Contexts: 1914
+I1202 04:09:06.716972  7308 scan_context_manager.cpp:261] 	Num. Ring Keys: 1914
+I1202 04:09:06.730602  7308 scan_context_manager.cpp:272] 	Num. Key Frames: 1914
+I1202 04:09:06.731751  7308 scan_context_manager.cpp:283] 	Index Size: 1914
+I1202 04:09:06.732062  7308 extended_kalman_filter.cpp:87] 
+Iterative Extended Kalman Filter params:
+	gravity magnitude: 9.80943
+	earth rotation speed: 7.29211e-05
+	latitude: 0.854911
+	longitude: 0.854911
+	magneto: 
+		B_E: 32.9866
+		B_N: -3.56781
+		B_U: 36.0789
+
+	prior cov. pos.: 1e-06
+	prior cov. vel.: 1e-06
+	prior cov. ori: 1e-06
+	prior cov. epsilon.: 1e-06
+	prior cov. delta.: 1e-06
+
+	process noise gyro.: 0.0001
+	process noise accel.: 0.0025
+
+	measurement noise pose.: 
+		pos: 0.0001, ori.: 0.0001
+	measurement noise pos.: 0.0001
+	measurement noise vel.: 0.0025
+	measurement noise mag.: 0.0001
+
+	motion constraint: 
+		activated: true
+		w_b threshold: 0.13
+
+I1202 04:09:06.819533  7308 kitti_filtering.cpp:364] New local map:-150,150,-150,150,-150,150
+
+I1202 04:09:12.883762  7308 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1913<-->1874
+	Distance 0.103263
+	Heading Change 0 deg.
+
+I1202 04:09:12.965293  7308 kitti_filtering.cpp:364] New local map:-149.745,150.255,-150.397,149.603,-148.909,151.091
+
+I1202 04:09:12.965318  7308 extended_kalman_filter.cpp:235] 
+IEKF Inited at 1317646536
+Init Position: 0, 0, 0
+Init Velocity: 3.98219, 7.21696, -0.0451759
+I1202 04:09:12.965325  7308 kitti_filtering_flow.cpp:255] Scan Context Localization Init Succeeded.
+I1202 04:09:16.614691  7308 extended_kalman_filter.cpp:303] IEKF Correct: Observation is not synced with filter. Skip, 1317646540 <-- 1317646540 @ -0.119405
+I1202 04:09:18.614408  7308 extended_kalman_filter.cpp:303] IEKF Correct: Observation is not synced with filter. Skip, 1317646542 <-- 1317646542 @ -0.119382
+I1202 04:09:21.910959  7308 extended_kalman_filter.cpp:303] IEKF Correct: Observation is not synced with filter. Skip, 1317646545 <-- 1317646545 @ -0.119775
+I1202 04:09:22.430361  7308 extended_kalman_filter.cpp:303] IEKF Correct: Observation is not synced with filter. Skip, 1317646545 <-- 1317646546 @ -0.119588
+I1202 04:09:24.723294  7308 extended_kalman_filter.cpp:303] IEKF Correct: Observation is not synced with filter. Skip, 1317646548 <-- 1317646548 @ -0.119782
+I1202 04:09:25.841307  7308 extended_kalman_filter.cpp:303] IEKF Correct: Observation is not synced with filter. Skip, 1317646549 <-- 1317646549 @ -0.119853
+I1202 04:09:27.814123  7308 extended_kalman_filter.cpp:303] IEKF Correct: Observation is not synced with filter. Skip, 1317646551 <-- 1317646551 @ -0.119898

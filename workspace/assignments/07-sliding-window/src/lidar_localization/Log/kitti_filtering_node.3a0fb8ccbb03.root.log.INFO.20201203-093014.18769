@@ -1,0 +1,67 @@
+Log file created at: 2020/12/03 09:30:14
+Running on machine: 3a0fb8ccbb03
+Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg
+I1203 09:30:14.741902 18769 kitti_filtering.cpp:177] 
+-----------------Init IMU-Lidar Fusion for Localization-------------------
+I1203 09:30:14.796438 18769 kitti_filtering.cpp:240] Load global map, size:1651792
+I1203 09:30:14.885447 18769 kitti_filtering.cpp:244] Filtered global map, size:1651792
+I1203 09:30:14.885497 18769 scan_context_manager.cpp:50] Scan Context params:
+	max. radius: 80
+	max. theta: 360
+	num. rings: 20
+	num. sectors: 60
+	re-indexing interval: 1
+	min. key frame sequence distance: 100
+	nearest-neighbor candidates to check: 5
+	fast alignment search ratio: 0.1
+	loop-closure scan context distance thresh: 0.15
+
+I1203 09:30:14.885517 18769 scan_context_manager.cpp:238] 
+[Scan Context]: Load Scan Context Index.
+I1203 09:30:14.897688 18769 scan_context_manager.cpp:250] 	Num. Scan Contexts: 1914
+I1203 09:30:14.898388 18769 scan_context_manager.cpp:261] 	Num. Ring Keys: 1914
+I1203 09:30:14.898826 18769 scan_context_manager.cpp:272] 	Num. Key Frames: 1914
+I1203 09:30:14.899287 18769 scan_context_manager.cpp:283] 	Index Size: 1914
+I1203 09:30:14.899422 18769 error_state_kalman_filter.cpp:53] 
+Error-State Kalman Filter params:
+	gravity magnitude: 9.80943
+	earth rotation speed: 7.29211e-05
+	latitude: 0.854911
+
+	prior cov. pos.: 1e-06
+	prior cov. vel.: 1e-06
+	prior cov. ori: 1e-06
+	prior cov. epsilon.: 1e-06
+	prior cov. delta.: 1e-06
+
+	process noise gyro.: 0.0001
+	process noise accel.: 0.0025
+
+	measurement noise pose.: 
+		pos: 0.0001, ori.: 0.0001
+	measurement noise pos.: 0.0001
+	measurement noise vel.: 0.0025
+
+	motion constraint: 
+		activated: true
+		w_b threshold: 0.13
+
+I1203 09:30:14.967360 18769 kitti_filtering.cpp:364] New local map:-150,150,-150,150,-150,150
+
+I1203 09:30:21.191777 18769 scan_context_manager.cpp:719] 
+[Scan Context] Loop-Closure Detected 1913<-->0
+	Distance 0
+	Heading Change 0 deg.
+
+I1203 09:30:21.261878 18769 kitti_filtering.cpp:364] New local map:-149.316,150.684,-149.447,150.553,-149.211,150.789
+
+I1203 09:30:21.261905 18769 error_state_kalman_filter.cpp:192] 
+Kalman Filter Inited at 1317646536
+Init Position: 0, 0, 0
+Init Velocity: 4.01895, 7.29302, -0.0494299
+I1203 09:30:21.261911 18769 kitti_filtering_flow.cpp:255] Scan Context Localization Init Succeeded.
+I1203 09:30:21.714289 18769 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646537 <-- 1317646537 @ -0.119614
+I1203 09:30:23.692777 18769 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646538 <-- 1317646539 @ -0.129962
+I1203 09:30:26.805855 18769 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646542 <-- 1317646542 @ -0.129481
+I1203 09:30:30.111516 18769 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646545 <-- 1317646545 @ -0.119775
+I1203 09:30:30.638397 18769 error_state_kalman_filter.cpp:271] ESKF Correct: Observation is not synced with filter. Skip, 1317646545 <-- 1317646546 @ -0.129586
