@@ -50,14 +50,15 @@ namespace lio {
 const int NUM_THREADS = 4;
 
 struct ResidualBlockInfo {
-  ResidualBlockInfo(ceres::CostFunction *_cost_function,
-                    ceres::LossFunction *_loss_function,
-                    std::vector<double *> _parameter_blocks,
-                    std::vector<int> _drop_set)
-      : cost_function(_cost_function),
-        loss_function(_loss_function),
-        parameter_blocks(_parameter_blocks),
-        drop_set(_drop_set) {}
+  ResidualBlockInfo(
+    ceres::CostFunction *_cost_function,
+    ceres::LossFunction *_loss_function,
+    std::vector<double *> _parameter_blocks,
+    std::vector<int> _drop_set
+  ) : cost_function(_cost_function),
+      loss_function(_loss_function),
+      parameter_blocks(_parameter_blocks),
+      drop_set(_drop_set) {}
 
   void Evaluate();
 
@@ -94,9 +95,11 @@ class MarginalizationInfo {
   std::vector<double *> GetParameterBlocks(std::unordered_map<long, double *> &addr_shift);
 
   std::vector<ResidualBlockInfo *> factors;
+  
   int m, n;
-  std::unordered_map<long, int> parameter_block_size; //global size
   int sum_block_size;
+
+  std::unordered_map<long, int> parameter_block_size; //global size
   std::unordered_map<long, int> parameter_block_idx; //local size
   std::unordered_map<long, double *> parameter_block_data;
 

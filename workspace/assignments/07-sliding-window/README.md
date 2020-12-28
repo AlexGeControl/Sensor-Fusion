@@ -24,7 +24,7 @@ This is the solution of Assignment 07 of Sensor Fusion from [深蓝学院](https
 
 ### ANS 
 
-算法中的关键计算步骤的推导参考[here](doc/derivation/02-sliding-window-for-real-time-lidar-localization.pdf)
+算法中的关键计算步骤的推导参考[here](doc/derivation/02-ceres-implementation.pdf)
 
 简化后的**sliding-window backend using Ceres**如下. 
 
@@ -154,16 +154,18 @@ This is the solution of Assignment 07 of Sensor Fusion from [深蓝学院](https
         if (estimator_config_.imu_factor) {
             e_option.parameter_blocks = para_ids;
             e_option.residual_blocks = res_ids_pim;
+
             problem.Evaluate(e_option, &cost, NULL, NULL, NULL);
-            DLOG(INFO) << "aft_pim: " << cost;
+            DLOG(INFO) << "\tmap matching: " << cost;
         }
 
         // 2. relative pose from lidar frontend:
         if (estimator_config_.point_distance_factor) {
             e_option.parameter_blocks = para_ids;
             e_option.residual_blocks = res_ids_proj;
+
             problem.Evaluate(e_option, &cost, NULL, NULL, NULL);
-            DLOG(INFO) << "aft_proj: " << cost;
+            DLOG(INFO) << "\trelative pose: " << cost;
         }
 
         // 3. IMU pre-integration
@@ -172,7 +174,7 @@ This is the solution of Assignment 07 of Sensor Fusion from [深蓝学院](https
                 e_option.parameter_blocks = para_ids;
                 e_option.residual_blocks = res_ids_marg;
                 problem.Evaluate(e_option, &cost, NULL, NULL, NULL);
-                DLOG(INFO) << "aft_marg: " << cost;
+                DLOG(INFO) << "\tIMU pre-integration: " << cost;
             }
         }
 
@@ -182,7 +184,7 @@ This is the solution of Assignment 07 of Sensor Fusion from [深蓝学院](https
                 e_option.parameter_blocks = para_ids;
                 e_option.residual_blocks = res_ids_marg;
                 problem.Evaluate(e_option, &cost, NULL, NULL, NULL);
-                DLOG(INFO) << "aft_marg: " << cost;
+                DLOG(INFO) << "\tmarginalization: " << cost;
             }
         }
     }
