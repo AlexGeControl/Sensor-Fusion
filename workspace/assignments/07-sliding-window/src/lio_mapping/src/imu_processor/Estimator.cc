@@ -1652,6 +1652,7 @@ void Estimator::SolveOptimization() {
     return;
   }
 
+  // init timer:
   TicToc tic_toc_opt;
 
   bool turn_off = true;
@@ -1659,8 +1660,10 @@ void Estimator::SolveOptimization() {
 
   ceres::Problem problem;
   ceres::LossFunction *loss_function;
+
   // NOTE: indoor test
-//  loss_function = new ceres::HuberLoss(0.5);
+  //  loss_function = new ceres::HuberLoss(0.5);
+  // robust kernel function -- Cauchy loss:
   loss_function = new ceres::CauchyLoss(1.0);
 
   // NOTE: update from laser transform
@@ -1791,8 +1794,7 @@ void Estimator::SolveOptimization() {
 
   if (estimator_config_.imu_factor) {
 
-    for (int i = 0; i < estimator_config_.opt_window_size;
-         ++i) {
+    for (int i = 0; i < estimator_config_.opt_window_size; ++i) {
       int j = i + 1;
       int opt_i = int(estimator_config_.window_size - estimator_config_.opt_window_size + i);
       int opt_j = opt_i + 1;
@@ -1801,16 +1803,6 @@ void Estimator::SolveOptimization() {
       }
 
       ImuFactor *f = new ImuFactor(pre_integrations_[opt_j]);
-//    {
-//      double **tmp_parameters = new double *[5];
-//      tmp_parameters[0] = para_pose_[i];
-//      tmp_parameters[1] = para_speed_bias_[i];
-//      tmp_parameters[2] = para_pose_[j];
-//      tmp_parameters[3] = para_speed_bias_[j];
-//      tmp_parameters[4] = para_qwi_;
-//      f->Check(tmp_parameters);
-//      delete[] tmp_parameters;
-//    }
 
       // TODO: is it better to use g_vec_ as global parameter?
       ceres::internal::ResidualBlock *res_id =

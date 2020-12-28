@@ -1,5 +1,11 @@
 # LIO-mapping
+
+This snapshot is created for understanding the implementation of sliding-window based real-time localization using lidar.
+
+---
+
 ## A Tightly Coupled 3D Lidar and Inertial Odometry and Mapping Approach
+
 #### Authors: Haoyang Ye, Yuying Chen, and Ming Liu from [RAM-LAB](https://ram-lab.com/).
 [[Paper]](https://arxiv.org/abs/1904.06993), [[Project]](https://sites.google.com/view/lio-mapping), [[Bib]](https://ram-lab.com/papers/2019/icra_2019_ye.bib). ICRA 2019.
 ## Table of Contents
