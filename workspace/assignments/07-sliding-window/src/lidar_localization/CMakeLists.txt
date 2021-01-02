@@ -62,6 +62,7 @@ include(cmake/protobuf.cmake)
 include(cmake/PCL.cmake)
 include(cmake/sophus.cmake)
 include(cmake/g2o.cmake)
+include(cmake/ceres.cmake)
 
 include_directories(include ${catkin_INCLUDE_DIRS})
 include(cmake/global_defination.cmake)
@@ -114,9 +115,17 @@ add_executable(gnss_ins_sim_filtering_node src/apps/gnss_ins_sim_filtering_node.
 add_dependencies(gnss_ins_sim_filtering_node ${catkin_EXPORTED_TARGETS})
 target_link_libraries(gnss_ins_sim_filtering_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
 
-add_executable(lio_back_end_node src/apps/lio_back_end_node.cpp ${ALL_SRCS})
-add_dependencies(lio_back_end_node ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)
-target_link_libraries(lio_back_end_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
+add_executable(lio_mapping_node src/apps/lio_mapping_node.cpp ${ALL_SRCS})
+add_dependencies(lio_mapping_node ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)
+target_link_libraries(lio_mapping_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
+
+add_executable(lio_matching_node src/apps/lio_matching_node.cpp ${ALL_SRCS})
+add_dependencies(lio_matching_node ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)
+target_link_libraries(lio_matching_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
+
+add_executable(sliding_window_node src/apps/sliding_window_node.cpp ${ALL_SRCS})
+add_dependencies(sliding_window_node ${catkin_EXPORTED_TARGETS} ${PROJECT_NAME}_generate_messages_cpp)
+target_link_libraries(sliding_window_node ${catkin_LIBRARIES} ${ALL_TARGET_LIBRARIES})
 
 #############
 ## Install ##
@@ -150,7 +159,10 @@ install(TARGETS
         kitti_filtering_node
         gnss_ins_sim_filtering_node
 
-        lio_back_end_node
+        lio_mapping_node
+
+        lio_matching_node
+        sliding_window_node
     RUNTIME DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 

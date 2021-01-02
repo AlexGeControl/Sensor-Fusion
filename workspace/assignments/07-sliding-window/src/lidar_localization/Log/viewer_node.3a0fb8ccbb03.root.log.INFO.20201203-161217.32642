@@ -1,6 +1,0 @@
-Log file created at: 2020/12/03 16:12:17
-Running on machine: 3a0fb8ccbb03
-Log line format: [IWEF]mmdd hh:mm:ss.uuuuuu threadid file:line] msg
-I1203 16:12:17.869824 32642 viewer.cpp:182] 地图保存完成，地址是：
-/workspace/assignments/06-graph-optimization/src/lidar_localization/slam_data/map
-

@@ -195,17 +195,20 @@ bool DataPretreatFlow::TransformData() {
 }
 
 bool DataPretreatFlow::PublishData() {
-    cloud_pub_ptr_->Publish(current_cloud_data_.cloud_ptr, current_cloud_data_.time);
-    imu_pub_ptr_->Publish(current_imu_data_, current_cloud_data_.time);
+    // take lidar measurement time as synced timestamp:
+    const double &timestamp_synced = current_cloud_data_.time;
 
-    pos_vel_pub_ptr_->Publish(pos_vel_, current_cloud_data_.time);
+    cloud_pub_ptr_->Publish(current_cloud_data_.cloud_ptr, timestamp_synced);
+    imu_pub_ptr_->Publish(current_imu_data_, timestamp_synced);
+
+    pos_vel_pub_ptr_->Publish(pos_vel_, timestamp_synced);
     
     //
     // this synced odometry has the following info:
     //
     // a. lidar frame's pose in map
     // b. lidar frame's velocity 
-    gnss_pub_ptr_->Publish(gnss_pose_, current_velocity_data_, current_cloud_data_.time);
+    gnss_pub_ptr_->Publish(gnss_pose_, current_velocity_data_, timestamp_synced);
 
     return true;
 }

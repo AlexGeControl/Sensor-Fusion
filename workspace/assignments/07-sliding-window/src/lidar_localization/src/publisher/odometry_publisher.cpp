@@ -97,10 +97,11 @@ void OdometryPublisher::PublishData(
     odometry_.pose.pose.orientation.w = q.w();
 
     // set the twist:
+    // a. linear:
     odometry_.twist.twist.linear.x = velocity_data.linear_velocity.x;
     odometry_.twist.twist.linear.y = velocity_data.linear_velocity.y;
     odometry_.twist.twist.linear.z = velocity_data.linear_velocity.z;
-
+    // b. angular:
     odometry_.twist.twist.angular.x = velocity_data.angular_velocity.x;
     odometry_.twist.twist.angular.y = velocity_data.angular_velocity.y;
     odometry_.twist.twist.angular.z = velocity_data.angular_velocity.z;

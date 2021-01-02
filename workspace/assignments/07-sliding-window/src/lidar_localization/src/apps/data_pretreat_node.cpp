@@ -1,5 +1,5 @@
 /*
- * @Description: 数据预处理的node文件
+ * @Description: ROS node for sensor measurement pre-processing
  * @Author: Ren Qian
  * @Date: 2020-02-05 02:56:27
  */
