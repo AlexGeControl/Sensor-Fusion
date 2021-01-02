@@ -8,6 +8,7 @@
 
 #include <ceres/ceres.h>
 
+#include <Eigen/Eigen>
 #include <Eigen/Core>
 #include <Eigen/Dense>
 
@@ -52,38 +53,20 @@ public:
     // parse parameters:
     //
     // a. pose i
-    Eigen::Vector3d pos_i(
-      parameters[0][INDEX_P + 0], parameters[0][INDEX_P + 1], parameters[0][INDEX_P + 2]
-    );
-    Sophus::SO3d    ori_i = Sophus::SO3d::exp(Eigen::Vector3d(
-      parameters[0][INDEX_R + 0], parameters[0][INDEX_R + 1], parameters[0][INDEX_R + 2]
-    ));
-		Eigen::Vector3d vel_i(
-      parameters[0][INDEX_V + 0], parameters[0][INDEX_V + 1], parameters[0][INDEX_V + 2]
-    );
-		Eigen::Vector3d b_a_i(
-      parameters[0][INDEX_A + 0], parameters[0][INDEX_A + 1], parameters[0][INDEX_A + 2]
-    );
-		Eigen::Vector3d b_g_i(
-      parameters[0][INDEX_G + 0], parameters[0][INDEX_G + 1], parameters[0][INDEX_G + 2]
-    );
+    Eigen::Map<const Eigen::Vector3d>     pos_i(&parameters[0][INDEX_P]);
+    Eigen::Map<const Eigen::Vector3d> log_ori_i(&parameters[0][INDEX_R]);
+    const Sophus::SO3d                    ori_i = Sophus::SO3d::exp(log_ori_i);
+		Eigen::Map<const Eigen::Vector3d>     vel_i(&parameters[0][INDEX_V]);
+		Eigen::Map<const Eigen::Vector3d>     b_a_i(&parameters[0][INDEX_A]);
+		Eigen::Map<const Eigen::Vector3d>     b_g_i(&parameters[0][INDEX_G]);
 
     // b. pose j
-    Eigen::Vector3d pos_j(
-      parameters[1][INDEX_P + 0], parameters[1][INDEX_P + 1], parameters[1][INDEX_P + 2]
-    );
-    Sophus::SO3d    ori_j = Sophus::SO3d::exp(Eigen::Vector3d(
-      parameters[1][INDEX_R + 0], parameters[1][INDEX_R + 1], parameters[1][INDEX_R + 2]
-    ));
-		Eigen::Vector3d vel_j(
-      parameters[1][INDEX_V + 0], parameters[1][INDEX_V + 1], parameters[1][INDEX_V + 2]
-    );
-		Eigen::Vector3d b_a_j(
-      parameters[1][INDEX_A + 0], parameters[1][INDEX_A + 1], parameters[1][INDEX_A + 2]
-    );
-		Eigen::Vector3d b_g_j(
-      parameters[1][INDEX_G + 0], parameters[1][INDEX_G + 1], parameters[1][INDEX_G + 2]
-    );
+    Eigen::Map<const Eigen::Vector3d>     pos_j(&parameters[1][INDEX_P]);
+    Eigen::Map<const Eigen::Vector3d> log_ori_j(&parameters[1][INDEX_R]);
+    const Sophus::SO3d                    ori_j = Sophus::SO3d::exp(log_ori_j);
+		Eigen::Map<const Eigen::Vector3d>     vel_j(&parameters[1][INDEX_V]);
+		Eigen::Map<const Eigen::Vector3d>     b_a_j(&parameters[1][INDEX_A]);
+		Eigen::Map<const Eigen::Vector3d>     b_g_j(&parameters[1][INDEX_G]);
 
     //
     // parse measurement:
