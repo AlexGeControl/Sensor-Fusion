@@ -27,11 +27,14 @@ bool SlidingWindow::InitWithConfig() {
 
     std::cout << "-----------------Init LIO Localization, Backend-------------------" << std::endl;
 
+    // a. estimation output path:
     InitDataPath(config_node);
-    InitParam(config_node);
-    InitGraphOptimizer(config_node);
+    // b. key frame selection config:
+    InitKeyFrameSelection(config_node);
+    // c. sliding window config:
+    InitSlidingWindow(config_node);
+    // d. IMU pre-integration:
     InitIMUPreIntegrator(config_node);
-    InitOdoPreIntegrator(config_node);
 
     return true;
 }
@@ -46,7 +49,6 @@ bool SlidingWindow::InitDataPath(const YAML::Node& config_node) {
         return false;
 
     trajectory_path_ = data_path + "/slam_data/trajectory";
-
     if (!FileManager::InitDirectory(trajectory_path_, "Estimated Trajectory"))
         return false;
 
@@ -54,47 +56,37 @@ bool SlidingWindow::InitDataPath(const YAML::Node& config_node) {
 }
 
 
-bool SlidingWindow::InitParam(const YAML::Node& config_node) {
-    key_frame_distance_ = config_node["key_frame_distance"].as<float>();
+bool SlidingWindow::InitKeyFrameSelection(const YAML::Node& config_node) {
+    key_frame_config_.max_distance = config_node["key_frame"]["max_distance"].as<float>();
+    key_frame_config_.max_interval = config_node["key_frame"]["max_interval"].as<float>();
 
     return true;
 }
 
-bool SlidingWindow::InitGraphOptimizer(const YAML::Node& config_node) {
-    std::string graph_optimizer_type = config_node["graph_optimizer_type"].as<std::string>();
+bool SlidingWindow::InitSlidingWindow(const YAML::Node& config_node) {
+    // init sliding window:
+    const int sliding_window_size = config_node["sliding_window_size"].as<int>();
+    sliding_window_ptr_ = std::make_shared<CeresSlidingWindow>(sliding_window_size);
 
-    if (graph_optimizer_type == "g2o") {
-        graph_optimizer_ptr_ = std::make_shared<G2oGraphOptimizer>("lm_var");
-    } else {
-        LOG(ERROR) << "Optimizer " << graph_optimizer_type << " NOT FOUND!";
-        return false;
-    }
-    std::cout << "\tOptimizer:" << graph_optimizer_type << std::endl << std::endl;
+    // select measurements:
+    measurement_config_.source.map_matching = config_node["measurements"]["map_matching"].as<bool>();
+    measurement_config_.source.imu_pre_integration = config_node["measurements"]["imu_pre_integration"].as<bool>();
 
-    graph_optimizer_config_.use_gnss = config_node["use_gnss"].as<bool>();
-    graph_optimizer_config_.use_loop_close = config_node["use_loop_close"].as<bool>();
-    graph_optimizer_config_.use_imu_pre_integration = config_node["use_imu_pre_integration"].as<bool>();
-    graph_optimizer_config_.use_odo_pre_integration = config_node["use_odo_pre_integration"].as<bool>();
-
-    graph_optimizer_config_.optimization_step_size.key_frame = (
-        config_node["optimization_step_size"]["key_frame"].as<int>()
-    );
-    graph_optimizer_config_.optimization_step_size.loop_closure = (
-        config_node["optimization_step_size"]["loop_closure"].as<int>()
-    );
-
-    // x-y-z & yaw-roll-pitch
+    // get measurement noises, pose:
+    measurement_config_.noise.lidar_odometry.resize(6);
+    measurement_config_.noise.map_matching.resize(6);
     for (int i = 0; i < 6; ++i) {
-        graph_optimizer_config_.odom_edge_noise(i) =
-            config_node[graph_optimizer_type + "_param"]["odom_edge_noise"][i].as<double>();
-        graph_optimizer_config_.close_loop_noise(i) =
-            config_node[graph_optimizer_type + "_param"]["close_loop_noise"][i].as<double>();
+        measurement_config_.noise.lidar_odometry(i) =
+            config_node["lidar_odometry"]["noise"][i].as<double>();
+        measurement_config_.noise.map_matching(i) =
+            config_node["map_matching"]["noise"][i].as<double>();
     }
 
-    // x-y-z:
+    // get measurement noises, position:
+    measurement_config_.noise.gnss_position.resize(3);
     for (int i = 0; i < 3; i++) {
-        graph_optimizer_config_.gnss_noise(i) =
-            config_node[graph_optimizer_type + "_param"]["gnss_noise"][i].as<double>();
+        measurement_config_.noise.gnss_position(i) =
+            config_node["gnss_position"]["noise"][i].as<double>();
     }
 
     return true;
@@ -103,7 +95,7 @@ bool SlidingWindow::InitGraphOptimizer(const YAML::Node& config_node) {
 bool SlidingWindow::InitIMUPreIntegrator(const YAML::Node& config_node) {
     imu_pre_integrator_ptr_ = nullptr;
     
-    if (graph_optimizer_config_.use_imu_pre_integration) {
+    if (measurement_config_.source.imu_pre_integration) {
         imu_pre_integrator_ptr_ = std::make_shared<IMUPreIntegrator>(config_node["imu_pre_integration"]);
     }
 
@@ -111,7 +103,7 @@ bool SlidingWindow::InitIMUPreIntegrator(const YAML::Node& config_node) {
 }
 
 bool SlidingWindow::UpdateIMUPreIntegration(const IMUData &imu_data) {
-    if ( !graph_optimizer_config_.use_imu_pre_integration || nullptr == imu_pre_integrator_ptr_ )
+    if ( !measurement_config_.source.imu_pre_integration || nullptr == imu_pre_integrator_ptr_ )
         return false;
     
     if (
@@ -125,207 +117,58 @@ bool SlidingWindow::UpdateIMUPreIntegration(const IMUData &imu_data) {
 }
 
 bool SlidingWindow::Update(
-    const CloudData& cloud_data, 
-    const PoseData& laser_odom, 
-    const PoseData& gnss_pose,
-    const IMUData &imu_data
+    const PoseData &laser_odom,
+    const PoseData &map_matching_odom,
+    const IMUData &imu_data, 
+    const PoseData& gnss_pose
 ) {
     ResetParam();
 
-    if ( MaybeNewKeyFrame(cloud_data, laser_odom, gnss_pose, imu_data) ) {
-        AddNodeAndEdge(gnss_pose);
+    if ( 
+        MaybeNewKeyFrame(
+            laser_odom, 
+            map_matching_odom,
+            imu_data,
+            gnss_pose
+        ) 
+    ) {
+        Update();
         MaybeOptimized();
     }
 
     return true;
 }
 
-void SlidingWindow::ResetParam() {
-    has_new_key_frame_ = false;
-    has_new_optimized_ = false;
-}
-
-bool SlidingWindow::MaybeNewKeyFrame(
-    const CloudData& cloud_data, 
-    const PoseData& laser_odom, 
-    const PoseData& gnss_odom,
-    const IMUData &imu_data
-) {
-    static int count = 0;
-    static VelocityData velocity_data;
-    static PoseData last_laser_pose = laser_odom;
-    static PoseData last_gnss_pose = gnss_odom;
-
-    if (key_frames_deque_.size() == 0) {
-        // init IMU pre-integrator:
-        if ( imu_pre_integrator_ptr_ ) {
-            imu_pre_integrator_ptr_->Init(imu_data);
-        }
-
-        // init odometer pre-integrator:
-        if ( odo_pre_integrator_ptr_ ) {
-            gnss_odom.GetVelocityData(velocity_data);
-            odo_pre_integrator_ptr_->Init(velocity_data);
-        }
-
-        last_laser_pose = laser_odom;
-        last_gnss_pose = gnss_odom;
-
-        has_new_key_frame_ = true;
-    }
-
-    // whether the current scan is far away enough from last key frame:
-    if (fabs(laser_odom.pose(0,3) - last_laser_pose.pose(0,3)) + 
-        fabs(laser_odom.pose(1,3) - last_laser_pose.pose(1,3)) +
-        fabs(laser_odom.pose(2,3) - last_laser_pose.pose(2,3)) > key_frame_distance_) {
-
-        if ( imu_pre_integrator_ptr_ ) {
-            imu_pre_integrator_ptr_->Reset(imu_data, imu_pre_integration_); 
-        }
-
-        if ( odo_pre_integrator_ptr_ ) {
-            gnss_odom.GetVelocityData(velocity_data);
-            odo_pre_integrator_ptr_->Reset(velocity_data, odo_pre_integration_); 
-        }
-
-        //
-        // for IMU pre-integration debugging ONLY:
-        // this is critical to IMU pre-integration verification
-        //
-        if ( 0 == (++count) % 10 ) {
-            // display IMU pre-integration:
-            // ShowIMUPreIntegrationResidual(last_gnss_pose, gnss_odom, imu_pre_integration_); 
-
-            // display odometer pre-integration:
-
-            // reset counter:
-            count = 0;
-        }
-
-        last_laser_pose = laser_odom;
-        last_gnss_pose = gnss_odom;
-    
-        has_new_key_frame_ = true;
-    }
-
-    // if so:
-    if (has_new_key_frame_) {
-        // a. first write new key scan to disk:
-        std::string file_path = key_frames_path_ + "/key_frame_" + std::to_string(key_frames_deque_.size()) + ".pcd";
-        pcl::io::savePCDFileBinary(file_path, *cloud_data.cloud_ptr);
-        current_key_scan_.time = cloud_data.time;
-        current_key_scan_.cloud_ptr.reset(
-            new CloudData::CLOUD(*cloud_data.cloud_ptr)
-        );
-
-        current_key_gnss_.time = current_key_frame_.time = laser_odom.time;
-        current_key_gnss_.index = current_key_frame_.index = key_frames_deque_.size();
-
-        // b. create key frame index for lidar scan, relative pose measurement:
-        current_key_frame_.pose = laser_odom.pose;
-
-        // c. create key frame index for GNSS measurement, full LIO state:
-        current_key_gnss_.pose = gnss_odom.pose;
-        current_key_gnss_.vel.v = gnss_odom.vel.v;
-        current_key_gnss_.vel.w = gnss_odom.vel.w;
-
-        // add to cache for later evo evaluation:
-        key_frames_deque_.push_back(current_key_frame_);
-        key_gnss_deque_.push_back(current_key_gnss_);
-    }
-
+bool SlidingWindow::HasNewKeyFrame() {
     return has_new_key_frame_;
 }
 
-bool SlidingWindow::AddNodeAndEdge(const PoseData& gnss_data) {
-    static KeyFrame last_key_frame_ = current_key_frame_;
-
-    //
-    // add node for new key frame pose:
-    //
-    // fix the pose of the first key frame for lidar only mapping:
-    if (!graph_optimizer_config_.use_gnss && graph_optimizer_ptr_->GetNodeNum() == 0) {
-        graph_optimizer_ptr_->AddPRVAGNode(current_key_frame_, true);
-    } else {
-        graph_optimizer_ptr_->AddPRVAGNode(current_key_gnss_, false);
-    }
-
-    //
-    // add constraints:
-    //
-    // get num. of vertices:
-    const int N = graph_optimizer_ptr_->GetNodeNum();
-    // get vertex IDs:
-    const int vertex_index_i = N - 2;
-    const int vertex_index_j = N - 1;
-    // a. lidar frontend / loop closure detection:
-    if ( N > 1 ) {
-        // get relative pose measurement:
-        Eigen::Matrix4d relative_pose = (last_key_frame_.pose.inverse() * current_key_frame_.pose).cast<double>();
-        // add constraint, lidar frontend / loop closure detection:
-        graph_optimizer_ptr_->AddPRVAGRelativePoseEdge(
-            vertex_index_i, vertex_index_j, 
-            relative_pose, graph_optimizer_config_.odom_edge_noise
-        );
-    }
-
-    // b. GNSS position:
-    if ( graph_optimizer_config_.use_gnss ) {
-        // get prior position measurement:
-        Eigen::Vector3d pos = current_key_gnss_.pose.block<3, 1>(0, 3).cast<double>();
-        // add constraint, GNSS position:
-        graph_optimizer_ptr_->AddPRVAGPriorPosEdge(
-            vertex_index_j, 
-            pos, graph_optimizer_config_.gnss_noise
-        );
-    }
-
-    // c. IMU pre-integration:
-    if ( graph_optimizer_config_.use_imu_pre_integration ) {
-        // add constraint, IMU pre-integraion:
-        graph_optimizer_ptr_->AddPRVAGIMUPreIntegrationEdge(
-            vertex_index_i, vertex_index_j,
-            imu_pre_integration_
-        );
-    }
-
-    // d. Odo pre-integration:
-    if ( graph_optimizer_config_.use_odo_pre_integration ) {
-        // add constraint, odo pre-integraion:
-        graph_optimizer_ptr_->AddPRVAGOdoPreIntegrationEdge(
-            vertex_index_i, vertex_index_j,
-            odo_pre_integration_
-        );
-    }
-
-    // move forward:
-    last_key_frame_ = current_key_frame_;
-    ++counter_.key_frame;
-
-    return true;
+bool SlidingWindow::HasNewOptimized() {
+    return has_new_optimized_;
 }
 
-bool SlidingWindow::MaybeOptimized() {
-    bool need_optimize = false; 
+void SlidingWindow::GetLatestKeyFrame(KeyFrame& key_frame) {
+    key_frame = current_key_frame_;
+}
 
-    if (
-        counter_.HasEnoughKeyFrames(
-            graph_optimizer_config_.optimization_step_size.key_frame
-        ) ||
-        counter_.HasEnoughLoopClosures(
-            graph_optimizer_config_.optimization_step_size.loop_closure
-        )
-    ) {
-        need_optimize = true;
-    }
-    
-    if ( need_optimize && graph_optimizer_ptr_->Optimize() ) {
-        has_new_optimized_ = true;
+void SlidingWindow::GetLatestKeyGNSS(KeyFrame& key_frame) {
+    key_frame = current_key_gnss_;
+}
 
-        return true;
-    }
+void SlidingWindow::GetLatestOptimizedOdometry(KeyFrame& key_frame) {
+    sliding_window_ptr_->GetLatestOptimizedKeyFrame(key_frame);
+}
+
+void SlidingWindow::GetOptimizedKeyFrames(std::deque<KeyFrame>& key_frames_deque) {
+    key_frames_deque.clear();
     
-    return false;
+    // load optimized key frames:
+    sliding_window_ptr_->GetOptimizedKeyFrames(key_frames_.optimized);
+    
+    key_frames_deque.insert(
+        key_frames_deque.end(), 
+        key_frames_.optimized.begin(), key_frames_.optimized.end()
+    );
 }
 
 bool SlidingWindow::SavePose(std::ofstream& ofs, const Eigen::Matrix4f& pose) {
@@ -344,169 +187,197 @@ bool SlidingWindow::SavePose(std::ofstream& ofs, const Eigen::Matrix4f& pose) {
     return true;
 }
 
-bool SlidingWindow::ForceOptimize() {
-    if (graph_optimizer_ptr_->Optimize())
-        has_new_optimized_ = true;
-
-    return has_new_optimized_;
-}
-
-bool SlidingWindow::SaveOptimizedPose() {
+bool SlidingWindow::SaveOptimizedTrajectory() {
     static Eigen::Matrix4f current_pose = Eigen::Matrix4f::Identity();
 
-    if (graph_optimizer_ptr_->GetNodeNum() == 0)
+    if ( sliding_window_ptr_->GetNumParamBlocks() == 0 )
         return false;
 
+    // create output files:
+    std::ofstream laser_odom_ofs, optimized_ofs, ground_truth_ofs;
     if (
-        !FileManager::CreateFile(ground_truth_ofs_, trajectory_path_ + "/ground_truth.txt") || 
-        !FileManager::CreateFile(laser_odom_ofs_, trajectory_path_ + "/laser_odom.txt") ||
-        !FileManager::CreateFile(optimized_pose_ofs_, trajectory_path_ + "/optimized.txt")
-    )
+        !FileManager::CreateFile(laser_odom_ofs, trajectory_path_ + "/laser_odom.txt") ||
+        !FileManager::CreateFile(optimized_ofs, trajectory_path_ + "/optimized.txt") ||
+        !FileManager::CreateFile(ground_truth_ofs, trajectory_path_ + "/ground_truth.txt")  
+    ) {
         return false;
+    }
 
-    graph_optimizer_ptr_->GetOptimizedKeyFrame(optimized_key_frames_);
+    // load optimized key frames:
+    sliding_window_ptr_->GetOptimizedKeyFrames(key_frames_.optimized);
 
-    // write GNSS/IMU pose and lidar odometry estimation as trajectory for evo evaluation:
-    for (size_t i = 0; i < optimized_key_frames_.size(); ++i) {
-        // a. ground truth, IMU/GNSS:
-        current_pose = key_frames_deque_.at(i).pose;
+    // write 
+    // 
+    //     a. lidar odometry estimation
+    //     b. sliding window optimized odometry estimation
+    //     c. IMU/GNSS position reference
+    // 
+    // as trajectories for evo evaluation:
+    for (size_t i = 0; i < key_frames_.optimized.size(); ++i) {
+        // a. lidar odometry:
+        current_pose = key_frames_.lidar.at(i).pose;
         current_pose(2, 3) = 0.0f;
-        SavePose(ground_truth_ofs_, current_pose);
-        // b. lidar odometry:
-        current_pose = key_gnss_deque_.at(i).pose;
+        SavePose(laser_odom_ofs, current_pose);
+        // b. sliding window optimized odometry:
+        current_pose = key_frames_.optimized.at(i).pose;
         current_pose(2, 3) = 0.0f;
-        SavePose(laser_odom_ofs_, current_pose);
-        // c. optimized odometry:
-        current_pose = optimized_key_frames_.at(i).pose;
+        SavePose(optimized_ofs, current_pose);
+        // c. IMU/GNSS position reference as ground truth:
+        current_pose = key_frames_.reference.at(i).pose;
         current_pose(2, 3) = 0.0f;
-        SavePose(optimized_pose_ofs_, current_pose);
+        SavePose(ground_truth_ofs, current_pose);
     }
 
     return true;
 }
 
-void SlidingWindow::GetOptimizedKeyFrames(std::deque<KeyFrame>& key_frames_deque) {
-    key_frames_deque.clear();
-
-    key_frames_deque.insert(
-        key_frames_deque.end(), 
-        optimized_key_frames_.begin(), optimized_key_frames_.end()
-    );
+void SlidingWindow::ResetParam() {
+    has_new_key_frame_ = false;
+    has_new_optimized_ = false;
 }
 
-bool SlidingWindow::HasNewKeyFrame() {
+bool SlidingWindow::MaybeNewKeyFrame( 
+    const PoseData &laser_odom, 
+    const PoseData &map_matching_odom,
+    const IMUData &imu_data,
+    const PoseData &gnss_odom
+) {
+    static KeyFrame last_key_frame;
+
+    // 
+    // key frame selection for sliding window:
+    // 
+    if ( key_frames_.lidar.empty() ) {
+        // init IMU pre-integrator:
+        if ( imu_pre_integrator_ptr_ ) {
+            imu_pre_integrator_ptr_->Init(imu_data);
+        }
+
+        has_new_key_frame_ = true;
+    } else if (
+        // spatial:
+        ( 
+            laser_odom.pose.block<3,1>(0, 3) - 
+            last_key_frame.pose.block<3,1>(0, 3) 
+        ).lpNorm<1>() > key_frame_config_.max_distance || 
+        // temporal:
+        (
+            laser_odom.time - last_key_frame.time
+        ) > key_frame_config_.max_interval
+    ) {
+        // finish current IMU pre-integration:
+        if ( imu_pre_integrator_ptr_ ) {
+            imu_pre_integrator_ptr_->Reset(imu_data, imu_pre_integration_); 
+        }
+    
+        has_new_key_frame_ = true;
+    } else {
+        has_new_key_frame_ = false;
+    }
+
+    // if so:
+    if ( has_new_key_frame_ ) {
+        // create key frame for lidar odometry, relative pose measurement:
+        current_key_frame_.time = laser_odom.time;
+        current_key_frame_.index = key_frames_.lidar.size();
+        current_key_frame_.pose = laser_odom.pose;
+        current_key_frame_.vel.v = gnss_odom.vel.v;
+        current_key_frame_.vel.w = gnss_odom.vel.w;
+
+        current_map_matching_pose_ = map_matching_odom;
+
+        // create key frame for GNSS measurement, full LIO state:
+        current_key_gnss_.time = current_key_frame_.time;
+        current_key_gnss_.index = current_key_frame_.index;
+        current_key_gnss_.pose = gnss_odom.pose;
+        current_key_gnss_.vel.v = gnss_odom.vel.v;
+        current_key_gnss_.vel.w = gnss_odom.vel.w;
+
+        // add to cache for later evo evaluation:
+        key_frames_.lidar.push_back(current_key_frame_);
+        key_frames_.reference.push_back(current_key_gnss_);
+
+        // save for next key frame selection:
+        last_key_frame = current_key_frame_;
+    }
+
     return has_new_key_frame_;
 }
 
-bool SlidingWindow::HasNewOptimized() {
-    return has_new_optimized_;
+bool SlidingWindow::Update(void) {
+    static KeyFrame last_key_frame_ = current_key_frame_;
+
+    //
+    // add node for new key frame pose:
+    //
+    // fix the pose of the first key frame for lidar only mapping:
+    if ( sliding_window_ptr_->GetNumParamBlocks() == 0 ) {
+        sliding_window_ptr_->AddPRVAGParam(current_key_frame_, true);
+    } else {
+        sliding_window_ptr_->AddPRVAGParam(current_key_frame_, false);
+    }
+
+    //
+    // add constraints:
+    //
+    // get num. of vertices:
+    const int N = sliding_window_ptr_->GetNumParamBlocks();
+    
+    if ( N > 1 ) {
+        // get param block IDs:
+        const int param_index_i = N - 2;
+        const int param_index_j = N - 1;
+
+        //
+        // a. lidar frontend:
+        //
+        // get relative pose measurement:
+        Eigen::Matrix4d relative_pose = (last_key_frame_.pose.inverse() * current_key_frame_.pose).cast<double>();
+        // add constraint, lidar frontend / loop closure detection:
+        sliding_window_ptr_->AddPRVAGRelativePoseFactor(
+            param_index_i, param_index_j, 
+            relative_pose, measurement_config_.noise.lidar_odometry
+        );
+        
+        //
+        // b. GNSS position:
+        //
+        if ( measurement_config_.source.map_matching ) {
+            // get prior position measurement:
+            Eigen::Matrix4d prior_pose = current_map_matching_pose_.pose.cast<double>();
+            // add constraint, GNSS position:
+            sliding_window_ptr_->AddPRVAGMapMatchingPoseFactor(
+                param_index_j, 
+                prior_pose, measurement_config_.noise.map_matching
+            );
+        }
+
+        //
+        // c. IMU pre-integration:
+        //
+        if ( measurement_config_.source.imu_pre_integration ) {
+            // add constraint, IMU pre-integraion:
+            sliding_window_ptr_->AddPRVAGIMUPreIntegrationFactor(
+                param_index_i, param_index_j,
+                imu_pre_integration_
+            );
+        }
+    }
+
+    // move forward:
+    last_key_frame_ = current_key_frame_;
+
+    return true;
 }
 
-void SlidingWindow::GetLatestKeyScan(CloudData& key_scan) {
-    key_scan.time = current_key_scan_.time;
-    key_scan.cloud_ptr.reset(
-        new CloudData::CLOUD(*current_key_scan_.cloud_ptr)
-    );
-}
+bool SlidingWindow::MaybeOptimized() {    
+    if ( sliding_window_ptr_->Optimize() ) {
+        has_new_optimized_ = true;
 
-void SlidingWindow::GetLatestKeyFrame(KeyFrame& key_frame) {
-    key_frame = current_key_frame_;
-}
-
-void SlidingWindow::GetLatestKeyGNSS(KeyFrame& key_frame) {
-    key_frame = current_key_gnss_;
-}
-
-void SlidingWindow::ShowIMUPreIntegrationResidual(
-    const PoseData &last_gnss_pose, const PoseData& curr_gnss_pose,
-    const IMUPreIntegrator::IMUPreIntegration &imu_pre_integration
-) {
-    const double &T = imu_pre_integration.T_;
-    const Eigen::Vector3d &g = imu_pre_integration.g_;
-
-    Eigen::Vector3d r_p = last_gnss_pose.pose.block<3, 3>(0, 0).transpose().cast<double>() * (
-        curr_gnss_pose.pose.block<3, 1>(0, 3).cast<double>() - last_gnss_pose.pose.block<3, 1>(0, 3).cast<double>() - 
-        ( last_gnss_pose.pose.block<3, 3>(0, 0).cast<double>()*last_gnss_pose.vel.v.cast<double>() - 0.50 * g * T ) * T
-    ) - imu_pre_integration.alpha_ij_;
-
-    Sophus::SO3d prev_theta(Eigen::Quaterniond(last_gnss_pose.pose.block<3, 3>(0, 0).cast<double>()));
-    Sophus::SO3d curr_theta(Eigen::Quaterniond(curr_gnss_pose.pose.block<3, 3>(0, 0).cast<double>()));
-    Eigen::Vector3d r_q = (imu_pre_integration.theta_ij_.inverse()*prev_theta.inverse() * curr_theta).log();
-
-    Eigen::Vector3d r_v = last_gnss_pose.pose.block<3, 3>(0, 0).transpose().cast<double>() * (
-        curr_gnss_pose.pose.block<3, 3>(0, 0).cast<double>()*curr_gnss_pose.vel.v.cast<double>() - 
-        last_gnss_pose.pose.block<3, 3>(0, 0).cast<double>()*last_gnss_pose.vel.v.cast<double>() + 
-        g * T
-    ) - imu_pre_integration.beta_ij_;
-
-    LOG(INFO) << "IMU Pre-Integration Measurement: " << std::endl
-                << "\tT: " << T << " --- " << curr_gnss_pose.time - last_gnss_pose.time << std::endl
-                << "\talpha:" << std::endl
-                << "\t\t" << r_p.x() << ", " << r_p.y() << ", " << r_p.z() << std::endl
-                << "\ttheta:" << std::endl
-                << "\t\t" << r_q.x() << ", " << r_q.y() << ", " << r_q.z() << std::endl
-                << "\tbeta:" << std::endl
-                << "\t\t" << r_v.x() << ", " << r_v.y() << ", " << r_v.z() << std::endl
-                << "\tbias_accel:" 
-                << imu_pre_integration.b_a_i_.x() << ", "
-                << imu_pre_integration.b_a_i_.y() << ", " 
-                << imu_pre_integration.b_a_i_.z()
-                << std::endl
-                << "\tbias_gyro:" 
-                << imu_pre_integration.b_g_i_.x() << ", "
-                << imu_pre_integration.b_g_i_.y() << ", " 
-                << imu_pre_integration.b_g_i_.z()
-                << std::endl
-                << "\tcovariance:" << std::endl
-                << "\t\talpha: "
-                << imu_pre_integration.P_( 0,  0) << ", "
-                << imu_pre_integration.P_( 1,  1) << ", " 
-                << imu_pre_integration.P_( 2,  3)
-                << std::endl
-                << "\t\ttheta: "
-                << imu_pre_integration.P_( 3,  3) << ", "
-                << imu_pre_integration.P_( 4,  4) << ", " 
-                << imu_pre_integration.P_( 5,  5)
-                << std::endl
-                << "\t\tbeta: "
-                << imu_pre_integration.P_( 6,  6) << ", "
-                << imu_pre_integration.P_( 7,  7) << ", " 
-                << imu_pre_integration.P_( 8,  8)
-                << std::endl
-                << "\t\tbias_accel: "
-                << imu_pre_integration.P_( 9,  9) << ", "
-                << imu_pre_integration.P_(10, 10) << ", " 
-                << imu_pre_integration.P_(11, 11)
-                << std::endl
-                << "\t\tbias_gyro: "
-                << imu_pre_integration.P_(12, 12) << ", "
-                << imu_pre_integration.P_(13, 13) << ", " 
-                << imu_pre_integration.P_(14, 14)
-                << std::endl
-                /*
-                << "\tJacobian:" << std::endl
-                << "\t\td_alpha_d_b_a: " << std::endl
-                << "\t\t\t" << imu_pre_integration.J_( 0,  9) << ", " << imu_pre_integration.J_( 0, 10) << ", " << imu_pre_integration.J_( 0, 11) << std::endl
-                << "\t\t\t" << imu_pre_integration.J_( 1,  9) << ", " << imu_pre_integration.J_( 1, 10) << ", " << imu_pre_integration.J_( 1, 11) << std::endl
-                << "\t\t\t" << imu_pre_integration.J_( 2,  9) << ", " << imu_pre_integration.J_( 2, 10) << ", " << imu_pre_integration.J_( 2, 11) << std::endl
-                << "\t\td_alpha_d_b_g: " << std::endl
-                << "\t\t\t" << imu_pre_integration.J_( 0, 12) << ", " << imu_pre_integration.J_( 0, 13) << ", " << imu_pre_integration.J_( 0, 14) << std::endl
-                << "\t\t\t" << imu_pre_integration.J_( 1, 12) << ", " << imu_pre_integration.J_( 1, 13) << ", " << imu_pre_integration.J_( 1, 14) << std::endl
-                << "\t\t\t" << imu_pre_integration.J_( 2, 12) << ", " << imu_pre_integration.J_( 2, 13) << ", " << imu_pre_integration.J_( 2, 14) << std::endl
-                << "\t\td_theta_d_b_g: " << std::endl
-                << "\t\t\t" << imu_pre_integration.J_( 3, 12) << ", " << imu_pre_integration.J_( 3, 13) << ", " << imu_pre_integration.J_( 3, 14) << std::endl
-                << "\t\t\t" << imu_pre_integration.J_( 4, 12) << ", " << imu_pre_integration.J_( 4, 13) << ", " << imu_pre_integration.J_( 4, 14) << std::endl
-                << "\t\t\t" << imu_pre_integration.J_( 5, 12) << ", " << imu_pre_integration.J_( 5, 13) << ", " << imu_pre_integration.J_( 5, 14) << std::endl
-                << "\t\td_beta_d_b_a: " << std::endl
-                << "\t\t\t" << imu_pre_integration.J_( 6,  9) << ", " << imu_pre_integration.J_( 6, 10) << ", " << imu_pre_integration.J_( 6, 11) << std::endl
-                << "\t\t\t" << imu_pre_integration.J_( 7,  9) << ", " << imu_pre_integration.J_( 7, 10) << ", " << imu_pre_integration.J_( 7, 11) << std::endl
-                << "\t\t\t" << imu_pre_integration.J_( 8,  9) << ", " << imu_pre_integration.J_( 8, 10) << ", " << imu_pre_integration.J_( 8, 11) << std::endl
-                << "\t\td_beta_d_b_a: " << std::endl
-                << "\t\t\t" << imu_pre_integration.J_( 6, 12) << ", " << imu_pre_integration.J_( 6, 13) << ", " << imu_pre_integration.J_( 6, 14) << std::endl
-                << "\t\t\t" << imu_pre_integration.J_( 7, 12) << ", " << imu_pre_integration.J_( 7, 13) << ", " << imu_pre_integration.J_( 7, 14) << std::endl
-                << "\t\t\t" << imu_pre_integration.J_( 8, 12) << ", " << imu_pre_integration.J_( 8, 13) << ", " << imu_pre_integration.J_( 8, 14) << std::endl
-                */
-                << std::endl;
+        return true;
+    }
+    
+    return false;
 }
 
 } // namespace lidar_localization

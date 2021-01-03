@@ -4,12 +4,13 @@
  * @Date: 2021-01-02 10:47:23
  */
 #include <ros/ros.h>
-#include "glog/logging.h"
 
-#include <lidar_localization/optimizeMap.h>
 #include "lidar_localization/global_defination/global_defination.h"
 #include "lidar_localization/matching/back_end/sliding_window_flow.hpp"
 
+#include "glog/logging.h"
+
+using namespace lidar_localization;
 
 int main(int argc, char *argv[]) {
     google::InitGoogleLogging(argv[0]);

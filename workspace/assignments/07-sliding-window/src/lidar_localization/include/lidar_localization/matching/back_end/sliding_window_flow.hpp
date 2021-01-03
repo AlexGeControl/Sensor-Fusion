@@ -11,35 +11,27 @@
 //
 // subscribers:
 //
-// a. lidar scan, key frame measurement:
-#include "lidar_localization/subscriber/cloud_subscriber.hpp"
-// b. lidar odometry & GNSS position:
+// a. lidar odometry, map matching pose & GNSS reference position:
 #include "lidar_localization/subscriber/odometry_subscriber.hpp"
-// c. loop closure detection:
-#include "lidar_localization/subscriber/loop_pose_subscriber.hpp"
-// d. IMU measurement, for pre-integration:
+// b. IMU measurement, for pre-integration:
 #include "lidar_localization/subscriber/imu_subscriber.hpp"
-// e. odometer measurement, for pre-integration:
-#include "lidar_localization/subscriber/velocity_subscriber.hpp"
 
 #include "lidar_localization/publisher/odometry_publisher.hpp"
 #include "lidar_localization/publisher/cloud_publisher.hpp"
 #include "lidar_localization/publisher/key_frame_publisher.hpp"
 #include "lidar_localization/publisher/key_frames_publisher.hpp"
 
-#include "lidar_localization/mapping/back_end/lio_mapping.hpp"
+#include "lidar_localization/matching/back_end/sliding_window.hpp"
+
 
 namespace lidar_localization {
 
 class SlidingWindowFlow {
 public:
-    SlidingWindowFlow(
-      ros::NodeHandle& nh
-    );
+    SlidingWindowFlow(ros::NodeHandle& nh);
 
     bool Run();
-    bool ForceOptimize();
-    bool SaveOptimizedOdometry();
+    bool SaveOptimizedTrajectory();
     
   private:
     bool ReadData();
@@ -68,17 +60,26 @@ public:
     std::shared_ptr<OdometrySubscriber> gnss_pose_sub_ptr_;
     std::deque<PoseData> gnss_pose_data_buff_;
 
-    std::shared_ptr<OdometryPublisher> transformed_odom_pub_ptr_;
-    std::shared_ptr<CloudPublisher> key_scan_pub_ptr_;
+    //
+    // publishers:
+    //
     std::shared_ptr<KeyFramePublisher> key_frame_pub_ptr_;
     std::shared_ptr<KeyFramePublisher> key_gnss_pub_ptr_;
-    std::shared_ptr<KeyFramesPublisher> key_frames_pub_ptr_;
-    std::shared_ptr<LIOBackEnd> back_end_ptr_;
+    std::shared_ptr<OdometryPublisher> optimized_odom_pub_ptr_;
+    std::shared_ptr<KeyFramesPublisher> optimized_trajectory_pub_ptr_;
 
+    //
+    // backend:
+    //
+    std::shared_ptr<SlidingWindow> sliding_window_ptr_;
+
+    //
+    // synced data:
+    //
     PoseData current_laser_odom_data_;
     PoseData current_map_matching_odom_data_;
-    PoseData current_gnss_pose_data_;
     IMUData current_imu_data_;
+    PoseData current_gnss_pose_data_;
 };
 
 } // namespace lidar_localization

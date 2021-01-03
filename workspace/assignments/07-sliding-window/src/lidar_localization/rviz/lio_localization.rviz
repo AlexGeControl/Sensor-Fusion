@@ -10,6 +10,7 @@ Panels:
         - /trajectory1/reference_pose1/Shape1
         - /trajectory1/laser_pose1/Shape1
         - /trajectory1/map_matching_pose1/Shape1
+        - /trajectory1/optimized_pose1/Shape1
         - /PointCloud1
       Splitter Ratio: 0.6388888955116272
     Tree Height: 210
@@ -157,7 +158,7 @@ Visualization Manager:
               Value: true
             Value: true
           Enabled: true
-          Keep: 100
+          Keep: 10000000
           Name: map_matching_pose
           Position Tolerance: 0.10000000149011612
           Shape:
@@ -171,6 +172,40 @@ Visualization Manager:
             Shaft Radius: 0.30000001192092896
             Value: Arrow
           Topic: /map_matching_odometry
+          Unreliable: false
+          Value: true
+        - Angle Tolerance: 0.10000000149011612
+          Class: rviz/Odometry
+          Covariance:
+            Orientation:
+              Alpha: 0.5
+              Color: 255; 255; 127
+              Color Style: Unique
+              Frame: Local
+              Offset: 1
+              Scale: 1
+              Value: true
+            Position:
+              Alpha: 0.30000001192092896
+              Color: 204; 51; 204
+              Scale: 1
+              Value: true
+            Value: true
+          Enabled: true
+          Keep: 10000000
+          Name: optimized_pose
+          Position Tolerance: 0.10000000149011612
+          Shape:
+            Alpha: 1
+            Axes Length: 1
+            Axes Radius: 0.10000000149011612
+            Color: 25; 255; 25
+            Head Length: 1
+            Head Radius: 1
+            Shaft Length: 1
+            Shaft Radius: 0.30000001192092896
+            Value: Arrow
+          Topic: /optimized_odometry
           Unreliable: false
           Value: true
       Enabled: true
@@ -274,33 +309,13 @@ Visualization Manager:
       Frame Timeout: 999999
       Frames:
         All Enabled: false
-        base_link:
-          Value: false
-        camera_color_left:
-          Value: false
-        camera_color_right:
-          Value: false
-        camera_gray_left:
-          Value: false
-        camera_gray_right:
-          Value: false
-        imu_link:
-          Value: false
-        map:
-          Value: false
-        velo_link:
-          Value: false
-        world:
-          Value: false
       Marker Scale: 50
       Name: TF
       Show Arrows: false
       Show Axes: true
       Show Names: false
       Tree:
-        map:
-          velo_link:
-            {}
+        {}
       Update Interval: 0
       Value: true
   Enabled: true

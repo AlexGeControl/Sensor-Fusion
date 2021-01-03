@@ -20,172 +20,182 @@ This is the solution of Assignment 07 of Sensor Fusion from [深蓝学院](https
 
 ---
 
-## 2. 实现基于Sliding-Window的实时定位(Will be Available on 03/01/2021)
+## 2. 实现基于Sliding-Window的实时定位(Will be Finished by 10/01/2021)
+
+### ToDo
+
+* IMU Pre-Integration Residual Jacobians, Parameterized using **so3**
+
+* Analytic Derivative for IMU Pre-Integration Factor, Parameterized using **so3**
+
+* Marginalization Block
 
 ### ANS 
 
 算法中的关键计算步骤的推导参考[here](doc/derivation/02-ceres-implementation.pdf)
 
-简化后的**sliding-window backend using Ceres**如下. 
+简化后的**sliding-window backend using Ceres**如下. 完整实现请参考[here](src/lidar_localization/src/models/sliding_window/ceres_sliding_window.cpp#L200). 
 
 #### Problem
+
 ```c++
-    // init problem:
+    //
+    // config optimizer:
+    // 
+    // a. loss function:
+    config_.loss_function_ptr = std::make_unique<ceres::CauchyLoss>(1.0);
+
+    // b. solver:
+    config_.options.linear_solver_type = ceres::DENSE_SCHUR;
+    // config_.options.use_explicit_schur_complement = true;
+    config_.options.trust_region_strategy_type = ceres::DOGLEG;
+    // config_.options.use_nonmonotonic_steps = true;
+    config_.options.num_threads = 2;
+    config_.options.max_num_iterations = 10;
+    config_.options.max_solver_time_in_seconds = 0.10;
+    // config_.options.minimizer_progress_to_stdout = true;
+
+    // create new sliding window optimization problem:
     ceres::Problem problem;
-
-    // config solver:
-    ceres::Solver::Options options;
-    
-    options.linear_solver_type = ceres::DENSE_SCHUR;
-    //  options.num_threads = 8;
-    options.trust_region_strategy_type = ceres::DOGLEG;
-    //  options.trust_region_strategy_type = ceres::LEVENBERG_MARQUARDT;
-    options.max_num_iterations = 10;
-    //  options.use_explicit_schur_complement = true;
-    //  options.minimizer_progress_to_stdout = true;
-    //  options.use_nonmonotonic_steps = true;
-    options.max_solver_time_in_seconds = 0.10;
-
-    // a. LossFunction -- robust kernel function, Cauchy:
-    ceres::LossFunction *loss_function = new ceres::CauchyLoss(1.0);
 ```
 
 #### ParameterBlock
+
+此处使用**so3**对Orientation进行参数化. 相对应的**Ceres LocalParameterization**的实现参考[here](src/lidar_localization/include/lidar_localization/models/sliding_window/params/param_prvag.hpp)
+
 ```c++
     // b. ParameterBlock -- PRVAG for each pose inside the sliding window
     //        there are N + 1 extended poses in total
     //            [p + 0, ..., p + N] 
     //        N is the sliding window size
-    std::vector<double *> para_ids;
-    
-    for (int i = 0; i < estimator_config_.opt_window_size + 1; ++i) {
-        ceres::LocalParameterization *local_parameterization = new PoseLocalParameterization();
-        
-        problem.AddParameterBlock(para_pose_[i], SIZE_POSE, local_parameterization);
-        problem.AddParameterBlock(para_speed_bias_[i], SIZE_SPEED_BIAS);
-        
-        para_ids.push_back(para_pose_[i]);
-        para_ids.push_back(para_speed_bias_[i]);
+    for ( int i = 1; i < kWindowSize + 1; ++i) {
+        auto &target_key_frame = optimized_key_frames_.at(N - i);
+
+        ceres::LocalParameterization *local_parameterization = new sliding_window::ParamPRVAG();
+
+        problem.AddParameterBlock(target_key_frame.prvag, 15, local_parameterization);
+
+        if ( target_key_frame.fixed ) {
+            problem.SetParameterBlockConstant(target_key_frame.prvag);
+        }
     }
 ```
 
 #### ResidualBlock
 
-##### Map Matching / GNSS Position
-
-<img src="doc/images/02-a-residuals--map-matching-or-gnss-position.png" alt="Residual, Map Matching / GNSS Position" width="100%" />
-
-```c++
-    // TO-BE-ADDED
-    // c.1. ResidualBlock, map matching / GNSS position
-    //        there are N + 1 map matching / GNSS position residuals in total
-    //            [p + 0, ..., p + N] 
-    //        N is the sliding window size
-```
-
 ##### Relative Pose from Lidar Frontend
 
 <img src="doc/images/02-a-residuals--relative-pose-from-lidar-frontend.png" alt="Residual, Relative Pose from Lidar Frontend" width="100%" />
 
+**Relative Pose Constraint**相对应的**Ceres SizedCostFunction**的实现参考[here](src/lidar_localization/include/lidar_localization/models/sliding_window/factors/factor_prvag_relative_pose.hpp)
+
 ```c++
-    // TO-BE-ADDED
-    // c.2. ResidualBlock, relative pose from lidar frontend
+    // c.1. ResidualBlock, relative pose from lidar frontend
     //        there are N relative pose residuals in total
     //            [(p + 0, p + 1), ..., (p + N - 1, p + N)]
     //        N is the sliding window size
+    if ( !residual_blocks_.relative_pose.empty() ) {
+        for ( const auto &residual_relative_pose: residual_blocks_.relative_pose ) {
+            auto &key_frame_i = optimized_key_frames_.at(residual_relative_pose.param_index_i);
+            auto &key_frame_j = optimized_key_frames_.at(residual_relative_pose.param_index_j);
+
+            sliding_window::FactorPRVAGRelativePose *factor_relative_pose = new sliding_window::FactorPRVAGRelativePose();
+            
+            factor_relative_pose->SetMeasurement(residual_relative_pose.m);
+            factor_relative_pose->SetInformation(residual_relative_pose.I);
+
+            problem.AddResidualBlock(
+                factor_relative_pose,
+                NULL,
+                key_frame_i.prvag, key_frame_j.prvag
+            );
+        }
+
+        residual_blocks_.relative_pose.pop_front();
+    }
+```
+
+##### Map Matching / GNSS Position
+
+<img src="doc/images/02-a-residuals--map-matching-or-gnss-position.png" alt="Residual, Map Matching / GNSS Position" width="100%" />
+
+**Map Matching / Reference Pose Constraint**相对应的**Ceres SizedCostFunction**的实现参考[here](src/lidar_localization/include/lidar_localization/models/sliding_window/factors/factor_prvag_map_matching_pose.hpp)
+
+```c++
+    // c.2. ResidualBlock, map matching / GNSS position
+    //        there are N + 1 map matching / GNSS position residuals in total
+    //            [p + 0, ..., p + N] 
+    //        N is the sliding window size
+    if ( !residual_blocks_.map_matching_pose.empty() ) {
+        for ( const auto &residual_map_matching_pose: residual_blocks_.map_matching_pose ) {
+            auto &key_frame = optimized_key_frames_.at(residual_map_matching_pose.param_index);
+
+            sliding_window::FactorPRVAGMapMatchingPose *factor_map_matching_pose = new sliding_window::FactorPRVAGMapMatchingPose();
+            
+            factor_map_matching_pose->SetMeasurement(residual_map_matching_pose.m);
+            factor_map_matching_pose->SetInformation(residual_map_matching_pose.I);
+
+            problem.AddResidualBlock(
+                factor_map_matching_pose,
+                NULL,
+                key_frame.prvag
+            );
+        }
+
+        residual_blocks_.map_matching_pose.pop_front();
+    }
 ```
 
 ##### IMU Pre-Integration
 
 <img src="doc/images/02-a-residuals--imu-pre-integration.png" alt="Residual, IMU Pre-Integration" width="100%" />
 
+**IMU Pre-Integration Constraint**相对应的**Ceres SizedCostFunction**的实现参考[here](src/lidar_localization/include/lidar_localization/models/sliding_window/factors/factor_prvag_imu_pre_integration.hpp)
+
 ```c++
     // c.3. ResidualBlock, IMU pre-integration
     //        there are N IMU pre-integration residuals in total
     //            [(p + 0, p + 1), ..., (p + N - 1, p + N)]
     //        N is the sliding window size
-    std::vector<ceres::internal::ResidualBlock *> res_ids_pim;
-    
-    if (estimator_config_.imu_factor) {
-        for (int i = 0; i < estimator_config_.opt_window_size; ++i) {
-            int j = i + 1;
-            
-            int opt_i = int(estimator_config_.window_size - estimator_config_.opt_window_size + i);
-            int opt_j = opt_i + 1;
-            
-            if (pre_integrations_[opt_j]->sum_dt_ > 10.0) {
-                continue;
-            }
+    if ( !residual_blocks_.imu_pre_integration.empty() ) {
+        for ( const auto &residual_imu_pre_integration: residual_blocks_.imu_pre_integration ) {
+            auto &key_frame_i = optimized_key_frames_.at(residual_imu_pre_integration.param_index_i);
+            auto &key_frame_j = optimized_key_frames_.at(residual_imu_pre_integration.param_index_j);
 
-            ImuFactor *f = new ImuFactor(pre_integrations_[opt_j]);
+            sliding_window::FactorPRVAGIMUPreIntegration *factor_imu_pre_integration = new sliding_window::FactorPRVAGIMUPreIntegration();
 
-            ceres::internal::ResidualBlock *res_id = problem.AddResidualBlock(
-                f,
+            factor_imu_pre_integration->SetT(residual_imu_pre_integration.T);
+            factor_imu_pre_integration->SetGravitiy(residual_imu_pre_integration.g);
+            factor_imu_pre_integration->SetMeasurement(residual_imu_pre_integration.m);
+            factor_imu_pre_integration->SetInformation(residual_imu_pre_integration.I);
+            factor_imu_pre_integration->SetJacobian(residual_imu_pre_integration.J);
+
+            problem.AddResidualBlock(
+                factor_imu_pre_integration,
                 NULL,
-                para_pose_[i], para_speed_bias_[i],
-                para_pose_[j], para_speed_bias_[j]
+                key_frame_i.prvag, key_frame_j.prvag
             );
-
-            res_ids_pim.push_back(res_id);
         }
+
+        residual_blocks_.imu_pre_integration.pop_front();
     }
 ```
 
 #### Solve:
 
-
 ```c++
-    TicToc t_opt;
     // solve:
     ceres::Solver::Summary summary;
-    ceres::Solve(options, &problem, &summary);
-    DLOG(INFO) << summary.BriefReport();
 
-    // time it:
-    ROS_DEBUG_STREAM("t_opt: " << t_opt.Toc() << " ms");
-    DLOG(INFO) <<"t_opt: " << t_opt.Toc() << " ms";
+    auto start = std::chrono::steady_clock::now();
+    ceres::Solve(config_.options, &problem, &summary);
+    auto end = std::chrono::steady_clock::now();
+    std::chrono::duration<double> time_used = end-start;
 
-    // residual monitor:
-    {
-        double cost = 0.0;
-        ceres::Problem::EvaluateOptions e_option;
-
-        // 1. map matching / GNSS position:
-        if (estimator_config_.imu_factor) {
-            e_option.parameter_blocks = para_ids;
-            e_option.residual_blocks = res_ids_pim;
-
-            problem.Evaluate(e_option, &cost, NULL, NULL, NULL);
-            DLOG(INFO) << "\tmap matching: " << cost;
-        }
-
-        // 2. relative pose from lidar frontend:
-        if (estimator_config_.point_distance_factor) {
-            e_option.parameter_blocks = para_ids;
-            e_option.residual_blocks = res_ids_proj;
-
-            problem.Evaluate(e_option, &cost, NULL, NULL, NULL);
-            DLOG(INFO) << "\trelative pose: " << cost;
-        }
-
-        // 3. IMU pre-integration
-        if (estimator_config_.marginalization_factor) {
-            if (last_marginalization_info && !res_ids_marg.empty()) {
-                e_option.parameter_blocks = para_ids;
-                e_option.residual_blocks = res_ids_marg;
-                problem.Evaluate(e_option, &cost, NULL, NULL, NULL);
-                DLOG(INFO) << "\tIMU pre-integration: " << cost;
-            }
-        }
-
-        // 4. marginalization:
-        if (estimator_config_.marginalization_factor) {
-            if (last_marginalization_info && !res_ids_marg.empty()) {
-                e_option.parameter_blocks = para_ids;
-                e_option.residual_blocks = res_ids_marg;
-                problem.Evaluate(e_option, &cost, NULL, NULL, NULL);
-                DLOG(INFO) << "\tmarginalization: " << cost;
-            }
-        }
-    }
+    // prompt:
+    LOG(INFO) << std::endl 
+                << "------ Finish Iteration " << ++optimization_count << " of Sliding Window Optimization -------" << std::endl
+                << "Time Used: " << time_used.count() << " seconds." << std::endl
+                << summary.BriefReport() << std::endl
+                << std::endl;
 ```

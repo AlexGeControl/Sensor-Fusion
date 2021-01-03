@@ -45,7 +45,9 @@ public:
         Eigen::Map<Eigen::Vector3d> b_g_plus(x_plus_delta + INDEX_G);
 
         pos_plus = pos + d_pos;
+        //
         // TODO: evaluate performance penalty of applying exp-exp-log transform for each update
+        //
         ori_plus = (Sophus::SO3d::exp(ori) * Sophus::SO3d::exp(d_ori)).log();
         vel_plus = vel + d_vel;
         b_a_plus = b_a + d_b_a;
@@ -55,15 +57,15 @@ public:
     }
 
     virtual bool ComputeJacobian(const double *x, double *jacobian) const {
-        Eigen::Map<Eigen::Matrix<double, 6, 6, Eigen::RowMajor>> J(jacobian);
+        Eigen::Map<Eigen::Matrix<double, 15, 15, Eigen::RowMajor>> J(jacobian);
         J.setIdentity();
 
         return true;
     }
 
-    virtual int GlobalSize() const { return 6; };
+    virtual int GlobalSize() const { return 15; };
 
-    virtual int LocalSize() const { return 6; };
+    virtual int LocalSize() const { return 15; };
 };
 
 } // namespace sliding_window

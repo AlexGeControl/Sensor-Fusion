@@ -28,47 +28,43 @@ SlidingWindowFlow::SlidingWindowFlow(
     // d. GNSS position:
     gnss_pose_sub_ptr_ = std::make_shared<OdometrySubscriber>(nh, "/synced_gnss", 100000);
 
-    transformed_odom_pub_ptr_ = std::make_shared<OdometryPublisher>(nh, "/transformed_odom", "/map", "/lidar", 100);
-    key_scan_pub_ptr_ = std::make_shared<CloudPublisher>(nh, "/key_scan", "/velo_link", 100);
+    // 
+    //  publishers:
+    // 
+    // a. current lidar key frame:
     key_frame_pub_ptr_ = std::make_shared<KeyFramePublisher>(nh, "/key_frame", "/map", 100);
+    // b. current reference GNSS frame:
     key_gnss_pub_ptr_ = std::make_shared<KeyFramePublisher>(nh, "/key_gnss", "/map", 100);
-    key_frames_pub_ptr_ = std::make_shared<KeyFramesPublisher>(nh, "/optimized_key_frames", "/map", 100);
+    // c. optimized odometry:
+    optimized_odom_pub_ptr_ = std::make_shared<OdometryPublisher>(nh, "/optimized_odometry", "/map", "/lidar", 100);
+    // d. optimized trajectory:
+    optimized_trajectory_pub_ptr_ = std::make_shared<KeyFramesPublisher>(nh, "/optimized_trajectory", "/map", 100);
 
-    back_end_ptr_ = std::make_shared<LIOBackEnd>();
+    //
+    // backend:
+    //
+    sliding_window_ptr_ = std::make_shared<SlidingWindow>();
 }
 
 bool SlidingWindowFlow::Run() {
     // load messages into buffer:
-    if (!ReadData())
+    if ( !ReadData() )
         return false;
     
-    while(HasData()) {
-        // make sure undistorted Velodyne measurement -- lidar pose in map frame -- lidar odometry are synced:
-        if (!ValidData())
+    while( HasData() ) {
+        // make sure all the measurements are synced:
+        if ( !ValidData() )
             continue;
 
         UpdateBackEnd();
-
         PublishData();
     }
 
     return true;
 }
 
-bool SlidingWindowFlow::ForceOptimize() {
-    static std::deque<KeyFrame> optimized_key_frames;
-
-    back_end_ptr_->ForceOptimize();
-
-    if ( back_end_ptr_->HasNewOptimized() ) {
-        back_end_ptr_->GetOptimizedKeyFrames(optimized_key_frames);
-        key_frames_pub_ptr_->Publish(optimized_key_frames);
-    }
-    return true;
-}
-
-bool SlidingWindowFlow::SaveOptimizedOdometry() {
-    back_end_ptr_ -> SaveOptimizedPose();
+bool SlidingWindowFlow::SaveOptimizedTrajectory() {
+    sliding_window_ptr_ -> SaveOptimizedTrajectory();
 
     return true;
 }
@@ -142,7 +138,7 @@ bool SlidingWindowFlow::UpdateIMUPreIntegration(void) {
     while (
         !imu_raw_data_buff_.empty() && 
         imu_raw_data_buff_.front().time < current_imu_data_.time && 
-        back_end_ptr_->UpdateIMUPreIntegration(imu_raw_data_buff_.front())
+        sliding_window_ptr_->UpdateIMUPreIntegration(imu_raw_data_buff_.front())
     ) {
         imu_raw_data_buff_.pop_front();
     }
@@ -168,35 +164,29 @@ bool SlidingWindowFlow::UpdateBackEnd() {
     current_laser_odom_data_.pose = odom_init_pose * current_laser_odom_data_.pose;
 
     // optimization is carried out in map frame:
-    return back_end_ptr_->Update(
+    return sliding_window_ptr_->Update(
         current_laser_odom_data_, 
+        current_map_matching_odom_data_,
         current_imu_data_,
         current_gnss_pose_data_
     );
 }
 
 bool SlidingWindowFlow::PublishData() {
-    transformed_odom_pub_ptr_->Publish(current_laser_odom_data_.pose, current_laser_odom_data_.time);
-
-    if (back_end_ptr_->HasNewKeyFrame()) {
-        CloudData key_scan;
-
-        back_end_ptr_->GetLatestKeyScan(key_scan);
-        key_scan_pub_ptr_->Publish(key_scan.cloud_ptr, key_scan.time);
-        
+    if ( sliding_window_ptr_->HasNewKeyFrame() ) {        
         KeyFrame key_frame;
 
-        back_end_ptr_->GetLatestKeyFrame(key_frame);
+        sliding_window_ptr_->GetLatestKeyFrame(key_frame);
         key_frame_pub_ptr_->Publish(key_frame);
 
-        back_end_ptr_->GetLatestKeyGNSS(key_frame);
+        sliding_window_ptr_->GetLatestKeyGNSS(key_frame);
         key_gnss_pub_ptr_->Publish(key_frame);
     }
 
-    if (back_end_ptr_->HasNewOptimized()) {
-        std::deque<KeyFrame> optimized_key_frames;
-        back_end_ptr_->GetOptimizedKeyFrames(optimized_key_frames);
-        key_frames_pub_ptr_->Publish(optimized_key_frames);
+    if ( sliding_window_ptr_->HasNewOptimized() ) {
+        KeyFrame key_frame;
+        sliding_window_ptr_->GetLatestOptimizedOdometry(key_frame);
+        optimized_odom_pub_ptr_->Publish(key_frame.pose, key_frame.time);
     }
 
     return true;
