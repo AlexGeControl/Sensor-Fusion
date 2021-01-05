@@ -30,7 +30,7 @@ CeresSlidingWindow::CeresSlidingWindow(
     config_.options.trust_region_strategy_type = ceres::DOGLEG;
     // config_.options.use_nonmonotonic_steps = true;
     config_.options.num_threads = 2;
-    config_.options.max_num_iterations = 10;
+    config_.options.max_num_iterations = 1000;
     config_.options.max_solver_time_in_seconds = 0.10;
     // config_.options.minimizer_progress_to_stdout = true;
 
@@ -224,6 +224,7 @@ bool CeresSlidingWindow::Optimize() {
                 factor_relative_pose->SetMeasurement(residual_relative_pose.m);
                 factor_relative_pose->SetInformation(residual_relative_pose.I);
 
+                // add relative pose factor into sliding window
                 problem.AddResidualBlock(
                     factor_relative_pose,
                     NULL,
@@ -243,6 +244,7 @@ bool CeresSlidingWindow::Optimize() {
                 factor_map_matching_pose->SetMeasurement(residual_map_matching_pose.m);
                 factor_map_matching_pose->SetInformation(residual_map_matching_pose.I);
 
+                // add map matching factor into sliding window
                 problem.AddResidualBlock(
                     factor_map_matching_pose,
                     NULL,
@@ -266,20 +268,16 @@ bool CeresSlidingWindow::Optimize() {
                 factor_imu_pre_integration->SetInformation(residual_imu_pre_integration.I);
                 factor_imu_pre_integration->SetJacobian(residual_imu_pre_integration.J);
 
-                // TODO: add IMU factor into sliding window
-                /*
+                // add IMU factor into sliding window
                 problem.AddResidualBlock(
                     factor_imu_pre_integration,
                     NULL,
                     key_frame_i.prvag, key_frame_j.prvag
                 );
-                */
             }
 
             residual_blocks_.imu_pre_integration.pop_front();
         }
-
-        // TODO -- b.4. marginalization constraint:
 
         // solve:
         ceres::Solver::Summary summary;

@@ -24,10 +24,6 @@ This is the solution of Assignment 07 of Sensor Fusion from [深蓝学院](https
 
 ### ToDo
 
-* IMU Pre-Integration Residual Jacobians, Parameterized using **so3**
-
-* Analytic Derivative for IMU Pre-Integration Factor, Parameterized using **so3**
-
 * Marginalization Block
 
 ### ANS 
@@ -51,7 +47,7 @@ This is the solution of Assignment 07 of Sensor Fusion from [深蓝学院](https
     config_.options.trust_region_strategy_type = ceres::DOGLEG;
     // config_.options.use_nonmonotonic_steps = true;
     config_.options.num_threads = 2;
-    config_.options.max_num_iterations = 10;
+    config_.options.max_num_iterations = 1000;
     config_.options.max_solver_time_in_seconds = 0.10;
     // config_.options.minimizer_progress_to_stdout = true;
 

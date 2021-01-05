@@ -317,17 +317,34 @@ bool SlidingWindow::Update(void) {
         sliding_window_ptr_->AddPRVAGParam(current_key_frame_, false);
     }
 
-    //
-    // add constraints:
-    //
     // get num. of vertices:
     const int N = sliding_window_ptr_->GetNumParamBlocks();
-    
-    if ( N > 1 ) {
-        // get param block IDs:
-        const int param_index_i = N - 2;
-        const int param_index_j = N - 1;
+    // get param block ID, current:
+    const int param_index_j = N - 1;
 
+    //
+    // add unary constraints:
+    //
+    //
+    // a. map matching / GNSS position:
+    //
+    if ( N > 0 && measurement_config_.source.map_matching ) {
+        // get prior position measurement:
+        Eigen::Matrix4d prior_pose = current_key_gnss_.pose.cast<double>();
+        // add constraint, GNSS position:
+        sliding_window_ptr_->AddPRVAGMapMatchingPoseFactor(
+            param_index_j, 
+            prior_pose, measurement_config_.noise.map_matching
+        );
+    }
+
+    //
+    // add binary constraints:
+    //
+    if ( N > 1 ) {
+        // get param block ID, previous:
+        const int param_index_i = N - 2;
+        
         //
         // a. lidar frontend:
         //
@@ -340,20 +357,7 @@ bool SlidingWindow::Update(void) {
         );
         
         //
-        // b. GNSS position:
-        //
-        if ( measurement_config_.source.map_matching ) {
-            // get prior position measurement:
-            Eigen::Matrix4d prior_pose = current_map_matching_pose_.pose.cast<double>();
-            // add constraint, GNSS position:
-            sliding_window_ptr_->AddPRVAGMapMatchingPoseFactor(
-                param_index_j, 
-                prior_pose, measurement_config_.noise.map_matching
-            );
-        }
-
-        //
-        // c. IMU pre-integration:
+        // b. IMU pre-integration:
         //
         if ( measurement_config_.source.imu_pre_integration ) {
             // add constraint, IMU pre-integraion:

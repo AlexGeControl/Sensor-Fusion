@@ -275,8 +275,8 @@ Visualization Manager:
         - Alpha: 1
           Autocompute Intensity Bounds: true
           Autocompute Value Bounds:
-            Max Value: 1.774312973022461
-            Min Value: -9.83637809753418
+            Max Value: 4.474844932556152
+            Min Value: -6.992929935455322
             Value: true
           Axis: Z
           Channel Name: intensity
@@ -309,13 +309,33 @@ Visualization Manager:
       Frame Timeout: 999999
       Frames:
         All Enabled: false
+        base_link:
+          Value: true
+        camera_color_left:
+          Value: true
+        camera_color_right:
+          Value: true
+        camera_gray_left:
+          Value: true
+        camera_gray_right:
+          Value: true
+        imu_link:
+          Value: true
+        map:
+          Value: true
+        velo_link:
+          Value: true
+        world:
+          Value: true
       Marker Scale: 50
       Name: TF
       Show Arrows: false
       Show Axes: true
       Show Names: false
       Tree:
-        {}
+        map:
+          velo_link:
+            {}
       Update Interval: 0
       Value: true
   Enabled: true
@@ -346,25 +366,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/Orbit
-      Distance: 33.837650299072266
+      Distance: 38.95975875854492
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: -28.421110153198242
-        Y: 254.7743377685547
-        Z: 1.8028347492218018
+        X: 0
+        Y: 0
+        Z: 0
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
       Pitch: 1.5697963237762451
-      Target Frame: vehicle_link
+      Target Frame: velo_link
       Value: Orbit (rviz)
-      Yaw: 5.81358528137207
+      Yaw: 2.100398540496826
     Saved: ~
 Window Geometry:
   Displays:
@@ -384,5 +404,5 @@ Window Geometry:
   Views:
     collapsed: false
   Width: 1235
-  X: 0
-  Y: 0
+  X: -1
+  Y: -22

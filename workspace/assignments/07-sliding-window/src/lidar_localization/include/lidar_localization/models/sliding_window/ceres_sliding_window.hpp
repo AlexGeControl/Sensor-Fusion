@@ -26,6 +26,7 @@
 
 #include "lidar_localization/models/sliding_window/params/param_prvag.hpp"
 
+#include "lidar_localization/models/sliding_window/factors/factor_prvag_marginalization.hpp"
 #include "lidar_localization/models/sliding_window/factors/factor_prvag_relative_pose.hpp"
 #include "lidar_localization/models/sliding_window/factors/factor_prvag_map_matching_pose.hpp"
 #include "lidar_localization/models/sliding_window/factors/factor_prvag_imu_pre_integration.hpp"
