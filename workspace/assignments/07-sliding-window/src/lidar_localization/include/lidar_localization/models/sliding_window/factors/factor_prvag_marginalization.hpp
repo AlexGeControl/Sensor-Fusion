@@ -26,40 +26,76 @@ public:
 	static const int INDEX_A = 9;
 	static const int INDEX_G = 12;
 
-  FactorPRVAGMarginalization(
-    const ceres::CostFunction *res_map_matching_pose,
-    const ceres::CostFunction *res_relative_pose,
-    const ceres::CostFunction *res_imu_pre_integration
-  ) {
-    Eigen::MatrixXd H_rr = Eigen::MatrixXd::Zero(15, 15);
-    Eigen::MatrixXd H_rm = Eigen::MatrixXd::Zero(15, 15);
-    Eigen::MatrixXd H_mm = Eigen::MatrixXd::Zero(15, 15);
-    Eigen::MatrixXd H_mr = Eigen::MatrixXd::Zero(15, 15);
+  FactorPRVAGMarginalization(void) {}
 
-    Eigen::VectorXd b_r = Eigen::VectorXd::Zero(15);
-    Eigen::VectorXd b_m = Eigen::VectorXd::Zero(15);
-  };
+  void SetResMapMatchingPose(
+    const ceres::CostFunction *residual,
+    const std::vector<double *> &parameter_blocks
+  ) {
+    res_map_matching_pose_ = ResidualBlockInfo(residual, parameter_blocks);
+  }
+
+  void SetResRelativePose(
+    const ceres::CostFunction *residual,
+    const std::vector<double *> &parameter_blocks
+  ) {
+    res_relative_pose_ = ResidualBlockInfo(residual, parameter_blocks);
+  }
+
+  void SetResIMUPreIntegration(
+    const ceres::CostFunction *residual,
+    const std::vector<double *> &parameter_blocks
+  ) {
+    res_imu_pre_integration_ = ResidualBlockInfo(residual, parameter_blocks);
+  }
 
   virtual bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const {		
     return true;
   }
 
 private:
-  static Eigen::Matrix3d JacobianRInv(const Eigen::Vector3d &w) {
-      Eigen::Matrix3d J_r_inv = Eigen::Matrix3d::Identity();
+  struct ResidualBlockInfo {
+    const ceres::CostFunction *residual = nullptr;
+    std::vector<double *> parameter_blocks;
 
-      double theta = w.norm();
+    ResidualBlockInfo(void) {}
 
-      if ( theta > 1e-5 ) {
-          Eigen::Vector3d k = w.normalized();
-          Eigen::Matrix3d K = Sophus::SO3d::hat(k);
-          
-          J_r_inv = J_r_inv 
-                    + 0.5 * K
-                    + (1.0 - (1.0 + std::cos(theta)) * theta / (2.0 * std::sin(theta))) * K * K;
-      }
+    ResidualBlockInfo(
+      const ceres::CostFunction *_residual,
+      const std::vector<double *> &_parameter_blocks
+    ) : residual(_residual), parameter_blocks(_parameter_blocks) {}
+  };
 
-      return J_r_inv;
+  ResidualBlockInfo res_map_matching_pose_;
+  ResidualBlockInfo res_relative_pose_;
+  ResidualBlockInfo res_imu_pre_integration_;
+
+  static void Evaluate(
+    ResidualBlockInfo &residual_info,
+    Eigen::VectorXd &residuals,
+    std::vector<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> &jacobians
+  ) {
+    // init residual output:
+    const int D = static_cast<int>(residual_info.residual->num_residuals());
+    residuals.resize(D);
+
+    // init jacobians output:
+    std::vector<int> block_sizes = residual_info.residual->parameter_block_sizes();
+    const int N = static_cast<int>(block_sizes.size());
+
+    double **raw_jacobians = new double *[N];
+    jacobians.resize(N);
+
+    // create raw pointer adaptor:
+    for (int i = 0; i < N; i++) {
+      jacobians[i].resize(D, block_sizes[i]);
+      raw_jacobians[i] = jacobians[i].data();
+    }
+
+    residual_info.residual->Evaluate(
+      residual_info.parameter_blocks.data(), 
+      residuals.data(), raw_jacobians
+    );
   }
 };
 
