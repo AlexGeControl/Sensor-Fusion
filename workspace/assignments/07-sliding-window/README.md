@@ -252,4 +252,17 @@ This is the solution of Assignment 07 of Sensor Fusion from [深蓝学院](https
 
 ### Result & Analysis
 
-To-Be-Added
+使用`Sliding Window Optimization`前后, 轨迹估计误差的对比如下所示:
+
+Before                     |After
+:-------------------------:|:-------------------------:
+![Before](doc/images/03-evo-lidar-frontend--time-series-plot.png)  |  ![After](doc/images/03-evo-optimized--time-series-plot.png)
+![Before](doc/images/03-evo-lidar-frontend--map-plot.png)  |  ![After](doc/images/03-evo-optimized--map-plot.png)
+
+|  Prop. |       Before      |       After       |
+|:------:|:-----------------:|:-----------------:|
+|  rmse  |      2.803794     |    **2.130168**   |
+|   sse  |    35595.796238   |  **20546.329285** |
+|   std  |      1.172320     |    **1.145529**   |
+
+由上述结果可知, `Sliding Window Optimization`的使用, `可以提升轨迹估计精度`.

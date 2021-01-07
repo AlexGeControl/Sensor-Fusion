@@ -7,10 +7,19 @@
 
 #include "lidar_localization/global_defination/global_defination.h"
 #include "lidar_localization/matching/back_end/sliding_window_flow.hpp"
+#include "lidar_localization/saveOdometry.h"
 
 #include "glog/logging.h"
 
 using namespace lidar_localization;
+
+bool save_odometry = false;
+
+bool SaveOdometryCb(saveOdometry::Request &request, saveOdometry::Response &response) {
+    save_odometry = true;
+    response.succeed = true;
+    return response.succeed;
+}
 
 int main(int argc, char *argv[]) {
     google::InitGoogleLogging(argv[0]);
@@ -32,11 +41,19 @@ int main(int argc, char *argv[]) {
     // a. optimized key frame sequence as trajectory
     std::shared_ptr<SlidingWindowFlow> sliding_window_flow_ptr = std::make_shared<SlidingWindowFlow>(nh);
 
-    ros::Rate rate(100);
+    // register service for optimized trajectory save:
+    ros::ServiceServer service = nh.advertiseService("save_odometry", SaveOdometryCb);
+
+    ros::Rate rate(10);
     while (ros::ok()) {
         ros::spinOnce();
 
         sliding_window_flow_ptr->Run();
+
+        if (save_odometry) {
+            save_odometry = false;
+            sliding_window_flow_ptr->SaveOptimizedTrajectory();
+        }
 
         rate.sleep();
     }

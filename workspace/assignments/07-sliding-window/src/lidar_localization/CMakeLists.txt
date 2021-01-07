@@ -39,9 +39,9 @@ add_message_files(
 
 add_service_files(
    FILES
-   saveScanContext.srv
-   saveMap.srv
    optimizeMap.srv
+   saveMap.srv
+   saveScanContext.srv
    saveOdometry.srv
 )
 

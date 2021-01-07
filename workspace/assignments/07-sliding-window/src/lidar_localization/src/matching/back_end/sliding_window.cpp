@@ -330,7 +330,7 @@ bool SlidingWindow::Update(void) {
     //
     if ( N > 0 && measurement_config_.source.map_matching ) {
         // get prior position measurement:
-        Eigen::Matrix4d prior_pose = current_key_gnss_.pose.cast<double>();
+        Eigen::Matrix4d prior_pose = current_map_matching_pose_.pose.cast<double>();
         // add constraint, GNSS position:
         sliding_window_ptr_->AddPRVAGMapMatchingPoseFactor(
             param_index_j, 

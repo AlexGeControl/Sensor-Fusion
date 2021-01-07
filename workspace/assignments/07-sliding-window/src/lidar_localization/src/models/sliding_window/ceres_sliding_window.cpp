@@ -363,6 +363,7 @@ bool CeresSlidingWindow::Optimize() {
         // prompt:
         LOG(INFO) << "------ Finish Iteration " << optimization_count << " of Sliding Window Optimization -------" << std::endl
                   << "Time Used: " << time_used.count() << " seconds." << std::endl
+                  << "Cost Reduced: " << summary.initial_cost - summary.final_cost << std::endl
                   << summary.BriefReport() << std::endl
                   << std::endl;
         
