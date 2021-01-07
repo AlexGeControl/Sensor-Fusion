@@ -173,28 +173,11 @@ This is the solution of Assignment 07 of Sensor Fusion from [深蓝学院](https
     }
 ```
 
-#### Solve:
-
-```c++
-    // solve:
-    ceres::Solver::Summary summary;
-
-    auto start = std::chrono::steady_clock::now();
-    ceres::Solve(config_.options, &problem, &summary);
-    auto end = std::chrono::steady_clock::now();
-    std::chrono::duration<double> time_used = end-start;
-
-    // prompt:
-    LOG(INFO) << std::endl 
-                << "------ Finish Iteration " << ++optimization_count << " of Sliding Window Optimization -------" << std::endl
-                << "Time Used: " << time_used.count() << " seconds." << std::endl
-                << summary.BriefReport() << std::endl
-                << std::endl;
-```
-
 ##### Sliding Window Marginalization
 
 <img src="doc/images/02-a-residuals--sliding-window-marginalization.png" alt="Residual, Sliding Window Marginalization" width="100%" />
+
+**Marginalization**的实现理念参考关键计算步骤的推导[here](doc/derivation/02-ceres-implementation.pdf)
 
 **Sliding Window Marginalization Constraint**相对应的**Ceres SizedCostFunction**的实现参考[here](src/lidar_localization/include/lidar_localization/models/sliding_window/factors/factor_prvag_marginalization.hpp)
 
@@ -246,6 +229,25 @@ This is the solution of Assignment 07 of Sensor Fusion from [深蓝学院](https
         residual_blocks_.relative_pose.pop_front();
         residual_blocks_.imu_pre_integration.pop_front();
     }
+```
+
+#### Solve:
+
+```c++
+    // solve:
+    ceres::Solver::Summary summary;
+
+    auto start = std::chrono::steady_clock::now();
+    ceres::Solve(config_.options, &problem, &summary);
+    auto end = std::chrono::steady_clock::now();
+    std::chrono::duration<double> time_used = end-start;
+
+    // prompt:
+    LOG(INFO) << std::endl 
+                << "------ Finish Iteration " << ++optimization_count << " of Sliding Window Optimization -------" << std::endl
+                << "Time Used: " << time_used.count() << " seconds." << std::endl
+                << summary.BriefReport() << std::endl
+                << std::endl;
 ```
 
 ### Result & Analysis
