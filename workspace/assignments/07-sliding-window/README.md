@@ -20,11 +20,7 @@ This is the solution of Assignment 07 of Sensor Fusion from [深蓝学院](https
 
 ---
 
-## 2. 实现基于Sliding-Window的实时定位(Will be Finished by 10/01/2021)
-
-### ToDo
-
-* Marginalization Block
+## 2. 实现基于Sliding-Window的实时定位(Will be Polished by 10/01/2021)
 
 ### ANS 
 
@@ -195,3 +191,63 @@ This is the solution of Assignment 07 of Sensor Fusion from [深蓝学院](https
                 << summary.BriefReport() << std::endl
                 << std::endl;
 ```
+
+##### Sliding Window Marginalization
+
+<img src="doc/images/02-a-residuals--sliding-window-marginalization.png" alt="Residual, Sliding Window Marginalization" width="100%" />
+
+**Sliding Window Marginalization Constraint**相对应的**Ceres SizedCostFunction**的实现参考[here](src/lidar_localization/include/lidar_localization/models/sliding_window/factors/factor_prvag_marginalization.hpp)
+
+```c++
+    // c.4. ResidualBlock, sliding window marginalization
+    //        there are 1 constrained param block in total
+    if (
+        !residual_blocks_.map_matching_pose.empty() && 
+        !residual_blocks_.relative_pose.empty() && 
+        !residual_blocks_.imu_pre_integration.empty()
+    ) {
+        auto &key_frame_m = optimized_key_frames_.at(N - kWindowSize - 1);
+        auto &key_frame_r = optimized_key_frames_.at(N - kWindowSize - 0);
+
+        const ceres::CostFunction *factor_map_matching_pose = GetResMapMatchingPose(
+            residual_blocks_.map_matching_pose.front()
+        );
+        const ceres::CostFunction *factor_relative_pose = GetResRelativePose(
+            residual_blocks_.relative_pose.front()
+        );
+        const ceres::CostFunction *factor_imu_pre_integration = GetResRelativePose(
+            residual_blocks_.imu_pre_integration.front()
+        );
+
+        sliding_window::FactorPRVAGMarginalization *factor_marginalization = new sliding_window::FactorPRVAGMarginalization();
+
+        factor_marginalization->SetResMapMatchingPose(
+            factor_map_matching_pose, 
+            std::vector<double *>{key_frame_m.prvag}
+        );
+        factor_marginalization->SetResRelativePose(
+            factor_relative_pose,
+            std::vector<double *>{key_frame_m.prvag, key_frame_r.prvag}
+        );
+        factor_marginalization->SetResIMUPreIntegration(
+            factor_relative_pose,
+            std::vector<double *>{key_frame_m.prvag, key_frame_r.prvag}
+        );
+        factor_marginalization->Marginalize(key_frame_r.prvag);
+
+        // add marginalization factor into sliding window
+        problem.AddResidualBlock(
+            factor_marginalization,
+            NULL,
+            key_frame_r.prvag
+        );
+
+        residual_blocks_.map_matching_pose.pop_front();
+        residual_blocks_.relative_pose.pop_front();
+        residual_blocks_.imu_pre_integration.pop_front();
+    }
+```
+
+### Result & Analysis
+
+To-Be-Added

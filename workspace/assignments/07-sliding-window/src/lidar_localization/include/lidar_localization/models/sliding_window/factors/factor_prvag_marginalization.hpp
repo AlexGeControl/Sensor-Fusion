@@ -20,40 +20,194 @@ namespace sliding_window {
 
 class FactorPRVAGMarginalization : public ceres::SizedCostFunction<15, 15> {
 public:
-	static const int INDEX_P = 0;
-	static const int INDEX_R = 3;
-	static const int INDEX_V = 6;
-	static const int INDEX_A = 9;
-	static const int INDEX_G = 12;
+	static const int INDEX_M =  0;
+  static const int INDEX_R = 15;
 
-  FactorPRVAGMarginalization(void) {}
+  FactorPRVAGMarginalization(void) {
+    H_ = Eigen::MatrixXd::Zero(30, 30);
+    b_ = Eigen::VectorXd::Zero(30);
+
+    J_ = Eigen::MatrixXd::Zero(15, 15);
+    e_ = Eigen::VectorXd::Zero(15);
+  }
 
   void SetResMapMatchingPose(
     const ceres::CostFunction *residual,
     const std::vector<double *> &parameter_blocks
   ) {
-    res_map_matching_pose_ = ResidualBlockInfo(residual, parameter_blocks);
+    // init:
+    ResidualBlockInfo res_map_matching_pose(residual, parameter_blocks);
+    Eigen::VectorXd residuals;
+    std::vector<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> jacobians;
+
+    // compute:
+    Evaluate(res_map_matching_pose, residuals, jacobians);
+    const Eigen::MatrixXd &J_m = jacobians.at(0);
+
+    //
+    // Update H:
+    //
+    // a. H_mm:
+    H_.block<15, 15>(INDEX_M, INDEX_M) += J_m.transpose() * J_m;
+
+    //
+    // Update b:
+    //
+    // a. b_m:
+    b_.block<15,  1>(INDEX_M,       0) += J_m.transpose() * residuals;
   }
 
   void SetResRelativePose(
     const ceres::CostFunction *residual,
     const std::vector<double *> &parameter_blocks
   ) {
-    res_relative_pose_ = ResidualBlockInfo(residual, parameter_blocks);
+    // init:
+    ResidualBlockInfo res_relative_pose(residual, parameter_blocks);
+    Eigen::VectorXd residuals;
+    std::vector<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> jacobians;
+
+    // compute:
+    Evaluate(res_relative_pose, residuals, jacobians);
+    const Eigen::MatrixXd &J_m = jacobians.at(0);
+    const Eigen::MatrixXd &J_r = jacobians.at(1);
+
+    //
+    // Update H:
+    //
+    // a. H_mm:
+    H_.block<15, 15>(INDEX_M, INDEX_M) += J_m.transpose() * J_m;
+    // b. H_mr:
+    H_.block<15, 15>(INDEX_M, INDEX_R) += J_m.transpose() * J_r;
+    // c. H_rm:
+    H_.block<15, 15>(INDEX_R, INDEX_M) += J_r.transpose() * J_m;
+    // d. H_rr:
+    H_.block<15, 15>(INDEX_R, INDEX_R) += J_r.transpose() * J_r;
+
+
+    //
+    // Update b:
+    //
+    // a. b_m:
+    b_.block<15,  1>(INDEX_M,       0) += J_m.transpose() * residuals;
+    // a. b_r:
+    b_.block<15,  1>(INDEX_R,       0) += J_r.transpose() * residuals;
   }
 
   void SetResIMUPreIntegration(
     const ceres::CostFunction *residual,
     const std::vector<double *> &parameter_blocks
   ) {
-    res_imu_pre_integration_ = ResidualBlockInfo(residual, parameter_blocks);
+    // init:
+    ResidualBlockInfo res_imu_pre_integration(residual, parameter_blocks);
+    Eigen::VectorXd residuals;
+    std::vector<Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic, Eigen::RowMajor>> jacobians;
+
+    // compute:
+    Evaluate(res_imu_pre_integration, residuals, jacobians);
+    const Eigen::MatrixXd &J_m = jacobians.at(0);
+    const Eigen::MatrixXd &J_r = jacobians.at(1);
+
+    //
+    // Update H:
+    //
+    // a. H_mm:
+    H_.block<15, 15>(INDEX_M, INDEX_M) += J_m.transpose() * J_m;
+    // b. H_mr:
+    H_.block<15, 15>(INDEX_M, INDEX_R) += J_m.transpose() * J_r;
+    // c. H_rm:
+    H_.block<15, 15>(INDEX_R, INDEX_M) += J_r.transpose() * J_m;
+    // d. H_rr:
+    H_.block<15, 15>(INDEX_R, INDEX_R) += J_r.transpose() * J_r;
+
+
+    //
+    // Update b:
+    //
+    // a. b_m:
+    b_.block<15,  1>(INDEX_M,       0) += J_m.transpose() * residuals;
+    // a. b_r:
+    b_.block<15,  1>(INDEX_R,       0) += J_r.transpose() * residuals;
   }
 
-  virtual bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const {		
+  void Marginalize(
+    const double *raw_param_r_0
+  ) {
+    // save x_m_0:
+    Eigen::Map<const Eigen::Matrix<double, 15, 1>> x_0(raw_param_r_0);
+    x_0_ = x_0;
+
+    // marginalize:
+    const Eigen::MatrixXd &H_mm = H_.block<15, 15>(INDEX_M, INDEX_M);
+    const Eigen::MatrixXd &H_mr = H_.block<15, 15>(INDEX_M, INDEX_R);
+    const Eigen::MatrixXd &H_rm = H_.block<15, 15>(INDEX_R, INDEX_M);
+    const Eigen::MatrixXd &H_rr = H_.block<15, 15>(INDEX_R, INDEX_R);
+
+    const Eigen::VectorXd &b_m = b_.block<15, 1>(INDEX_M, 0);
+    const Eigen::VectorXd &b_r = b_.block<15, 1>(INDEX_R, 0);
+
+    //
+    // TODO: shall we improve numeric stability following VIO/LIO-mapping's practice?
+    //
+    Eigen::MatrixXd H_mm_inv = H_mm.inverse();
+    Eigen::MatrixXd H_marginalized = H_rr - H_rm * H_mm_inv * H_mr;
+    Eigen::MatrixXd b_marginalized = b_r - H_rm * H_mm_inv * b_m;
+
+    //
+    // solve linearized residual & Jacobian:
+    // 
+    Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> saes(H_marginalized);
+    Eigen::VectorXd S = Eigen::VectorXd(
+      (saes.eigenvalues().array() > 1.0e-5).select(saes.eigenvalues().array(), 0)
+    );
+    Eigen::VectorXd S_inv = Eigen::VectorXd(
+      (saes.eigenvalues().array() > 1.0e-5).select(saes.eigenvalues().array().inverse(), 0)
+    );
+
+    Eigen::VectorXd S_sqrt = S.cwiseSqrt();
+    Eigen::VectorXd S_inv_sqrt = S_inv.cwiseSqrt();
+
+    // finally:
+    J_ = S_sqrt.asDiagonal() * saes.eigenvectors().transpose();
+    e_ = S_inv_sqrt.asDiagonal() * saes.eigenvectors().transpose() * b_marginalized;
+  }
+
+  virtual bool Evaluate(double const *const *parameters, double *residuals, double **jacobians) const {	
+    //
+    // parse parameters:
+    //
+    Eigen::Map<const Eigen::Matrix<double, 15, 1>> x(parameters[0]);
+    Eigen::VectorXd dx = x - x_0_;
+
+    //
+    // compute residual:
+    //
+    Eigen::Map<Eigen::Matrix<double, 15, 1>> residual(residuals);
+    residual = e_ + J_ * dx;
+
+    //
+    // compute jacobian:
+    //
+    if ( jacobians ) {
+      if ( jacobians[0] ) {
+        Eigen::Map<Eigen::Matrix<double, 15, 15, Eigen::RowMajor> > jacobian_marginalization( jacobians[0] );
+        jacobian_marginalization.setZero();
+
+        jacobian_marginalization = J_;
+      }
+    }
+
     return true;
   }
 
 private:
+  Eigen::MatrixXd H_;
+  Eigen::VectorXd b_;
+
+  Eigen::MatrixXd J_;
+  Eigen::VectorXd e_;
+
+  Eigen::VectorXd x_0_;
+
   struct ResidualBlockInfo {
     const ceres::CostFunction *residual = nullptr;
     std::vector<double *> parameter_blocks;
@@ -65,10 +219,6 @@ private:
       const std::vector<double *> &_parameter_blocks
     ) : residual(_residual), parameter_blocks(_parameter_blocks) {}
   };
-
-  ResidualBlockInfo res_map_matching_pose_;
-  ResidualBlockInfo res_relative_pose_;
-  ResidualBlockInfo res_imu_pre_integration_;
 
   static void Evaluate(
     ResidualBlockInfo &residual_info,

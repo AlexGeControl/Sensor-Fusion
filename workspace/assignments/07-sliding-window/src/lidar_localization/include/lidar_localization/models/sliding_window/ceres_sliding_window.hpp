@@ -41,6 +41,38 @@ public:
     static const int INDEX_A = 9;
     static const int INDEX_G = 12;
 
+    struct OptimizedKeyFrame {
+      double time;
+      double prvag[15];
+      bool fixed = false;
+    };
+    
+    struct ResidualMapMatchingPose {
+      int param_index;
+
+      Eigen::VectorXd m;
+      Eigen::MatrixXd I;
+    };
+
+    struct ResidualRelativePose {
+      int param_index_i;
+      int param_index_j;
+
+      Eigen::VectorXd m;
+      Eigen::MatrixXd I;
+    };
+
+    struct ResidualIMUPreIntegration {
+      int param_index_i;
+      int param_index_j;
+
+      double T;
+      Eigen::Vector3d g;
+      Eigen::VectorXd m;
+      Eigen::MatrixXd I;
+      Eigen::MatrixXd J;
+    };
+
     CeresSlidingWindow(const int N);
     ~CeresSlidingWindow();
 
@@ -132,43 +164,16 @@ private:
 
     // c. data buffer:
     // c.1. param blocks:
-    struct OptimizedKeyFrame {
-      double time;
-      double prvag[15];
-      bool fixed = false;
-    };
     std::vector<OptimizedKeyFrame> optimized_key_frames_;
 
     // c.2. residual blocks:
-    struct ResidualRelativePose {
-      int param_index_i;
-      int param_index_j;
-
-      Eigen::VectorXd m;
-      Eigen::MatrixXd I;
-    };
-
-    struct ResidualMapMatchingPose {
-      int param_index;
-
-      Eigen::VectorXd m;
-      Eigen::MatrixXd I;
-    };
-
-    struct ResidualIMUPreIntegration {
-      int param_index_i;
-      int param_index_j;
-
-      double T;
-      Eigen::Vector3d g;
-      Eigen::VectorXd m;
-      Eigen::MatrixXd I;
-      Eigen::MatrixXd J;
-    };
+    sliding_window::FactorPRVAGMapMatchingPose *GetResMapMatchingPose(const ResidualMapMatchingPose &res_map_matching_pose);
+    sliding_window::FactorPRVAGRelativePose *GetResRelativePose(const ResidualRelativePose &res_relative_pose);
+    sliding_window::FactorPRVAGIMUPreIntegration *GetResIMUPreIntegration(const ResidualIMUPreIntegration &res_imu_pre_integration);
 
     struct {
-      std::deque<ResidualRelativePose> relative_pose;
       std::deque<ResidualMapMatchingPose> map_matching_pose;
+      std::deque<ResidualRelativePose> relative_pose;
       std::deque<ResidualIMUPreIntegration> imu_pre_integration;
     } residual_blocks_;
 };
