@@ -12,7 +12,7 @@
 
 * [安装Ubuntu, Part 1](https://github.com/AlexGeControl/Sensor-Fusion/tree/master/ubuntu-setup#%E5%AE%89%E8%A3%85ubuntu)
 
-* [安装Ubuntu, 配置分区表]](https://github.com/AlexGeControl/Sensor-Fusion/tree/master/ubuntu-setup#%E5%88%9B%E5%BB%BA%E5%88%86%E5%8C%BA%E8%A1%A8)
+* [安装Ubuntu, 配置分区表](https://github.com/AlexGeControl/Sensor-Fusion/tree/master/ubuntu-setup#%E5%88%9B%E5%BB%BA%E5%88%86%E5%8C%BA%E8%A1%A8)
 
 * [安装Ubuntu, Part 2](https://github.com/AlexGeControl/Sensor-Fusion/tree/master/ubuntu-setup#%E5%AE%89%E8%A3%85ubuntu-1)
 
