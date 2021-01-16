@@ -6,7 +6,17 @@
 
 ## Contents
 
-TBD
+* [基础准备工作](https://github.com/AlexGeControl/Sensor-Fusion/tree/master/ubuntu-setup#%E5%9F%BA%E7%A1%80%E5%87%86%E5%A4%87%E5%B7%A5%E4%BD%9C)
+
+* [重新启动并配置BIOS](https://github.com/AlexGeControl/Sensor-Fusion/tree/master/ubuntu-setup#%E9%87%8D%E6%96%B0%E5%90%AF%E5%8A%A8-%E9%85%8D%E7%BD%AEbios)
+
+* [安装Ubuntu, Part 1](https://github.com/AlexGeControl/Sensor-Fusion/tree/master/ubuntu-setup#%E5%AE%89%E8%A3%85ubuntu)
+
+* [安装Ubuntu, 配置分区表]](https://github.com/AlexGeControl/Sensor-Fusion/tree/master/ubuntu-setup#%E5%88%9B%E5%BB%BA%E5%88%86%E5%8C%BA%E8%A1%A8)
+
+* [安装Ubuntu, Part 2](https://github.com/AlexGeControl/Sensor-Fusion/tree/master/ubuntu-setup#%E5%AE%89%E8%A3%85ubuntu-1)
+
+* [配置阿里云源](https://github.com/AlexGeControl/Sensor-Fusion/tree/master/ubuntu-setup#%E9%85%8D%E7%BD%AE%E9%98%BF%E9%87%8C%E4%BA%91%E6%BA%90)
 
 ---
 
